@@ -40,6 +40,12 @@ import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
 import { isFailedSession, restartDelay } from './speechRestart';
 import {
+  CaptionSwatch,
+  CaptionText,
+  ENGLISH_CAPTION_COLOR,
+  languageCaptionColor,
+} from './captionColors';
+import {
   isOnDeviceTranslationSupported,
   prepareOnDeviceSpeech,
   prepareOnDeviceTranslators,
@@ -1054,6 +1060,9 @@ export default function App() {
   const activeSubtitleLang = selectedLangs.includes(subtitleLang)
     ? subtitleLang
     : selectedLangs[0];
+  const subtitleCaptionColor = languageCaptionColor(
+    Math.max(0, selectedLangs.indexOf(activeSubtitleLang))
+  );
 
   const gridColsClass =
     selectedLangs.length === 1
@@ -1598,9 +1607,11 @@ export default function App() {
                   {currentSegment ? (
                     <p
                       style={{ fontSize: `${fontSize}px` }}
-                      className="font-bold text-[#0F172A] dark:text-[#F8FAFC] caption-text-ltr tracking-tight"
+                      className="font-bold caption-text-ltr tracking-tight"
                     >
-                      {currentSegment.english}
+                      <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
+                        {currentSegment.english}
+                      </CaptionText>
                     </p>
                   ) : (
                     !interimTranscript && (
@@ -1628,9 +1639,11 @@ export default function App() {
                       </span>
                       <p
                         style={{ fontSize: `${fontSize}px` }}
-                        className="font-semibold text-[#64748B] dark:text-[#94A3B8] italic caption-text-ltr"
+                        className="font-semibold italic opacity-70 caption-text-ltr"
                       >
-                        {interimTranscript}
+                        <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
+                          {interimTranscript}
+                        </CaptionText>
                       </p>
                     </div>
                   )}
@@ -1639,9 +1652,10 @@ export default function App() {
             </section>
 
             {/* Target Language Columns (up to 3) */}
-            {selectedLangs.map((code) => {
+            {selectedLangs.map((code, langIndex) => {
               const lang = LANGUAGE_MAP[code];
               const isRtl = lang.dir === 'rtl';
+              const captionColor = languageCaptionColor(langIndex);
               const prevText = previousSegment?.translations[code];
               const currText = currentSegment?.translations[code];
               const isTranslating =
@@ -1656,7 +1670,8 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E2E8F0] dark:border-[#1E293B]">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-base font-bold tracking-tight text-[#0284C7] dark:text-[#38BDF8]">
+                      <CaptionSwatch color={captionColor} />
+                      <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
                         {lang.name}
                       </span>
                       <span
@@ -1728,11 +1743,13 @@ export default function App() {
                         ) : (
                           <p
                             style={{ fontSize: `${fontSize}px` }}
-                            className={`font-bold text-[#0F172A] dark:text-[#F8FAFC] tracking-tight ${
+                            className={`font-bold tracking-tight ${
                               isRtl ? 'caption-text-rtl' : 'caption-text-ltr'
                             }`}
                           >
-                            {currText}
+                            <CaptionText color={captionColor} isDark={isDark}>
+                              {currText}
+                            </CaptionText>
                           </p>
                         )
                       ) : (
@@ -1748,11 +1765,13 @@ export default function App() {
                       {interimTranscript.trim().length > 0 && liveTranslations[code] && (
                         <p
                           style={{ fontSize: `${fontSize}px` }}
-                          className={`pt-4 font-semibold text-[#64748B] dark:text-[#94A3B8] italic ${
+                          className={`pt-4 font-semibold italic opacity-70 ${
                             isRtl ? 'caption-text-rtl' : 'caption-text-ltr'
                           }`}
                         >
-                          {liveTranslations[code]}
+                          <CaptionText color={captionColor} isDark={isDark}>
+                            {liveTranslations[code]}
+                          </CaptionText>
                         </p>
                       )}
                     </div>
@@ -1841,24 +1860,29 @@ export default function App() {
                   <p
                     style={{ fontSize: `${Math.max(20, Math.round(fontSize * 0.82))}px` }}
                     className={`font-semibold caption-text-ltr ${
-                      interimTranscript.trim().length > 0
-                        ? 'text-[#64748B] dark:text-[#94A3B8] italic'
-                        : 'text-[#0F172A] dark:text-[#F8FAFC]'
+                      interimTranscript.trim().length > 0 ? 'italic opacity-70' : ''
                     }`}
                   >
-                    {interimTranscript.trim().length > 0
-                      ? interimTranscript
-                      : currentSegment?.english ||
-                        (isListening
+                    {interimTranscript.trim().length > 0 || currentSegment ? (
+                      <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
+                        {interimTranscript.trim().length > 0
+                          ? interimTranscript
+                          : currentSegment?.english}
+                      </CaptionText>
+                    ) : (
+                      <span className="text-[#64748B] dark:text-[#94A3B8]">
+                        {isListening
                           ? 'Listening for teacher speech…'
-                          : 'Press Start Listening (or Spacebar) to show live subtitles.')}
+                          : 'Press Start Listening (or Spacebar) to show live subtitles.'}
+                      </span>
+                    )}
                   </p>
                 </div>
 
                 {/* Target Language Switcher when >1 language is checked */}
                 {selectedLangs.length > 1 && (
                   <div className="flex items-center gap-1 p-1 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] shrink-0">
-                    {selectedLangs.map((code) => {
+                    {selectedLangs.map((code, langIndex) => {
                       const cfg = LANGUAGE_MAP[code];
                       const active = code === activeSubtitleLang;
                       return (
@@ -1866,12 +1890,13 @@ export default function App() {
                           key={code}
                           type="button"
                           onClick={() => setSubtitleLang(code)}
-                          className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${
                             active
                               ? 'bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950'
                               : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
                           }`}
                         >
+                          <CaptionSwatch color={languageCaptionColor(langIndex)} />
                           {cfg.name}
                         </button>
                       );
@@ -1889,13 +1914,15 @@ export default function App() {
                 liveTranslations[activeSubtitleLang] ? (
                   <p
                     style={{ fontSize: `${fontSize}px` }}
-                    className={`font-bold italic text-[#64748B] dark:text-[#94A3B8] ${
+                    className={`font-bold italic opacity-70 ${
                       LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl'
                         ? 'caption-text-rtl'
                         : 'caption-text-ltr'
                     }`}
                   >
-                    {liveTranslations[activeSubtitleLang]}
+                    <CaptionText color={subtitleCaptionColor} isDark={isDark}>
+                      {liveTranslations[activeSubtitleLang]}
+                    </CaptionText>
                   </p>
                 ) : currentSegment ? (
                   currentSegment.status === 'translating' &&
@@ -1917,13 +1944,15 @@ export default function App() {
                   ) : (
                     <p
                       style={{ fontSize: `${fontSize}px` }}
-                      className={`font-bold text-[#0284C7] dark:text-[#38BDF8] ${
+                      className={`font-bold ${
                         LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl'
                           ? 'caption-text-rtl'
                           : 'caption-text-ltr'
                       }`}
                     >
-                      {currentSegment.translations[activeSubtitleLang]}
+                      <CaptionText color={subtitleCaptionColor} isDark={isDark}>
+                        {currentSegment.translations[activeSubtitleLang]}
+                      </CaptionText>
                     </p>
                   )
                 ) : (
