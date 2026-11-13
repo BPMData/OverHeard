@@ -23,21 +23,21 @@ describe('buildProviderChain', () => {
     expect(buildProviderChain({})).toEqual(['gtx']);
   });
 
-  it('puts Google Cloud first when a key is set, with gtx as fallback', () => {
-    expect(buildProviderChain({ googleKey: 'k' })).toEqual(['google-cloud', 'gtx']);
+  it('keeps the free endpoint first even when a Cloud key is set', () => {
+    expect(buildProviderChain({ googleKey: 'k' })).toEqual(['gtx', 'google-cloud']);
   });
 
-  it('lets MT_PROVIDER=gtx go first and keeps Cloud as the fallback', () => {
-    expect(buildProviderChain({ googleKey: 'k', requested: 'gtx' })).toEqual([
-      'gtx',
+  it('lets MT_PROVIDER=google-cloud go first and keeps gtx as the fallback', () => {
+    expect(buildProviderChain({ googleKey: 'k', requested: 'google-cloud' })).toEqual([
       'google-cloud',
+      'gtx',
     ]);
   });
 
-  it('only adds Gemini as a last resort when it has a key', () => {
+  it('tries free, then Cloud, then Gemini as the last resort', () => {
     expect(buildProviderChain({ googleKey: 'k', geminiKey: 'g' })).toEqual([
-      'google-cloud',
       'gtx',
+      'google-cloud',
       'gemini',
     ]);
   });
@@ -45,8 +45,8 @@ describe('buildProviderChain', () => {
   it('ignores a requested provider that is unknown or unavailable', () => {
     expect(buildProviderChain({ requested: 'google-cloud' })).toEqual(['gtx']);
     expect(buildProviderChain({ googleKey: 'k', requested: 'deepl' })).toEqual([
-      'google-cloud',
       'gtx',
+      'google-cloud',
     ]);
   });
 });
@@ -152,6 +152,28 @@ describe('createMachineTranslator', () => {
       },
     };
   };
+
+  it('moves on and benches a provider that is too slow, but lets the last one finish', async () => {
+    const callProvider = vi.fn(async (provider: MtProvider) => {
+      if (provider === 'gtx') return new Promise<string>(() => {}); // never answers
+      if (provider === 'gemini') {
+        return new Promise<string>((resolve) => setTimeout(() => resolve('Hola (gemini)'), 60));
+      }
+      throw new ProviderError('server error', 500);
+    });
+    const translator = createMachineTranslator({
+      chain: ['gtx', 'google-cloud', 'gemini'],
+      callProvider,
+      timeoutMs: 20,
+      log: quietLog,
+    });
+    await expect(translator.translate('Hello', 'es')).resolves.toEqual({
+      translation: 'Hola (gemini)',
+      provider: 'gemini',
+    });
+    expect(translator.cooldowns().has('gtx')).toBe(true);
+    expect(translator.cooldowns().has('google-cloud')).toBe(false);
+  });
 
   it('returns the first provider that succeeds', async () => {
     const { translator } = setup(['google-cloud', 'gtx'], {

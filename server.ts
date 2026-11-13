@@ -84,13 +84,13 @@ function isRateLimited(
 // ---------------------------------------------------------------------------
 // Fast machine translation (the live caption path)
 // ---------------------------------------------------------------------------
-// Providers, tried in order until one succeeds:
-//   - google-cloud: Google Cloud Translation API (needs GOOGLE_TRANSLATE_API_KEY) — official.
-//   - gtx: the free, unofficial translate.googleapis.com endpoint Google Translate's
-//     web widget uses. No key, but undocumented and can be throttled or blocked.
-//   - gemini: minimal-thinking Gemini — slowest, last resort (needs GEMINI_API_KEY).
-// MT_PROVIDER picks the primary ("google-cloud" or "gtx"); the others become fallbacks.
-// Default primary: google-cloud when a key is set, otherwise gtx.
+// Providers, tried in this order until one succeeds:
+//   1. gtx: the free, unofficial translate.googleapis.com endpoint Google Translate's
+//      web widget uses. No key, but undocumented and can be throttled or blocked.
+//   2. google-cloud: Google Cloud Translation API (needs GOOGLE_TRANSLATE_API_KEY) — official, paid.
+//   3. gemini: minimal-thinking Gemini — slowest, last resort (needs GEMINI_API_KEY).
+// A provider that errors, hits a quota, or takes over 2.5 s is skipped; quota errors and
+// slow responses bench it for 10 minutes. MT_PROVIDER="google-cloud" moves Cloud to the front.
 const GOOGLE_TRANSLATE_API_KEY = process.env.GOOGLE_TRANSLATE_API_KEY?.trim();
 
 const MT_CHAIN = buildProviderChain({

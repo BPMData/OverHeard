@@ -15,9 +15,9 @@ export class ProviderError extends Error {
 }
 
 /**
- * Order to try providers in. MT_PROVIDER picks the primary ("google-cloud" or "gtx");
- * the others become fallbacks. Default primary: google-cloud when a key is set, otherwise gtx.
- * Gemini is only ever a last resort, and only when it has a key.
+ * Order to try providers in. Default: the free gtx endpoint first, then Google Cloud
+ * Translation (when it has a key), then Gemini (when it has a key) as the last resort.
+ * MT_PROVIDER can move "google-cloud" to the front; the others keep their order as fallbacks.
  */
 export function buildProviderChain(opts: {
   googleKey?: string;
@@ -25,8 +25,8 @@ export function buildProviderChain(opts: {
   requested?: string;
 }): MtProvider[] {
   const available: MtProvider[] = [
-    ...(opts.googleKey ? (['google-cloud'] as const) : []),
     'gtx',
+    ...(opts.googleKey ? (['google-cloud'] as const) : []),
     ...(opts.geminiKey ? (['gemini'] as const) : []),
   ];
   const requested = opts.requested?.trim();
@@ -93,8 +93,24 @@ export async function translateGtx(
   return out;
 }
 
-/** Errors that mean "this provider won't work for a while" (quota, rate limit, bad key). */
+/** A provider that took too long to answer. Treated like a quota error: it gets benched. */
+export class ProviderTimeoutError extends ProviderError {
+  constructor(provider: string, ms: number) {
+    super(`${provider} took longer than ${ms} ms`);
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, provider: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ProviderTimeoutError(provider, ms)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Errors that mean "this provider won't work for a while" (quota, rate limit, bad key, too slow). */
 export function isBenchingError(error: unknown): boolean {
+  if (error instanceof ProviderTimeoutError) return true;
   const status = error instanceof ProviderError ? error.status : undefined;
   const message = error instanceof Error ? error.message : '';
   return (
@@ -110,6 +126,11 @@ export interface MachineTranslatorOptions {
   callProvider: (provider: MtProvider, text: string, code: string) => Promise<string>;
   /** How long a benched provider is skipped. Default 10 minutes. */
   cooldownMs?: number;
+  /**
+   * How long to wait for a provider before moving on to the next one. Default 2.5 s.
+   * Not applied to the last provider tried, so the slow last resort (Gemini) can finish.
+   */
+  timeoutMs?: number;
   cacheMax?: number;
   now?: () => number;
   log?: Pick<Console, 'log' | 'warn'>;
@@ -130,6 +151,7 @@ export function createMachineTranslator({
   chain: defaultChain,
   callProvider,
   cooldownMs = 10 * 60_000,
+  timeoutMs = 2500,
   cacheMax = 5000,
   now = Date.now,
   log = console,
@@ -174,9 +196,11 @@ export function createMachineTranslator({
       const order = ready.length > 0 ? ready : chain;
 
       let lastError: unknown;
-      for (const provider of order) {
+      for (const [index, provider] of order.entries()) {
         try {
-          const translation = await callProvider(provider, text, code);
+          const call = callProvider(provider, text, code);
+          const isLast = index === order.length - 1;
+          const translation = await (isLast ? call : withTimeout(call, timeoutMs, provider));
           if (cooldownUntil.has(provider)) {
             cooldownUntil.delete(provider);
             log.log(`[translate] ${provider} is working again`);
@@ -187,9 +211,12 @@ export function createMachineTranslator({
           lastError = error;
           if (isBenchingError(error)) {
             if ((cooldownUntil.get(provider) ?? 0) <= start) {
-              const status = (error as ProviderError).status;
+              const reason =
+                error instanceof ProviderTimeoutError
+                  ? 'was too slow'
+                  : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
               log.warn(
-                `[translate] ${provider} returned ${status} (quota, rate limit or bad key); skipping it for ${
+                `[translate] ${provider} ${reason}; skipping it for ${
                   cooldownMs / 60_000
                 } min`
               );
