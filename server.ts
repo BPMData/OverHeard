@@ -108,15 +108,17 @@ const QUOTA_COOLDOWN_MS = 10 * 60_000;
 const providerCooldownUntil = new Map<MtProvider, number>();
 
 class ProviderError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number
-  ) {
+  readonly status?: number;
+  constructor(message: string, status?: number) {
     super(message);
+    this.status = status;
   }
 }
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-4-hydrogen';
+const GEMINI_THINKING_LEVEL = /gemini-4-/.test(GEMINI_MODEL)
+  ? ThinkingLevel.LOW
+  : ThinkingLevel.MINIMAL;
 
 // Gemini refinement replaces the fast MT text with a context-aware translation
 // once a sentence is final. It never delays the first caption.
@@ -200,7 +202,7 @@ async function translateGeminiSingle(text: string, code: string): Promise<string
     config: {
       systemInstruction:
         'You are a classroom interpreter. Natural, student-friendly, keep subject vocabulary accurate.',
-      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+      thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
     },
   });
   const out = (response.text ?? '').trim();
@@ -435,7 +437,7 @@ async function startServer() {
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
           responseMimeType: 'application/json',
           responseSchema,
         },
