@@ -2,7 +2,13 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Minus, Plus, X } from 'lucide-react';
 import { LANGUAGE_MAP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../constants';
-import { CaptionSegment, LanguageCode } from '../types';
+import { CaptionSegment, LanguageCode, PipLine } from '../types';
+
+/** Most caption lines the pop-out shows at once (e.g. English + 2 languages). */
+export const MAX_PIP_LINES = 3;
+
+/** Pop-out window height that fits `lineCount` caption lines plus the toolbar. */
+export const pipHeightFor = (lineCount: number): number => 110 + lineCount * 70;
 
 interface PipSubtitlePortalProps {
   pipWindow: Window | null;
@@ -13,11 +19,12 @@ interface PipSubtitlePortalProps {
   fontSize: number;
   onAdjustFont: (delta: number) => void;
   selectedLangs: LanguageCode[];
-  subtitleLang: LanguageCode;
-  onSelectSubtitleLang: (code: LanguageCode) => void;
+  /** Lines currently shown, in display order. */
+  visibleLines: PipLine[];
+  onToggleLine: (line: PipLine) => void;
   currentSegment: CaptionSegment | null;
   interimTranscript: string;
-  liveTranslation?: string;
+  liveTranslations: Record<string, string>;
 }
 
 export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
@@ -29,33 +36,36 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
   fontSize,
   onAdjustFont,
   selectedLangs,
-  subtitleLang,
-  onSelectSubtitleLang,
+  visibleLines,
+  onToggleLine,
   currentSegment,
   interimTranscript,
-  liveTranslation,
+  liveTranslations,
 }) => {
   if (!pipWindow) return null;
 
-  const activeLangCode = selectedLangs.includes(subtitleLang)
-    ? subtitleLang
-    : selectedLangs[0];
-  const langConfig = LANGUAGE_MAP[activeLangCode];
-
-  const englishLine =
-    interimTranscript.trim().length > 0
-      ? interimTranscript
-      : currentSegment?.english || '';
-
   const isSpeaking = interimTranscript.trim().length > 0;
-  const translationLine = isSpeaking && liveTranslation
-    ? liveTranslation
-    : currentSegment
-    ? currentSegment.translations[activeLangCode] ||
-      (currentSegment.status === 'translating' ? 'Translating…' : '')
-    : '';
+  const englishLine = isSpeaking
+    ? interimTranscript
+    : currentSegment?.english || '';
 
-  const pipFontSize = Math.max(20, Math.min(44, Math.round(fontSize * 0.85)));
+  const translationFor = (code: LanguageCode): string => {
+    if (isSpeaking && liveTranslations[code]) return liveTranslations[code];
+    if (!currentSegment) return '';
+    return (
+      currentSegment.translations[code] ||
+      (currentSegment.status === 'translating' ? 'Translating…' : '')
+    );
+  };
+
+  // Shrink text a little when three lines share the window
+  const baseFontSize = Math.max(20, Math.min(44, Math.round(fontSize * 0.85)));
+  const pipFontSize =
+    visibleLines.length >= 3 ? Math.round(baseFontSize * 0.8) : baseFontSize;
+  const translationCount = visibleLines.filter((l) => l !== 'en').length;
+  const atMax = visibleLines.length >= MAX_PIP_LINES;
+
+  const chipOptions: PipLine[] = ['en', ...selectedLangs];
 
   return createPortal(
     <div
@@ -100,23 +110,34 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
           </button>
         </div>
 
-        {/* Language Switcher if >1 active language */}
-        <div className="flex items-center gap-1.5">
-          {selectedLangs.map((code) => {
-            const cfg = LANGUAGE_MAP[code];
-            const active = code === activeLangCode;
+        {/* Line toggles: pick which lines (English and/or languages) to show, up to MAX_PIP_LINES */}
+        <div className="flex items-center gap-1.5" role="group" aria-label="Lines to show">
+          {chipOptions.map((line) => {
+            const shown = visibleLines.includes(line);
+            const label = line === 'en' ? 'English' : LANGUAGE_MAP[line].name;
+            const disabled =
+              (!shown && atMax) || (shown && visibleLines.length === 1);
             return (
               <button
-                key={code}
+                key={line}
                 type="button"
-                onClick={() => onSelectSubtitleLang(code)}
-                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${
-                  active
+                aria-pressed={shown}
+                disabled={disabled}
+                onClick={() => onToggleLine(line)}
+                title={
+                  !shown && atMax
+                    ? `Up to ${MAX_PIP_LINES} lines — hide one first`
+                    : shown
+                      ? `Hide ${label}`
+                      : `Show ${label}`
+                }
+                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+                  shown
                     ? 'bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950'
-                    : 'hover:bg-slate-200 dark:hover:bg-slate-800'
+                    : 'hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40'
                 }`}
               >
-                {cfg.name}
+                {label}
               </button>
             );
           })}
@@ -152,42 +173,70 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         </div>
       </div>
 
-      {/* Two-Line Live Subtitle Display */}
+      {/* Caption lines */}
       <div className="flex-1 flex flex-col justify-center px-5 py-3 gap-2 overflow-y-auto">
-        <div
-          style={{ fontSize: `${Math.round(pipFontSize * 0.82)}px` }}
-          className={`font-medium leading-snug ${
-            interimTranscript.trim().length > 0
-              ? 'text-slate-500 dark:text-[#94A3B8] italic'
-              : 'text-slate-700 dark:text-slate-200'
-          }`}
-        >
-          {englishLine || (
-            <span className="text-slate-400 dark:text-slate-600 text-base">
-              {isListening
-                ? 'Listening for teacher speech…'
-                : 'Press Start Mic to caption over your slides.'}
-            </span>
-          )}
-        </div>
+        {visibleLines.map((line) => {
+          if (line === 'en') {
+            return (
+              <div
+                key="en"
+                style={{ fontSize: `${Math.round(pipFontSize * 0.82)}px` }}
+                className={`font-medium leading-snug ${
+                  isSpeaking
+                    ? 'text-slate-500 dark:text-[#94A3B8] italic'
+                    : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {englishLine || (
+                  <span className="text-slate-400 dark:text-slate-600 text-base">
+                    {isListening
+                      ? 'Listening for teacher speech…'
+                      : 'Press Start Mic to caption over your slides.'}
+                  </span>
+                )}
+              </div>
+            );
+          }
 
-        <div
-          dir={langConfig.dir}
-          style={{ fontSize: `${pipFontSize}px` }}
-          className={`font-bold ${
-            langConfig.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
-          } ${
-            translationLine === 'translation unavailable'
-              ? 'text-amber-500 text-base font-normal italic'
-              : 'text-[#0284C7] dark:text-[#38BDF8]'
-          }`}
-        >
-          {translationLine || (
-            <span className="text-slate-400 dark:text-slate-600 text-sm font-normal">
-              {langConfig.name} translation appears here as sentences complete
-            </span>
-          )}
-        </div>
+          const cfg = LANGUAGE_MAP[line];
+          const text = translationFor(line);
+          const isLive = isSpeaking && Boolean(liveTranslations[line]);
+          return (
+            <div
+              key={line}
+              dir={cfg.dir}
+              className="flex items-baseline gap-2.5"
+            >
+              {/* Language tag only when several translations share the window */}
+              {translationCount > 1 && (
+                <span
+                  dir="ltr"
+                  className="shrink-0 text-[11px] font-mono font-semibold uppercase text-slate-400 dark:text-slate-500"
+                >
+                  {line}
+                </span>
+              )}
+              <div
+                style={{ fontSize: `${pipFontSize}px` }}
+                className={`font-bold leading-snug ${
+                  cfg.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
+                } ${
+                  text === 'translation unavailable'
+                    ? 'text-amber-500 text-base font-normal italic'
+                    : isLive
+                      ? 'text-[#0284C7]/80 dark:text-[#38BDF8]/80 italic'
+                      : 'text-[#0284C7] dark:text-[#38BDF8]'
+                }`}
+              >
+                {text || (
+                  <span className="text-slate-400 dark:text-slate-600 text-sm font-normal">
+                    {cfg.name} translation appears here as sentences complete
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>,
     pipWindow.document.body
