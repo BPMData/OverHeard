@@ -99,6 +99,25 @@ function formatTimestamp(date: Date = new Date()): string {
   return `${hh}:${mm}:${ss}`;
 }
 
+// Live translation tuning: send in-progress speech after a short pause, or every few new words
+const LIVE_INTERIM_TRANSLATION = true;
+const LIVE_DEBOUNCE_MS = 450;
+const LIVE_WORD_STEP = 6;
+const MT_CLIENT_CACHE_MAX = 2000;
+
+type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
+type MtPreference = 'auto' | MtProviderId;
+const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
+const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
+  auto: 'Auto',
+  'google-cloud': 'Google Cloud',
+  gtx: 'Free (unofficial)',
+  gemini: 'Gemini (slow)',
+};
+
+const wordCount = (text: string): number =>
+  text.trim().split(/\s+/).filter(Boolean).length;
+
 export default function App() {
   // Theme state (Dark mode default for projector legibility)
   const [isDark, setIsDark] = useState<boolean>(true);
@@ -150,11 +169,54 @@ export default function App() {
   const nextIdRef = useRef<number>(1);
   const selectedLangsRef = useRef<LanguageCode[]>(selectedLangs);
   const finalizedHistoryRef = useRef<string[]>([]);
-  const inFlightCountRef = useRef<number>(0);
-  const backlogBufferRef = useRef<{
-    texts: string[];
-    contextSnapshot: string[];
-  } | null>(null);
+
+  // Fast MT: in-flight + resolved translations keyed by `${lang}\u0000${text}`.
+  // Sharing promises means the final sentence reuses an interim request that's still running.
+  const mtCacheRef = useRef<Map<string, Promise<string>>>(new Map());
+  const refineEnabledRef = useRef<boolean>(false);
+
+  // Translator picker: 'auto' uses the server's default order; anything else goes first
+  const [mtPreference, setMtPreference] = useState<MtPreference>(() => {
+    try {
+      const saved = localStorage.getItem(MT_PREFERENCE_STORAGE_KEY);
+      if (saved && saved in MT_PROVIDER_LABELS) return saved as MtPreference;
+    } catch {
+      // Storage unavailable (private window, blocked site data)
+    }
+    return 'auto';
+  });
+  const mtPreferenceRef = useRef<MtPreference>(mtPreference);
+  const [availableProviders, setAvailableProviders] = useState<MtProviderId[]>([]);
+  const [lastUsedProvider, setLastUsedProvider] = useState<MtProviderId | null>(null);
+
+  useEffect(() => {
+    mtPreferenceRef.current = mtPreference;
+    try {
+      localStorage.setItem(MT_PREFERENCE_STORAGE_KEY, mtPreference);
+    } catch {
+      // Ignore storage failures; the choice still applies for this session
+    }
+  }, [mtPreference]);
+
+  // Live (interim) translation state
+  const [liveTranslations, setLiveTranslations] = useState<Record<string, string>>({});
+  const liveTimerRef = useRef<number | null>(null);
+  const liveSentTextRef = useRef<string>('');
+  const liveSeqRef = useRef<number>(0);
+  const liveClearedAtSeqRef = useRef<number>(0);
+  const liveAppliedSeqRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((r) => r.json())
+      .then((cfg: { refine?: boolean; providers?: MtProviderId[] }) => {
+        refineEnabledRef.current = Boolean(cfg.refine);
+        setAvailableProviders(Array.isArray(cfg.providers) ? cfg.providers : []);
+      })
+      .catch(() => {
+        refineEnabledRef.current = false;
+      });
+  }, []);
 
   useEffect(() => {
     selectedLangsRef.current = selectedLangs;
@@ -249,129 +311,184 @@ export default function App() {
     []
   );
 
-  // Dispatch a single segment ID to /api/translate and drain any merged backlog when a slot frees up
-  const dispatchSegmentTranslation = useCallback(
-    async (
-      segmentId: number,
-      englishText: string,
-      langsSnapshot: LanguageCode[],
-      contextSnapshot: string[]
-    ) => {
-      inFlightCountRef.current += 1;
+  // Fast single-language machine translation (deduped + cached, one quick retry)
+  const fetchMT = useCallback(
+    (text: string, lang: LanguageCode): Promise<string> => {
+      const preference = mtPreferenceRef.current;
+      const key = `${preference}\u0000${lang}\u0000${text}`;
+      const cache = mtCacheRef.current;
+      const existing = cache.get(key);
+      if (existing) return existing;
 
-      try {
-        const translations = await fetchTranslationWithRetry(
-          englishText,
-          langsSnapshot,
-          contextSnapshot
-        );
-
-        setSegments((prev) =>
-          prev.map((seg) =>
-            seg.id === segmentId
-              ? {
-                  ...seg,
-                  translations,
-                  status: 'done',
-                }
-              : seg
-          )
-        );
-      } catch {
-        const unavailableMap: Record<string, string> = {};
-        for (const code of langsSnapshot) {
-          unavailableMap[code] = 'translation unavailable';
+      const attempt = async (): Promise<string> => {
+        const res = await fetch('/api/mt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            lang,
+            ...(preference === 'auto' ? {} : { provider: preference }),
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as {
+          translation?: string;
+          provider?: MtProviderId | 'cache';
+        };
+        if (!data.translation) throw new Error('Missing translation');
+        if (data.provider && data.provider !== 'cache') {
+          setLastUsedProvider(data.provider);
         }
-        setSegments((prev) =>
-          prev.map((seg) =>
-            seg.id === segmentId
-              ? {
-                  ...seg,
-                  translations: unavailableMap,
-                  status: 'error',
-                }
-              : seg
-          )
-        );
-      } finally {
-        inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
+        return data.translation;
+      };
 
-        // Backlog guard drain: if phrases accumulated while >4 requests were in flight, flush merged request now
-        if (inFlightCountRef.current < 4 && backlogBufferRef.current) {
-          const buffered = backlogBufferRef.current;
-          backlogBufferRef.current = null;
-
-          const mergedEnglish = buffered.texts.join(' ').slice(0, 500);
-          const mergedId = nextIdRef.current++;
-          const activeLangs = [...selectedLangsRef.current];
-
-          const newSegment: CaptionSegment = {
-            id: mergedId,
-            timestamp: formatTimestamp(),
-            english: mergedEnglish,
-            translations: {},
-            status: 'translating',
-          };
-
-          setSegments((prev) => [...prev, newSegment]);
-          void dispatchSegmentTranslation(
-            mergedId,
-            mergedEnglish,
-            activeLangs,
-            buffered.contextSnapshot
-          );
-        }
+      const promise = attempt().catch(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        return attempt();
+      });
+      cache.set(key, promise);
+      promise.catch(() => cache.delete(key));
+      if (cache.size > MT_CLIENT_CACHE_MAX) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
       }
+      return promise;
     },
-    [fetchTranslationWithRetry]
+    []
   );
 
-  // Enqueue a finalized English phrase (concurrent dispatch + >4 in-flight backlog merge guard)
+  // Interim speech: translate the in-progress sentence so captions appear while the teacher is still talking
+  const clearLiveTranslation = useCallback(() => {
+    if (liveTimerRef.current !== null) {
+      window.clearTimeout(liveTimerRef.current);
+      liveTimerRef.current = null;
+    }
+    liveClearedAtSeqRef.current = liveSeqRef.current;
+    liveSentTextRef.current = '';
+    setLiveTranslations({});
+  }, []);
+
+  const sendLiveTranslation = useCallback(
+    (text: string) => {
+      liveSentTextRef.current = text;
+      const seq = ++liveSeqRef.current;
+      for (const code of selectedLangsRef.current) {
+        fetchMT(text, code)
+          .then((translation) => {
+            // Ignore stale responses and anything from before the last finalized sentence
+            if (seq <= liveClearedAtSeqRef.current) return;
+            if (seq < (liveAppliedSeqRef.current[code] ?? 0)) return;
+            liveAppliedSeqRef.current[code] = seq;
+            setLiveTranslations((prev) => ({ ...prev, [code]: translation }));
+          })
+          .catch(() => {
+            // Live captions are best-effort; the final sentence path reports errors
+          });
+      }
+    },
+    [fetchMT]
+  );
+
+  const scheduleLiveTranslation = useCallback(
+    (interim: string) => {
+      if (!LIVE_INTERIM_TRANSLATION) return;
+      const text = interim.trim();
+      if (!text || text === liveSentTextRef.current) return;
+      if (liveTimerRef.current !== null) {
+        window.clearTimeout(liveTimerRef.current);
+        liveTimerRef.current = null;
+      }
+      // Long run-on sentence: don't wait for a pause, send every few new words
+      if (wordCount(text) - wordCount(liveSentTextRef.current) >= LIVE_WORD_STEP) {
+        sendLiveTranslation(text);
+        return;
+      }
+      liveTimerRef.current = window.setTimeout(() => {
+        liveTimerRef.current = null;
+        sendLiveTranslation(text);
+      }, LIVE_DEBOUNCE_MS);
+    },
+    [sendLiveTranslation]
+  );
+
+  // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands),
+  // then an optional Gemini pass quietly upgrades the text with context.
   const handleFinalizedPhrase = useCallback(
     (rawPhrase: string) => {
-      const cleaned = rawPhrase.trim();
-      if (!cleaned) return;
+      const phrase = rawPhrase.trim().slice(0, 500);
+      if (!phrase) return;
 
-      const phrase = cleaned.slice(0, 500);
       const contextSnapshot = finalizedHistoryRef.current.slice(-2);
       finalizedHistoryRef.current = [
         ...finalizedHistoryRef.current.slice(-20),
         phrase,
       ];
 
-      // Backlog guard: if 4 or more requests are already in flight, merge newly finalized phrases into one request
-      if (inFlightCountRef.current >= 4) {
-        if (backlogBufferRef.current) {
-          backlogBufferRef.current.texts.push(phrase);
-        } else {
-          backlogBufferRef.current = {
-            texts: [phrase],
-            contextSnapshot,
-          };
-        }
-        return;
-      }
-
       const segmentId = nextIdRef.current++;
-      const langsSnapshot = [...selectedLangsRef.current];
+      const langs = [...selectedLangsRef.current];
 
-      const newSegment: CaptionSegment = {
-        id: segmentId,
-        timestamp: formatTimestamp(),
-        english: phrase,
-        translations: {},
-        status: 'translating',
-      };
+      setSegments((prev) => [
+        ...prev,
+        {
+          id: segmentId,
+          timestamp: formatTimestamp(),
+          english: phrase,
+          translations: {},
+          status: 'translating',
+        },
+      ]);
 
-      setSegments((prev) => [...prev, newSegment]);
-      void dispatchSegmentTranslation(
-        segmentId,
-        phrase,
-        langsSnapshot,
-        contextSnapshot
+      const patch = (fn: (seg: CaptionSegment) => CaptionSegment) =>
+        setSegments((prev) =>
+          prev.map((seg) => (seg.id === segmentId ? fn(seg) : seg))
+        );
+
+      let failures = 0;
+      const mtJobs = langs.map((code) =>
+        fetchMT(phrase, code).then(
+          (translation) =>
+            patch((seg) => ({
+              ...seg,
+              translations: { ...seg.translations, [code]: translation },
+            })),
+          () => {
+            failures += 1;
+            patch((seg) => ({
+              ...seg,
+              translations: {
+                ...seg.translations,
+                [code]: 'translation unavailable',
+              },
+            }));
+          }
+        )
       );
+
+      // Start refinement immediately, but only apply it after the fast results so it can't be overwritten
+      const refineJob = refineEnabledRef.current
+        ? fetchTranslationWithRetry(phrase, langs, contextSnapshot).catch(
+            () => null
+          )
+        : Promise.resolve(null);
+
+      void Promise.all(mtJobs).then(async () => {
+        patch((seg) => ({
+          ...seg,
+          status: failures === langs.length ? 'error' : 'done',
+        }));
+        const refined = await refineJob;
+        if (!refined) return;
+        patch((seg) => {
+          const merged = { ...seg.translations };
+          for (const code of langs) {
+            const value = refined[code];
+            if (value && value !== 'translation unavailable') merged[code] = value;
+          }
+          return { ...seg, translations: merged, status: 'done' };
+        });
+      });
     },
-    [dispatchSegmentTranslation]
+    [fetchMT, fetchTranslationWithRetry]
   );
 
   // Start / Stop Web Speech API with Chrome Keep-Alive Loop
@@ -406,12 +523,14 @@ export default function App() {
           const transcriptText = result[0]?.transcript || '';
           if (result.isFinal) {
             setInterimTranscript('');
+            clearLiveTranslation();
             handleFinalizedPhrase(transcriptText);
           } else {
             interim += transcriptText;
           }
         }
         setInterimTranscript(interim);
+        scheduleLiveTranslation(interim);
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -461,12 +580,13 @@ export default function App() {
       // Ignore InvalidStateError if already running
       setIsListening(true);
     }
-  }, [handleFinalizedPhrase]);
+  }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation]);
 
   const stopListening = useCallback(() => {
     userStoppedRef.current = true;
     setIsListening(false);
     setInterimTranscript('');
+    clearLiveTranslation();
     setSpeechStatusNotice(null);
     if (recognitionRef.current) {
       try {
@@ -475,7 +595,7 @@ export default function App() {
         // Ignore stop errors
       }
     }
-  }, []);
+  }, [clearLiveTranslation]);
 
   const toggleListening = useCallback(() => {
     if (isListening) {
@@ -656,7 +776,7 @@ export default function App() {
     setSegments([]);
     setInterimTranscript('');
     finalizedHistoryRef.current = [];
-    backlogBufferRef.current = null;
+    clearLiveTranslation();
     setConfirmClear(false);
   };
 
@@ -668,7 +788,7 @@ export default function App() {
     setManualInput('');
   };
 
-  // Burst test (5 rapid sentences to test concurrent in-order slots + >4 in-flight backlog guard)
+  // Burst test (5 rapid sentences to exercise parallel per-language translation)
   const handleBurstTest = () => {
     const burstSentences = [
       'Good morning class, today we are studying the water cycle.',
@@ -930,6 +1050,48 @@ export default function App() {
                 ({selectedLangs.join(', ')})
               </span>
             </button>
+
+            {/* Translator Picker (live caption provider) */}
+            <label
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
+              title={
+                lastUsedProvider
+                  ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
+                  : 'Which translator powers live captions. Others are used as automatic fallbacks.'
+              }
+            >
+              <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
+              <select
+                value={
+                  mtPreference !== 'auto' &&
+                  availableProviders.length > 0 &&
+                  !availableProviders.includes(mtPreference)
+                    ? 'auto'
+                    : mtPreference
+                }
+                onChange={(e) => setMtPreference(e.target.value as MtPreference)}
+                className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
+              >
+                <option value="auto">
+                  Auto
+                  {availableProviders[0]
+                    ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
+                    : ''}
+                </option>
+                {availableProviders.map((p) => (
+                  <option key={p} value={p}>
+                    {MT_PROVIDER_LABELS[p]}
+                  </option>
+                ))}
+              </select>
+              {lastUsedProvider &&
+                mtPreference !== 'auto' &&
+                lastUsedProvider !== mtPreference && (
+                  <span className="text-amber-600 dark:text-amber-400 font-mono">
+                    ↪ {MT_PROVIDER_LABELS[lastUsedProvider]}
+                  </span>
+                )}
+            </label>
 
             {/* Silent Test Input Bar Toggle */}
             <button
@@ -1266,6 +1428,18 @@ export default function App() {
                           {lang.name} translation will appear here as each sentence completes.
                         </p>
                       )}
+
+                      {/* Live translation of in-progress speech (dimmed, mirrors English interim) */}
+                      {interimTranscript.trim().length > 0 && liveTranslations[code] && (
+                        <p
+                          style={{ fontSize: `${fontSize}px` }}
+                          className={`pt-4 font-semibold text-[#64748B] dark:text-[#94A3B8] italic ${
+                            isRtl ? 'caption-text-rtl' : 'caption-text-ltr'
+                          }`}
+                        >
+                          {liveTranslations[code]}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -1396,7 +1570,19 @@ export default function App() {
                 dir={LANGUAGE_MAP[activeSubtitleLang].dir}
                 className="border-t border-[#E2E8F0] dark:border-[#1E293B] pt-2"
               >
-                {currentSegment ? (
+                {interimTranscript.trim().length > 0 &&
+                liveTranslations[activeSubtitleLang] ? (
+                  <p
+                    style={{ fontSize: `${fontSize}px` }}
+                    className={`font-bold italic text-[#64748B] dark:text-[#94A3B8] ${
+                      LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl'
+                        ? 'caption-text-rtl'
+                        : 'caption-text-ltr'
+                    }`}
+                  >
+                    {liveTranslations[activeSubtitleLang]}
+                  </p>
+                ) : currentSegment ? (
                   currentSegment.status === 'translating' &&
                   !currentSegment.translations[activeSubtitleLang] ? (
                     <p
@@ -1471,6 +1657,7 @@ export default function App() {
         onSelectSubtitleLang={setSubtitleLang}
         currentSegment={currentSegment}
         interimTranscript={interimTranscript}
+        liveTranslation={liveTranslations[activeSubtitleLang]}
       />
     </div>
   );

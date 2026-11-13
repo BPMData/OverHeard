@@ -17,6 +17,7 @@ interface PipSubtitlePortalProps {
   onSelectSubtitleLang: (code: LanguageCode) => void;
   currentSegment: CaptionSegment | null;
   interimTranscript: string;
+  liveTranslation?: string;
 }
 
 export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
@@ -32,6 +33,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
   onSelectSubtitleLang,
   currentSegment,
   interimTranscript,
+  liveTranslation,
 }) => {
   if (!pipWindow) return null;
 
@@ -45,7 +47,10 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
       ? interimTranscript
       : currentSegment?.english || '';
 
-  const translationLine = currentSegment
+  const isSpeaking = interimTranscript.trim().length > 0;
+  const translationLine = isSpeaking && liveTranslation
+    ? liveTranslation
+    : currentSegment
     ? currentSegment.translations[activeLangCode] ||
       (currentSegment.status === 'translating' ? 'Translating…' : '')
     : '';
