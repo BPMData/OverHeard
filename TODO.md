@@ -32,13 +32,24 @@ Example: the teacher (English) talks with a student (Spanish).
 **English ↔ English must be supported.** Both sides are English and nothing is translated, so
 it works as a two-way live captioner with names on each side. Intended use: talking with a
 deaf or hard-of-hearing relative, who reads what the other person says and replies by
-speaking or typing.
+speaking.
+
+**It must work hands-free.** After someone stops talking, the app switches to listening for
+the other person on its own. The deaf/elderly user must never have to press anything. The
+person running the app learns to leave a few seconds of silence at the end of each turn.
+
+**Layout:** the conversation thread fills the screen, like a full-screen chat app. Unlike
+the column view, nothing ever times out or disappears. The whole conversation stays
+scrollable, so anyone can scroll back up to reread earlier messages at any time.
 
 ### 1.2 Requirements
 
 **Sides and names**
 - There are exactly two sides, **A** (left, normally the teacher) and **B** (right).
-- Each side has an editable **display name**. Defaults: `"Me"` and `"Student"`.
+- Each side has a **display name** that the user types into a text field in a small
+  settings bar above the thread, for example "Mr. Murphy" / "Students" or
+  "Bryan" / "Grandpa". Defaults: `"Me"` and `"Student"`. The name labels that side's
+  bubbles, turn button and "Listening for…" indicator.
 - Each side has a **language**: English (`en`) plus every language in `SUPPORTED_LANGUAGES`
   (`src/constants.ts`). Defaults: A = `en`, B = the first language in the current `?langs=`
   selection, or `es` if there is none.
@@ -46,42 +57,53 @@ speaking or typing.
   the text only, with no "original" line.
 - Names and languages must persist across reloads in `localStorage` under the key
   `overheard.conversation`. Store
-  `{ a: { name, lang }, b: { name, lang }, autoSendMs, readAloud }`. Wrap every read and
+  `{ a: { name, lang }, b: { name, lang }, switchAfterMs, readAloud }`. Wrap every read and
   write in try/catch; the app must work if storage is blocked.
 
-**Taking turns (speech)**
-- The Web Speech API can't detect which language is being spoken, and one recognizer
-  listens for one language at a time. So turns are explicit.
-- Each side has a large **talk button** labeled with the side's name, for example
-  "🎙 Maria — tap to talk". Keyboard: **Left Shift** toggles side A and **Right Shift**
-  toggles side B. Ignore shortcuts while focus is in an `<input>`, `<textarea>` or `<select>`.
-- Pressing a side's button:
-  1. Stops any active turn. Call `abort()` on the recognizer; the other side's draft is
-     sent as-is if it has text.
-  2. Sets `recognition.lang` to that side's speech locale (see 1.4).
-  3. Calls `recognition.start()` with `continuous = true` and `interimResults = true`.
-  4. Marks that side as **speaking**: pulsing border on its button, plus a "typing" bubble
-     on the *listener's* side that shows the interim text live.
-- Final results are appended, space-separated, to the speaker's **draft**.
-- The draft is **sent** when any of these happens:
-  - The speaker taps their button again ("Done").
-  - The other side taps theirs.
-  - `autoSendMs` passes with no new results. Default 1500 ms; a setting offers Off,
-    1 s, 1.5 s, 2.5 s and 4 s. Off means manual send only.
-- After sending, the recognizer **stops**. Unlike the caption modes, conversation mode must
-  **not** keep restarting the recognizer when a turn isn't active. It listens only during a
-  turn.
-- While a turn is active, keep the existing restart behavior if Chrome ends recognition
-  mid-turn: restart, using the backoff in `src/speechRestart.ts`.
+**Taking turns: automatic, hands-free**
+- The Web Speech API can't tell *who* is speaking or which language is being spoken, and
+  one recognizer listens for one language at a time. So the app keeps track of whose turn
+  it is and switches turns automatically after silence.
+- A single **Start conversation** / **Stop conversation** button controls everything. Start
+  begins listening for side A (whoever is set as the starting speaker; default A).
+- **The turn loop:**
+  1. Set `recognition.lang` to the current speaker's locale (see 1.4) and call `start()`
+     with `continuous = true` and `interimResults = true`.
+  2. While they talk, show their words live in a "typing" bubble on their side of the
+     thread.
+  3. Final results are appended, space-separated, to the speaker's **draft**.
+  4. Once the speaker has said something, a silence lasting `switchAfterMs` sends the
+     draft. Silence is measured from the last result of any kind, interim or final, so a
+     long word or slow phrase doesn't count as silence. The default is 2500 ms; a setting
+     offers 1.5 s, 2.5 s, 3.5 s and 5 s.
+  5. Sending stops the recognizer and immediately starts step 1 for the **other** side.
+- **Waiting for a reply never times out.** If the current side hasn't said anything yet,
+  keep listening indefinitely. Treat Chrome's `no-speech` error and `onend` as "restart and
+  keep waiting", using the backoff in `src/speechRestart.ts`. Grandpa may take a while to
+  answer, and the app must still be listening when he does.
+- A clear **"Listening for {name}…"** indicator shows whose turn it is: a large pulsing
+  label in that side's color at the bottom of the screen.
+- **Manual overrides** for the person running the app (never required):
+  - Each side has a small **"{name}'s turn"** button that switches the turn immediately,
+    sending any current draft first.
+  - **Left Shift** = A's turn, **Right Shift** = B's turn. Ignore these while focus is in an
+    `<input>`, `<textarea>` or `<select>`.
+  - Use these when the same person wants to say two things in a row, or the app switched
+    too early.
+- **Known limitation, show in the UI help text:** the speaker is decided by whose turn it
+  is, not by voice. If both people talk at once, or the wrong person answers, the bubble
+  lands on the wrong side. Each bubble gets a small **⇄** button that moves it to the other
+  side. If the languages differ, it is re-translated in the other direction.
 - Errors:
-  - `not-allowed`: show the existing microphone-permission banner.
-  - `language-not-supported`: end the turn and show "Speech recognition doesn't support
-    {language} in this browser — type instead". Focus that side's text box.
-  - `no-speech`: end the turn quietly and send nothing.
+  - `not-allowed`: show the existing microphone-permission banner and stop the
+    conversation.
+  - `language-not-supported`: stop the conversation and show "Speech recognition doesn't
+    support {language} in this browser."
 
-**Typing (needed for the deaf / hard-of-hearing use case)**
-- Each side has a single-line text box with a **Send** button. Enter sends; Shift+Enter
-  inserts a newline. A typed message is translated and shown exactly like a spoken one.
+**Typing (secondary, for when speech can't be used)**
+- A collapsed "Type a message" row under the thread. When opened, it shows a text box and a
+  sender picker (A or B). Enter sends. Typed messages are translated and shown exactly like
+  spoken ones. Typing doesn't change whose turn it is.
 
 **Message bubbles**
 - Thread layout: side A's messages are left-aligned and side B's are right-aligned, like a
@@ -98,9 +120,17 @@ speaking or typing.
   - On failure: the original large, plus a small amber "translation unavailable" note.
 - Right-to-left languages (`ar`, `prs`, `ps`) must render their text with `dir="rtl"`, using
   `LANGUAGE_MAP[code].dir`.
+- **Nothing is ever removed automatically.** Keep every message for the whole session, and
+  keep the thread scrollable all the way back to the first message.
 - The thread auto-scrolls to the newest message unless the user has scrolled up. In that
-  case show a "↓ New message" pill that scrolls down when clicked.
-- A **Clear conversation** button asks for confirmation, then empties the thread.
+  case show a "↓ New message" pill that scrolls down when clicked. Scrolling back down to
+  the bottom resumes auto-scroll.
+- Conversation mode is full-screen: the thread fills the window. Only a thin settings bar
+  (names, languages, switch delay, Start/Stop, Clear, Export, Exit) sits above it, and the
+  "Listening for…" indicator and collapsed typing row sit below it. Use the browser's
+  Fullscreen API with a **Full screen** button, and exit cleanly on Esc.
+- A **Clear conversation** button asks for confirmation, then empties the thread. This is
+  the only way messages are removed.
 - **Export:** a download button saves the conversation as CSV (UTF-8 with BOM, same as the
   existing transcript export). Columns: timestamp, sender name, original language, original
   text, translated language, translated text.
@@ -108,10 +138,8 @@ speaking or typing.
 **Optional, only once everything above works**
 - **Read aloud:** a toggle that speaks each received message in the listener's language with
   `speechSynthesis`, picking a voice whose `lang` starts with the target language code.
-  Mute the speaker's own recognizer while it talks, so it doesn't caption itself.
-- **Face-to-face layout:** a toggle that splits the screen top and bottom, with the top half
-  rotated 180°. Two people facing each other across a desk can then each read their own
-  side of a laptop or tablet lying flat between them.
+  Pause the recognizer while the voice is speaking, so the app doesn't caption itself or
+  count its own voice as the next speaker. Off by default.
 
 ### 1.3 Where it lives in the code
 
@@ -127,7 +155,7 @@ speaking or typing.
   - `src/components/ConversationMode.tsx`: the whole UI. Receives `fontSize`, `isDark`
     and the translate function as props.
   - `src/conversation/useConversationSpeech.ts`: a hook that owns its own
-    `SpeechRecognition` instance, the turn state, drafts, the auto-send timer and error
+    `SpeechRecognition` instance, the turn loop, drafts, the silence timer and error
     handling.
   - `src/conversation/state.ts`: pure functions and a reducer for messages and turns, so
     they can be unit tested without a browser.
@@ -187,7 +215,8 @@ Every translator currently assumes English is the source language. Generalize it
     `{ sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(target) }`.
   - Make the same change to `translateOnDevice` and `prepareOnDeviceTranslators`.
   - In conversation mode with "On this device" selected, prepare both directions
-    (A→B and B→A) when the user taps a talk button, since downloads need a user gesture.
+    (A→B and B→A) when the user presses **Start conversation**, since downloads need a user
+    gesture.
   - On-device **speech** in conversation mode: call
     `prepareOnDeviceSpeech(locale)` for the speaking side's locale at the start of each
     turn, and set `recognition.processLocally` from the result. Fall back to cloud speech,
@@ -202,8 +231,12 @@ Every translator currently assumes English is the source language. Generalize it
 - `src/conversation/state.test.ts`:
   - Appending final results to a draft.
   - Sending a draft creates a message with the correct side, languages and status.
-  - Switching sides sends the other side's draft.
-  - An empty draft sends nothing.
+  - Switching turns manually sends the current speaker's draft first.
+  - An empty draft sends nothing and doesn't switch turns.
+  - With fake timers: after a result, `switchAfterMs` of silence sends the draft and moves
+    the turn to the other side. An interim result inside the window resets the timer.
+  - With fake timers: with no speech at all, the turn never switches, however long it waits.
+  - ⇄ moves a message to the other side and swaps its languages.
   - Same-language messages need no translation.
 - `src/conversation/locales.test.ts`: the mapping table and the fallback to the bare code.
 - `server/mt.test.ts`:
@@ -225,8 +258,15 @@ Every translator currently assumes English is the source language. Generalize it
       the teacher's side.
 - [ ] English ↔ English with custom names ("Bryan" / "Grandpa"): bubbles show plain captions,
       no "original" line, no translation calls (check the Network tab).
-- [ ] Typing a message works for both sides.
-- [ ] Auto-send after a pause works, and so does tapping the button again.
+- [ ] Hands-free: press Start once, then take turns talking with about 3 s pauses. Turns
+      alternate A → B → A with no button presses.
+- [ ] The second person can wait 30+ seconds before answering, and their reply is still
+      captioned on their side.
+- [ ] The manual "{name}'s turn" buttons and Shift keys override the turn.
+- [ ] ⇄ moves a misattributed bubble to the other side.
+- [ ] After 50+ messages, you can scroll back to the first one, and nothing has been removed.
+- [ ] The Full screen button works, and Esc exits.
+- [ ] Typing a message (collapsed row) works for both sides.
 - [ ] Names and languages survive a page reload.
 - [ ] Arabic messages render right-to-left.
 - [ ] Light mode shows the black caption highlight; dark mode doesn't.
@@ -237,7 +277,15 @@ Every translator currently assumes English is the source language. Generalize it
 
 ---
 
-## 2. Rework the column view for the "laptop on the desk" use case
+## 2. Later: face-to-face layout for a tablet
+
+Pinned until OverHeard is used on a tablet. In conversation mode, split the screen top and
+bottom and rotate the top half 180°. Two people facing each other across a tablet lying flat
+can then each read their own side of the conversation right way up.
+
+---
+
+## 3. Rework the column view for the "laptop on the desk" use case
 
 Not specified yet. Starting points: readable from across a desk at a slight angle, less
 chrome around the captions, and possibly a one-language-at-a-time layout for a single
