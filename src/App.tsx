@@ -36,6 +36,8 @@ import {
 } from './constants';
 import { CaptionSegment, DisplayMode, LanguageCode, PipLine } from './types';
 import { LanguageModal } from './components/LanguageModal';
+import { shouldSendImmediately } from './liveTranslation';
+import { togglePipLine, visiblePipLines as getVisiblePipLines } from './pipLines';
 import { AboutModal } from './components/AboutModal';
 import {
   MAX_PIP_LINES,
@@ -120,9 +122,6 @@ const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   gtx: 'Free (unofficial)',
   gemini: 'Gemini (slow)',
 };
-
-const wordCount = (text: string): number =>
-  text.trim().split(/\s+/).filter(Boolean).length;
 
 export default function App() {
   // Theme state (Dark mode default for projector legibility)
@@ -424,7 +423,7 @@ export default function App() {
         liveTimerRef.current = null;
       }
       // Long run-on sentence: don't wait for a pause, send every few new words
-      if (wordCount(text) - wordCount(liveSentTextRef.current) >= LIVE_WORD_STEP) {
+      if (shouldSendImmediately(text, liveSentTextRef.current, LIVE_WORD_STEP)) {
         sendLiveTranslation(text);
         return;
       }
@@ -864,22 +863,11 @@ export default function App() {
       : mtPreference;
 
   // Pop-out lines: keep only English + languages still selected, in on-screen order
-  const pipLineOrder: PipLine[] = ['en', ...selectedLangs];
-  const filteredPipLines = pipLineOrder.filter((line) => pipLines.includes(line));
-  const visiblePipLines: PipLine[] =
-    filteredPipLines.length > 0
-      ? filteredPipLines.slice(0, MAX_PIP_LINES)
-      : pipLineOrder.slice(0, MAX_PIP_LINES);
+  const visiblePipLines = getVisiblePipLines(pipLines, selectedLangs, MAX_PIP_LINES);
 
   const handleTogglePipLine = (line: PipLine) => {
-    let next: PipLine[];
-    if (visiblePipLines.includes(line)) {
-      if (visiblePipLines.length === 1) return; // always show at least one line
-      next = visiblePipLines.filter((l) => l !== line);
-    } else {
-      if (visiblePipLines.length >= MAX_PIP_LINES) return;
-      next = pipLineOrder.filter((l) => l === line || visiblePipLines.includes(l));
-    }
+    const next = togglePipLine(visiblePipLines, line, selectedLangs, MAX_PIP_LINES);
+    if (!next) return;
     // Never resize the window here: the user may have shaped it (wide strip, tall column…)
     // and the caption lines already re-share whatever space it has.
     setPipLines(next);
