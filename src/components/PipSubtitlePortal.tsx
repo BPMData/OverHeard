@@ -7,8 +7,12 @@ import { CaptionSegment, LanguageCode, PipLine } from '../types';
 /** Most caption lines the pop-out shows at once (e.g. English + 2 languages). */
 export const MAX_PIP_LINES = 3;
 
-/** Pop-out window height that fits `lineCount` caption lines plus the toolbar. */
-export const pipHeightFor = (lineCount: number): number => 110 + lineCount * 70;
+/**
+ * Default pop-out height for a fresh window: a compact subtitle strip.
+ * The toolbar overlays the captions on hover, so it takes no space of its own.
+ * Users can drag the window to any shape; we never force a size afterwards.
+ */
+export const pipHeightFor = (lineCount: number): number => 24 + lineCount * 68;
 
 interface PipSubtitlePortalProps {
   pipWindow: Window | null;
@@ -69,15 +73,16 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
 
   return createPortal(
     <div
-      className={`h-screen w-screen flex flex-col justify-between select-none overflow-hidden ${
+      className={`group relative h-screen w-screen flex flex-col select-none overflow-hidden ${
         isDark
           ? 'bg-[#090D16] text-[#F8FAFC]'
           : 'bg-[#F8FAFC] text-[#0F172A]'
       }`}
     >
-      {/* Compact Floating Toolbar */}
+      {/* Floating toolbar: hidden until the pointer is over the window (or a control has keyboard focus),
+          so the captions get the whole window. Wraps instead of overflowing in narrow/tall windows. */}
       <div
-        className={`flex items-center justify-between gap-3 px-4 py-2 border-b text-xs ${
+        className={`absolute inset-x-0 top-0 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2 border-b text-xs shadow-lg transition-opacity duration-150 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto ${
           isDark
             ? 'bg-[#111827] border-[#1E293B] text-[#94A3B8]'
             : 'bg-white border-[#E2E8F0] text-[#64748B]'
@@ -111,7 +116,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         </div>
 
         {/* Line toggles: pick which lines (English and/or languages) to show, up to MAX_PIP_LINES */}
-        <div className="flex items-center gap-1.5" role="group" aria-label="Lines to show">
+        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lines to show">
           {chipOptions.map((line) => {
             const shown = visibleLines.includes(line);
             const label = line === 'en' ? 'English' : LANGUAGE_MAP[line].name;
@@ -173,27 +178,31 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         </div>
       </div>
 
-      {/* Caption lines */}
-      <div className="flex-1 flex flex-col justify-center px-5 py-3 gap-2 overflow-y-auto">
+      {/* Caption lines fill the whole window at any shape (wide strip or tall column).
+          Each line gets an equal share of the height, bottom-aligned like subtitles; if a
+          sentence doesn't fit its share, the oldest words scroll off the top so the newest stay visible. */}
+      <div className="flex-1 min-h-0 flex flex-col px-4 py-2 gap-2">
         {visibleLines.map((line) => {
           if (line === 'en') {
             return (
               <div
                 key="en"
                 style={{ fontSize: `${Math.round(pipFontSize * 0.82)}px` }}
-                className={`font-medium leading-snug ${
+                className={`flex-1 min-h-0 flex flex-col justify-end overflow-hidden font-medium leading-snug ${
                   isSpeaking
                     ? 'text-slate-500 dark:text-[#94A3B8] italic'
                     : 'text-slate-700 dark:text-slate-200'
                 }`}
               >
-                {englishLine || (
-                  <span className="text-slate-400 dark:text-slate-600 text-base">
-                    {isListening
-                      ? 'Listening for teacher speech…'
-                      : 'Press Start Mic to caption over your slides.'}
-                  </span>
-                )}
+                <div>
+                  {englishLine || (
+                    <span className="text-slate-400 dark:text-slate-600 text-base">
+                      {isListening
+                        ? 'Listening for teacher speech…'
+                        : 'Press Start Mic to caption over your slides. Hover for controls.'}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           }
@@ -205,20 +214,20 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             <div
               key={line}
               dir={cfg.dir}
-              className="flex items-baseline gap-2.5"
+              className="flex-1 min-h-0 flex items-end gap-2.5 overflow-hidden"
             >
               {/* Language tag only when several translations share the window */}
               {translationCount > 1 && (
                 <span
                   dir="ltr"
-                  className="shrink-0 text-[11px] font-mono font-semibold uppercase text-slate-400 dark:text-slate-500"
+                  className="shrink-0 pb-1 text-[11px] font-mono font-semibold uppercase text-slate-400 dark:text-slate-500"
                 >
                   {line}
                 </span>
               )}
               <div
                 style={{ fontSize: `${pipFontSize}px` }}
-                className={`font-bold leading-snug ${
+                className={`min-w-0 max-h-full flex flex-col justify-end overflow-hidden font-bold leading-snug ${
                   cfg.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
                 } ${
                   text === 'translation unavailable'
@@ -228,11 +237,13 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                       : 'text-[#0284C7] dark:text-[#38BDF8]'
                 }`}
               >
-                {text || (
-                  <span className="text-slate-400 dark:text-slate-600 text-sm font-normal">
-                    {cfg.name} translation appears here as sentences complete
-                  </span>
-                )}
+                <div>
+                  {text || (
+                    <span className="text-slate-400 dark:text-slate-600 text-sm font-normal">
+                      {cfg.name} translation appears here as sentences complete
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           );
