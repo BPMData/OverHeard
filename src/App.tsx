@@ -39,6 +39,12 @@ import { LanguageModal } from './components/LanguageModal';
 import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
 import { isFailedSession, restartDelay } from './speechRestart';
+import {
+  isOnDeviceTranslationSupported,
+  prepareOnDeviceSpeech,
+  prepareOnDeviceTranslators,
+  translateOnDevice,
+} from './onDevice';
 import { togglePipLine, visiblePipLines as getVisiblePipLines } from './pipLines';
 import { AboutModal } from './components/AboutModal';
 import {
@@ -62,6 +68,8 @@ interface SpeechRecognitionInstance extends EventTarget {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  /** Chrome 139+: run recognition on this device instead of Google's servers */
+  processLocally?: boolean;
   onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
@@ -113,8 +121,26 @@ const LIVE_DEBOUNCE_MS = 450;
 const LIVE_WORD_STEP = 6;
 const MT_CLIENT_CACHE_MAX = 2000;
 
+// TESTING VALUE: deliberately generous so slow on-device translations can be measured instead
+// of abandoned. Lower to about 2500 (matching the server's per-provider timeout) before sharing.
+const ON_DEVICE_TIMEOUT_MS = 30_000;
+// Translations slower than this are flagged in the UI and console with how far over they went
+const SLOW_TRANSLATION_MS = 2500;
+
+function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
+const overBy = (ms: number) =>
+  ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
+
 type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
-type MtPreference = 'auto' | MtProviderId;
+type TranslatorId = MtProviderId | 'on-device';
+type MtPreference = 'auto' | TranslatorId;
 const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
 const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
 const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
@@ -123,6 +149,7 @@ const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   'google-cloud': 'Google Cloud',
   gtx: 'Free (unofficial)',
   gemini: 'Gemini (slow)',
+  'on-device': 'On this device',
 };
 
 export default function App() {
@@ -218,7 +245,12 @@ export default function App() {
   });
   const mtPreferenceRef = useRef<MtPreference>(mtPreference);
   const [availableProviders, setAvailableProviders] = useState<MtProviderId[]>([]);
-  const [lastUsedProvider, setLastUsedProvider] = useState<MtProviderId | null>(null);
+  const [lastUsedProvider, setLastUsedProvider] = useState<TranslatorId | null>(null);
+  // How long the most recent translation took, end to end, as measured in the browser
+  const [lastTranslateMs, setLastTranslateMs] = useState<number | null>(null);
+  // Whether speech recognition is running on this device (null = not started yet)
+  const [speechIsLocal, setSpeechIsLocal] = useState<boolean | null>(null);
+  const onDeviceSupported = isOnDeviceTranslationSupported();
 
   useEffect(() => {
     mtPreferenceRef.current = mtPreference;
@@ -354,7 +386,10 @@ export default function App() {
       const existing = cache.get(key);
       if (existing) return existing;
 
-      const attempt = async (): Promise<string> => {
+      const started = performance.now();
+      const recordTiming = () => setLastTranslateMs(Math.round(performance.now() - started));
+
+      const attemptServer = async (): Promise<string> => {
         const res = await fetch('/api/mt', {
           method: 'POST',
           headers: {
@@ -364,7 +399,9 @@ export default function App() {
           body: JSON.stringify({
             text,
             lang,
-            ...(preference === 'auto' ? {} : { provider: preference }),
+            ...(preference === 'auto' || preference === 'on-device'
+              ? {}
+              : { provider: preference }),
           }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -376,7 +413,34 @@ export default function App() {
         if (data.provider && data.provider !== 'cache') {
           setLastUsedProvider(data.provider);
         }
+        recordTiming();
         return data.translation;
+      };
+
+      // On-device mode: Chrome's built-in Translator; anything it can't do falls back to the server
+      const attempt = async (): Promise<string> => {
+        if (preference === 'on-device') {
+          const t0 = performance.now();
+          try {
+            const translation = await rejectAfter(
+              translateOnDevice(text, lang),
+              ON_DEVICE_TIMEOUT_MS
+            );
+            const ms = Math.round(performance.now() - t0);
+            console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
+            setLastUsedProvider('on-device');
+            recordTiming();
+            return translation;
+          } catch (error) {
+            // Unsupported language, model not downloaded yet, blocked by policy, or too slow
+            const ms = Math.round(performance.now() - t0);
+            console.warn(
+              `[on-device] ${lang}: gave up after ${ms} ms, using online translation —`,
+              error instanceof Error ? error.message : error
+            );
+          }
+        }
+        return attemptServer();
       };
 
       const promise = attempt().catch(async () => {
@@ -502,7 +566,9 @@ export default function App() {
       );
 
       // Start refinement immediately, but only apply it after the fast results so it can't be overwritten
-      const refineJob = refineEnabledRef.current
+      // On-device mode skips the Gemini pass so text stays on this machine when possible
+      const refineJob =
+        refineEnabledRef.current && mtPreferenceRef.current !== 'on-device'
         ? fetchTranslationWithRetry(phrase, langs, contextSnapshot).catch(
             () => null
           )
@@ -640,12 +706,32 @@ export default function App() {
       recognitionRef.current = recognition;
     }
 
-    try {
-      recognitionRef.current.start();
+    const recognition = recognitionRef.current;
+    const begin = (local: boolean) => {
+      if (userStoppedRef.current) return; // Stop was pressed while the speech pack downloaded
+      recognition.processLocally = local;
+      setSpeechIsLocal(local);
+      try {
+        recognition.start();
+      } catch {
+        // Ignore InvalidStateError if already running
+      }
       setIsListening(true);
-    } catch {
-      // Ignore InvalidStateError if already running
+    };
+
+    if (mtPreferenceRef.current === 'on-device') {
+      // Both downloads need a click, and this runs inside the Start click
+      prepareOnDeviceTranslators(selectedLangsRef.current);
       setIsListening(true);
+      setSpeechStatusNotice('Preparing on-device speech…');
+      void prepareOnDeviceSpeech('en-US').then((local) => {
+        setSpeechStatusNotice(
+          local ? null : 'On-device speech not available here — using Google’s speech service.'
+        );
+        begin(local);
+      });
+    } else {
+      begin(false);
     }
   }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation]);
 
@@ -906,11 +992,15 @@ export default function App() {
 
   // A saved choice for a translator the server no longer offers behaves like Auto
   const effectiveMtPreference: MtPreference =
-    mtPreference !== 'auto' &&
-    availableProviders.length > 0 &&
-    !availableProviders.includes(mtPreference)
-      ? 'auto'
-      : mtPreference;
+    mtPreference === 'on-device'
+      ? onDeviceSupported
+        ? 'on-device'
+        : 'auto'
+      : mtPreference !== 'auto' &&
+          availableProviders.length > 0 &&
+          !availableProviders.includes(mtPreference)
+        ? 'auto'
+        : mtPreference;
 
   // Pop-out lines: keep only English + languages still selected, in on-screen order
   const visiblePipLines = getVisiblePipLines(pipLines, selectedLangs, MAX_PIP_LINES);
@@ -1184,7 +1274,12 @@ export default function App() {
               <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
               <select
                 value={effectiveMtPreference}
-                onChange={(e) => setMtPreference(e.target.value as MtPreference)}
+                onChange={(e) => {
+                  const next = e.target.value as MtPreference;
+                  setMtPreference(next);
+                  // Choosing it is a user gesture, so start downloading language packs now
+                  if (next === 'on-device') prepareOnDeviceTranslators(selectedLangs);
+                }}
                 className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
               >
                 <option value="auto">
@@ -1193,12 +1288,44 @@ export default function App() {
                     ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
                     : ''}
                 </option>
+                <option value="on-device" disabled={!onDeviceSupported}>
+                  {MT_PROVIDER_LABELS['on-device']}
+                  {onDeviceSupported ? '' : ' (needs desktop Chrome 138+)'}
+                </option>
                 {availableProviders.map((p) => (
                   <option key={p} value={p}>
                     {MT_PROVIDER_LABELS[p]}
                   </option>
                 ))}
               </select>
+              {lastTranslateMs !== null && (
+                <span
+                  className={`font-mono ${
+                    lastTranslateMs > SLOW_TRANSLATION_MS
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-[#64748B] dark:text-[#94A3B8]'
+                  }`}
+                  title="Time for the most recent translation, measured in this browser. Every translation is also logged in the browser console."
+                >
+                  {lastTranslateMs} ms{overBy(lastTranslateMs)}
+                </span>
+              )}
+              {effectiveMtPreference === 'on-device' && speechIsLocal !== null && (
+                <span
+                  className={`font-mono ${
+                    speechIsLocal
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                  title={
+                    speechIsLocal
+                      ? 'Speech recognition is running on this device'
+                      : 'On-device speech is not available here; using Google’s speech service'
+                  }
+                >
+                  🎙 {speechIsLocal ? 'local' : 'cloud'}
+                </span>
+              )}
               {lastUsedProvider &&
                 effectiveMtPreference !== 'auto' &&
                 lastUsedProvider !== effectiveMtPreference && (
