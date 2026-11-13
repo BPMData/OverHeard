@@ -121,6 +121,23 @@ const LIVE_DEBOUNCE_MS = 450;
 const LIVE_WORD_STEP = 6;
 const MT_CLIENT_CACHE_MAX = 2000;
 
+// TESTING VALUE: deliberately generous so slow on-device translations can be measured instead
+// of abandoned. Lower to about 2500 (matching the server's per-provider timeout) before sharing.
+const ON_DEVICE_TIMEOUT_MS = 30_000;
+// Translations slower than this are flagged in the UI and console with how far over they went
+const SLOW_TRANSLATION_MS = 2500;
+
+function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
+const overBy = (ms: number) =>
+  ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
+
 type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
 type TranslatorId = MtProviderId | 'on-device';
 type MtPreference = 'auto' | TranslatorId;
@@ -403,13 +420,24 @@ export default function App() {
       // On-device mode: Chrome's built-in Translator; anything it can't do falls back to the server
       const attempt = async (): Promise<string> => {
         if (preference === 'on-device') {
+          const t0 = performance.now();
           try {
-            const translation = await translateOnDevice(text, lang);
+            const translation = await rejectAfter(
+              translateOnDevice(text, lang),
+              ON_DEVICE_TIMEOUT_MS
+            );
+            const ms = Math.round(performance.now() - t0);
+            console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
             setLastUsedProvider('on-device');
             recordTiming();
             return translation;
-          } catch {
-            // Unsupported language, model not downloaded yet, or blocked by policy
+          } catch (error) {
+            // Unsupported language, model not downloaded yet, blocked by policy, or too slow
+            const ms = Math.round(performance.now() - t0);
+            console.warn(
+              `[on-device] ${lang}: gave up after ${ms} ms, using online translation —`,
+              error instanceof Error ? error.message : error
+            );
           }
         }
         return attemptServer();
@@ -1272,10 +1300,14 @@ export default function App() {
               </select>
               {lastTranslateMs !== null && (
                 <span
-                  className="font-mono text-[#64748B] dark:text-[#94A3B8]"
-                  title="Time for the most recent translation, measured in this browser"
+                  className={`font-mono ${
+                    lastTranslateMs > SLOW_TRANSLATION_MS
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-[#64748B] dark:text-[#94A3B8]'
+                  }`}
+                  title="Time for the most recent translation, measured in this browser. Every translation is also logged in the browser console."
                 >
-                  {lastTranslateMs} ms
+                  {lastTranslateMs} ms{overBy(lastTranslateMs)}
                 </span>
               )}
               {effectiveMtPreference === 'on-device' && speechIsLocal !== null && (
