@@ -51,7 +51,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               <span>Privacy Statement</span>
             </div>
             <p className="text-sm text-slate-700 dark:text-slate-200">
-              OverHeard has no logins, collects no student data, and stores nothing. Your speech is converted to text by Google&apos;s speech service built into Chrome, and the text is translated by Google Gemini. Avoid saying student names or other sensitive information while it is running.
+              OverHeard has no logins, collects no student data, and stores nothing. Your speech is converted to text by Google&apos;s speech service built into Chrome, and the text is translated by Google Translate and Google Gemini, including partial sentences while you are still speaking. Avoid saying student names or other sensitive information while it is running.
             </p>
           </div>
 
