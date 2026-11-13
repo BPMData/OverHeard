@@ -11,9 +11,9 @@ import {
   translateGoogleCloud,
   translateGtx,
   type MtProvider,
-} from './server/mt';
-import { createRateLimiter, type RateLimiter } from './server/rateLimit';
-import { SESSION_HEADER, sessionKey } from './server/clientKeys';
+} from './server/mt.ts';
+import { createRateLimiter, type RateLimiter } from './server/rateLimit.ts';
+import { SESSION_HEADER, sessionKey } from './server/clientKeys.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
