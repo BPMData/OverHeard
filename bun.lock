@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "react-example",
+      "name": "overheard",
       "dependencies": {
         "@google/genai": "^3.3.0",
         "@tailwindcss/vite": "^4.3.3",

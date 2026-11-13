@@ -12,7 +12,8 @@ import {
   translateGtx,
   type MtProvider,
 } from './server/mt';
-import { createRateLimiter } from './server/rateLimit';
+import { createRateLimiter, type RateLimiter } from './server/rateLimit';
+import { SESSION_HEADER, sessionKey } from './server/clientKeys';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,23 +38,46 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
 const SYSTEM_INSTRUCTION =
   "You are a classroom interpreter. Translate the teacher's English into each target language. Natural, student-friendly, keep subject vocabulary accurate. The context sentences are for reference only — do not translate them. Output only JSON.";
 
-// Per-IP sliding window rate limits.
+// Sliding-window rate limits, applied per browser session AND per IP.
+// - Per session: one teacher's budget. A school usually shares one public IP, so limiting
+//   by IP alone would make every teacher in the building share a single budget.
+// - Per IP: a looser backstop (about 10 teachers' worth), because session IDs come from the
+//   client and can be rotated to dodge the per-session limit.
 // The fast MT endpoint is hit once per language per interim chunk, so it gets a much larger budget.
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const refineLimiter = createRateLimiter(60, RATE_LIMIT_WINDOW_MS);
-const mtLimiter = createRateLimiter(900, RATE_LIMIT_WINDOW_MS);
+const IP_LIMIT_MULTIPLIER = 10;
+const REFINE_PER_SESSION = 60;
+const MT_PER_SESSION = 900;
+const refineSessionLimiter = createRateLimiter(REFINE_PER_SESSION, RATE_LIMIT_WINDOW_MS);
+const mtSessionLimiter = createRateLimiter(MT_PER_SESSION, RATE_LIMIT_WINDOW_MS);
+const refineIpLimiter = createRateLimiter(
+  REFINE_PER_SESSION * IP_LIMIT_MULTIPLIER,
+  RATE_LIMIT_WINDOW_MS
+);
+const mtIpLimiter = createRateLimiter(MT_PER_SESSION * IP_LIMIT_MULTIPLIER, RATE_LIMIT_WINDOW_MS);
 
-// Periodically prune stale IP entries
+// Periodically prune stale entries
 setInterval(() => {
-  refineLimiter.prune();
-  mtLimiter.prune();
+  for (const limiter of [refineSessionLimiter, mtSessionLimiter, refineIpLimiter, mtIpLimiter]) {
+    limiter.prune();
+  }
 }, RATE_LIMIT_WINDOW_MS).unref();
 
+// With `trust proxy` set to 1 hop, req.ip is the address Cloud Run's front end saw — the
+// right-most X-Forwarded-For entry. Never read the left-most entry: the client controls it.
 function getClientIp(req: Request): string {
+  return req.ip || 'unknown';
+}
+
+function isRateLimited(
+  req: Request,
+  ipLimiter: RateLimiter,
+  sessionLimiter: RateLimiter
+): boolean {
+  const ip = getClientIp(req);
   return (
-    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req.ip ||
-    'unknown'
+    ipLimiter.isLimited(ip) ||
+    sessionLimiter.isLimited(sessionKey(req.headers[SESSION_HEADER], ip))
   );
 }
 
@@ -135,7 +159,8 @@ function getGenAIClient(): GoogleGenAI {
 
 async function startServer() {
   const app = express();
-  app.set('trust proxy', true);
+  // Trust only the one proxy hop in front of us (Cloud Run's front end)
+  app.set('trust proxy', 1);
   app.use(express.json({ limit: '16kb' }));
 
   app.get('/api/config', (_req: Request, res: Response) => {
@@ -149,7 +174,7 @@ async function startServer() {
   // Fast path: one language per request so the client can fire them in parallel
   // and paint each column the moment its translation lands.
   app.post('/api/mt', async (req: Request, res: Response) => {
-    if (mtLimiter.isLimited(getClientIp(req))) {
+    if (isRateLimited(req, mtIpLimiter, mtSessionLimiter)) {
       res.status(429).json({ error: 'Rate limit exceeded.' });
       return;
     }
@@ -181,9 +206,9 @@ async function startServer() {
 
   // Slow path: context-aware Gemini refinement of a finished sentence.
   app.post('/api/translate', async (req: Request, res: Response) => {
-    if (refineLimiter.isLimited(getClientIp(req))) {
+    if (isRateLimited(req, refineIpLimiter, refineSessionLimiter)) {
       res.status(429).json({
-        error: 'Rate limit exceeded (maximum 60 requests per minute).',
+        error: `Rate limit exceeded (maximum ${REFINE_PER_SESSION} requests per minute).`,
       });
       return;
     }

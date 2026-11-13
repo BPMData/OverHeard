@@ -37,6 +37,8 @@ import {
 import { CaptionSegment, DisplayMode, LanguageCode, PipLine } from './types';
 import { LanguageModal } from './components/LanguageModal';
 import { shouldSendImmediately } from './liveTranslation';
+import { getSessionId, SESSION_HEADER } from './session';
+import { isFailedSession, restartDelay } from './speechRestart';
 import { togglePipLine, visiblePipLines as getVisiblePipLines } from './pipLines';
 import { AboutModal } from './components/AboutModal';
 import {
@@ -190,6 +192,11 @@ export default function App() {
   // Refs for synchronous access in event callbacks & concurrency tracking
   const userStoppedRef = useRef<boolean>(true);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  // Keep-alive backoff: only failed sessions (network errors, instant ends) slow restarts down
+  const restartTimerRef = useRef<number | null>(null);
+  const restartFailuresRef = useRef<number>(0);
+  const sessionStartedAtRef = useRef<number>(0);
+  const lastSpeechErrorRef = useRef<string | null>(null);
   const nextIdRef = useRef<number>(1);
   const selectedLangsRef = useRef<LanguageCode[]>(selectedLangs);
   const finalizedHistoryRef = useRef<string[]>([]);
@@ -305,7 +312,10 @@ export default function App() {
       const attemptFetch = async (): Promise<Record<string, string>> => {
         const res = await fetch('/api/translate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [SESSION_HEADER]: getSessionId(),
+          },
           body: JSON.stringify({
             phrase: phrase.slice(0, 500),
             targetLangs,
@@ -347,7 +357,10 @@ export default function App() {
       const attempt = async (): Promise<string> => {
         const res = await fetch('/api/mt', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [SESSION_HEADER]: getSessionId(),
+          },
           body: JSON.stringify({
             text,
             lang,
@@ -528,6 +541,11 @@ export default function App() {
     setMicPermissionDenied(false);
     setSpeechStatusNotice(null);
     userStoppedRef.current = false;
+    restartFailuresRef.current = 0;
+    if (restartTimerRef.current !== null) {
+      window.clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
 
     if (!recognitionRef.current) {
       const recognition = new SpeechRecognitionCtor();
@@ -536,11 +554,15 @@ export default function App() {
       recognition.interimResults = true;
 
       recognition.onstart = () => {
+        sessionStartedAtRef.current = Date.now();
+        lastSpeechErrorRef.current = null;
         setIsListening(true);
-        setSpeechStatusNotice(null);
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
+        // Hearing speech means the service is healthy again
+        restartFailuresRef.current = 0;
+        setSpeechStatusNotice(null);
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
           const result = event.results[i];
@@ -559,6 +581,7 @@ export default function App() {
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         const errCode = event.error;
+        lastSpeechErrorRef.current = errCode;
         if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
           userStoppedRef.current = true;
           setIsListening(false);
@@ -582,11 +605,31 @@ export default function App() {
 
       recognition.onend = () => {
         // Keep-alive: Chrome stops recognition after silence. If user has not pressed Stop, call start() again.
+        // Normal ends restart immediately; repeated failures (e.g. offline) back off up to 5 s.
         if (!userStoppedRef.current) {
-          try {
-            recognition.start();
-          } catch {
-            // Ignore InvalidStateError when already running
+          const sessionMs = Date.now() - sessionStartedAtRef.current;
+          if (isFailedSession(lastSpeechErrorRef.current, sessionMs)) {
+            restartFailuresRef.current += 1;
+          } else {
+            restartFailuresRef.current = 0;
+          }
+          const restart = () => {
+            restartTimerRef.current = null;
+            if (userStoppedRef.current) return;
+            try {
+              recognition.start();
+            } catch {
+              // Ignore InvalidStateError when already running
+            }
+          };
+          const delay = restartDelay(restartFailuresRef.current);
+          if (delay === 0) {
+            restart();
+          } else {
+            if (restartFailuresRef.current >= 3) {
+              setSpeechStatusNotice('Speech service unavailable — retrying…');
+            }
+            restartTimerRef.current = window.setTimeout(restart, delay);
           }
         } else {
           setIsListening(false);
@@ -608,6 +651,10 @@ export default function App() {
 
   const stopListening = useCallback(() => {
     userStoppedRef.current = true;
+    if (restartTimerRef.current !== null) {
+      window.clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
     setIsListening(false);
     setInterimTranscript('');
     clearLiveTranslation();
@@ -633,6 +680,9 @@ export default function App() {
   useEffect(() => {
     return () => {
       userStoppedRef.current = true;
+      if (restartTimerRef.current !== null) {
+        window.clearTimeout(restartTimerRef.current);
+      }
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
