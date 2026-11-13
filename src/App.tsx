@@ -34,10 +34,14 @@ import {
   SAMPLE_SENTENCES,
   VALID_LANGUAGE_CODES,
 } from './constants';
-import { CaptionSegment, DisplayMode, LanguageCode } from './types';
+import { CaptionSegment, DisplayMode, LanguageCode, PipLine } from './types';
 import { LanguageModal } from './components/LanguageModal';
 import { AboutModal } from './components/AboutModal';
-import { PipSubtitlePortal } from './components/PipSubtitlePortal';
+import {
+  MAX_PIP_LINES,
+  PipSubtitlePortal,
+  pipHeightFor,
+} from './components/PipSubtitlePortal';
 
 // Web Speech API TypeScript definitions
 interface SpeechRecognitionEvent extends Event {
@@ -108,6 +112,7 @@ const MT_CLIENT_CACHE_MAX = 2000;
 type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
 type MtPreference = 'auto' | MtProviderId;
 const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
+const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
 const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   auto: 'Auto',
   'google-cloud': 'Google Cloud',
@@ -156,6 +161,25 @@ export default function App() {
   // Document Picture-in-Picture window state
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [pipNotice, setPipNotice] = useState<string | null>(null);
+
+  // Which lines the pop-out shows (English and/or languages). Default: English + first 2 languages.
+  const [pipLines, setPipLines] = useState<PipLine[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PIP_LINES_STORAGE_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length > 0) return saved as PipLine[];
+    } catch {
+      // Storage unavailable or malformed; fall back to the default
+    }
+    return ['en', ...parseInitialLanguages().slice(0, MAX_PIP_LINES - 1)];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PIP_LINES_STORAGE_KEY, JSON.stringify(pipLines));
+    } catch {
+      // Ignore storage failures; the choice still applies for this session
+    }
+  }, [pipLines]);
 
   // Environment checks
   const [isSupportedBrowser, setIsSupportedBrowser] = useState<boolean>(true);
@@ -680,7 +704,7 @@ export default function App() {
     try {
       const win = await window.documentPictureInPicture.requestWindow({
         width: 920,
-        height: 230,
+        height: pipHeightFor(visiblePipLines.length),
       });
 
       // Copy stylesheets & Google Fonts from main document into the PiP window
@@ -800,6 +824,42 @@ export default function App() {
     burstSentences.forEach((sentence) => {
       handleFinalizedPhrase(sentence);
     });
+  };
+
+  // A saved choice for a translator the server no longer offers behaves like Auto
+  const effectiveMtPreference: MtPreference =
+    mtPreference !== 'auto' &&
+    availableProviders.length > 0 &&
+    !availableProviders.includes(mtPreference)
+      ? 'auto'
+      : mtPreference;
+
+  // Pop-out lines: keep only English + languages still selected, in on-screen order
+  const pipLineOrder: PipLine[] = ['en', ...selectedLangs];
+  const filteredPipLines = pipLineOrder.filter((line) => pipLines.includes(line));
+  const visiblePipLines: PipLine[] =
+    filteredPipLines.length > 0
+      ? filteredPipLines.slice(0, MAX_PIP_LINES)
+      : pipLineOrder.slice(0, MAX_PIP_LINES);
+
+  const handleTogglePipLine = (line: PipLine) => {
+    let next: PipLine[];
+    if (visiblePipLines.includes(line)) {
+      if (visiblePipLines.length === 1) return; // always show at least one line
+      next = visiblePipLines.filter((l) => l !== line);
+    } else {
+      if (visiblePipLines.length >= MAX_PIP_LINES) return;
+      next = pipLineOrder.filter((l) => l === line || visiblePipLines.includes(l));
+    }
+    setPipLines(next);
+    // Grow/shrink the floating window to fit (allowed because this runs on a click)
+    if (pipWindow && !pipWindow.closed) {
+      try {
+        pipWindow.resizeTo(pipWindow.outerWidth, pipHeightFor(next.length));
+      } catch {
+        // Some browsers disallow resizing; the user can still drag the edge
+      }
+    }
   };
 
   const currentSegment =
@@ -1062,13 +1122,7 @@ export default function App() {
             >
               <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
               <select
-                value={
-                  mtPreference !== 'auto' &&
-                  availableProviders.length > 0 &&
-                  !availableProviders.includes(mtPreference)
-                    ? 'auto'
-                    : mtPreference
-                }
+                value={effectiveMtPreference}
                 onChange={(e) => setMtPreference(e.target.value as MtPreference)}
                 className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
               >
@@ -1085,8 +1139,8 @@ export default function App() {
                 ))}
               </select>
               {lastUsedProvider &&
-                mtPreference !== 'auto' &&
-                lastUsedProvider !== mtPreference && (
+                effectiveMtPreference !== 'auto' &&
+                lastUsedProvider !== effectiveMtPreference && (
                   <span className="text-amber-600 dark:text-amber-400 font-mono">
                     ↪ {MT_PROVIDER_LABELS[lastUsedProvider]}
                   </span>
@@ -1653,11 +1707,11 @@ export default function App() {
         fontSize={fontSize}
         onAdjustFont={handleAdjustFont}
         selectedLangs={selectedLangs}
-        subtitleLang={activeSubtitleLang}
-        onSelectSubtitleLang={setSubtitleLang}
+        visibleLines={visiblePipLines}
+        onToggleLine={handleTogglePipLine}
         currentSegment={currentSegment}
         interimTranscript={interimTranscript}
-        liveTranslation={liveTranslations[activeSubtitleLang]}
+        liveTranslations={liveTranslations}
       />
     </div>
   );

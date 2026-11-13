@@ -30,3 +30,6 @@ export interface CaptionSegment {
 }
 
 export type DisplayMode = 'columns' | 'subtitle';
+
+/** A line shown in the pop-out caption window: English or one of the selected languages. */
+export type PipLine = 'en' | LanguageCode;
