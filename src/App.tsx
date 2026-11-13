@@ -113,6 +113,7 @@ type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
 type MtPreference = 'auto' | MtProviderId;
 const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
 const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
+const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
 const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   auto: 'Auto',
   'google-cloud': 'Google Cloud',
@@ -702,9 +703,37 @@ export default function App() {
     }
 
     try {
+      // Reopen at the size the user last dragged it to (e.g. a tall strip down the side);
+      // otherwise start as a compact subtitle strip.
+      let savedSize: { width?: number; height?: number } | null = null;
+      try {
+        savedSize = JSON.parse(localStorage.getItem(PIP_SIZE_STORAGE_KEY) || 'null');
+      } catch {
+        savedSize = null;
+      }
       const win = await window.documentPictureInPicture.requestWindow({
-        width: 920,
-        height: pipHeightFor(visiblePipLines.length),
+        width:
+          savedSize?.width && savedSize.width >= 120 ? savedSize.width : 920,
+        height:
+          savedSize?.height && savedSize.height >= 60
+            ? savedSize.height
+            : pipHeightFor(visiblePipLines.length),
+      });
+
+      // Remember the shape whenever the user resizes it
+      let sizeSaveTimer: number | undefined;
+      win.addEventListener('resize', () => {
+        window.clearTimeout(sizeSaveTimer);
+        sizeSaveTimer = window.setTimeout(() => {
+          try {
+            localStorage.setItem(
+              PIP_SIZE_STORAGE_KEY,
+              JSON.stringify({ width: win.innerWidth, height: win.innerHeight })
+            );
+          } catch {
+            // Ignore storage failures
+          }
+        }, 300);
       });
 
       // Copy stylesheets & Google Fonts from main document into the PiP window
@@ -851,15 +880,9 @@ export default function App() {
       if (visiblePipLines.length >= MAX_PIP_LINES) return;
       next = pipLineOrder.filter((l) => l === line || visiblePipLines.includes(l));
     }
+    // Never resize the window here: the user may have shaped it (wide strip, tall column…)
+    // and the caption lines already re-share whatever space it has.
     setPipLines(next);
-    // Grow/shrink the floating window to fit (allowed because this runs on a click)
-    if (pipWindow && !pipWindow.closed) {
-      try {
-        pipWindow.resizeTo(pipWindow.outerWidth, pipHeightFor(next.length));
-      } catch {
-        // Some browsers disallow resizing; the user can still drag the edge
-      }
-    }
   };
 
   const currentSegment =
