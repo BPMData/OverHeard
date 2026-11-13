@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # --legacy-peer-deps: the template's vite/esbuild peer ranges conflict under npm's strict resolver
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Unit and UI tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: Server smoke test
+        run: ./scripts/smoke.sh
