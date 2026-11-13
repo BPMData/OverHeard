@@ -35,4 +35,6 @@ jobs:
         run: npm run build
 
       - name: Server smoke test
-        run: ./scripts/smoke.sh
+        # Run through bash so it works even when the file loses its executable bit
+        # (Google AI Studio syncs drop it)
+        run: bash scripts/smoke.sh

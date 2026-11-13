@@ -47,12 +47,25 @@ const toTranslatorCode = (code: string) => TRANSLATOR_CODES[code] ?? code;
 
 const translators = new Map<string, Promise<TranslatorInstance | null>>();
 
+/** Download progress for a language: 0–1 while downloading, null when it ended without a pack. */
+export type PackProgress = (code: string, fraction: number | null) => void;
+
+/** Chrome reports `loaded` as a 0–1 fraction; older builds reported bytes with a `total`. */
+export function progressFraction(event: { loaded: number; total?: number }): number {
+  const fraction =
+    event.total && event.total > 1 ? event.loaded / event.total : event.loaded;
+  return Math.min(Math.max(fraction, 0), 1);
+}
+
 /**
  * Get (and, if needed, download) the on-device translator for English → `code`.
  * Resolves to null when the language isn't supported on this device.
  * The first call that triggers a download must come from a click or key press.
  */
-export function getOnDeviceTranslator(code: string): Promise<TranslatorInstance | null> {
+export function getOnDeviceTranslator(
+  code: string,
+  onProgress?: PackProgress
+): Promise<TranslatorInstance | null> {
   const existing = translators.get(code);
   if (existing) return existing;
 
@@ -62,7 +75,14 @@ export function getOnDeviceTranslator(code: string): Promise<TranslatorInstance 
     const langs = { sourceLanguage: 'en', targetLanguage: toTranslatorCode(code) };
     const availability = await api.availability(langs);
     if (availability === 'unavailable') return null;
-    return api.create(langs);
+    if (availability !== 'available') onProgress?.(code, 0);
+    return api.create({
+      ...langs,
+      monitor: (m) =>
+        m.addEventListener('downloadprogress', (e) =>
+          onProgress?.(code, progressFraction(e as unknown as { loaded: number; total?: number }))
+        ),
+    });
   })();
 
   translators.set(code, promise);
@@ -71,12 +91,16 @@ export function getOnDeviceTranslator(code: string): Promise<TranslatorInstance 
   return promise;
 }
 
-/** Start downloading language packs for these languages. Call from a click handler. */
-export function prepareOnDeviceTranslators(codes: string[]): void {
+/**
+ * Start downloading language packs for these languages. Call from a click handler.
+ * `onProgress` gets 0–1 while downloading, 1 when ready, and null if a language can't run here.
+ */
+export function prepareOnDeviceTranslators(codes: string[], onProgress?: PackProgress): void {
   for (const code of codes) {
-    getOnDeviceTranslator(code).catch(() => {
-      // Reported when a caption actually needs it
-    });
+    getOnDeviceTranslator(code, onProgress).then(
+      (translator) => onProgress?.(code, translator ? 1 : null),
+      () => onProgress?.(code, null)
+    );
   }
 }
 
@@ -94,7 +118,11 @@ export async function translateOnDevice(text: string, code: string): Promise<str
  * Make sure on-device English speech recognition is ready, downloading it if needed.
  * Returns true if recognition can run locally. Call from a click handler (install needs one).
  */
-export async function prepareOnDeviceSpeech(lang = 'en-US'): Promise<boolean> {
+export async function prepareOnDeviceSpeech(
+  lang = 'en-US',
+  /** Called when a download actually starts (Chrome gives no progress for speech packs) */
+  onDownloadStart?: () => void
+): Promise<boolean> {
   const api = getSpeechApi();
   if (!api) return false;
   try {
@@ -103,12 +131,14 @@ export async function prepareOnDeviceSpeech(lang = 'en-US'): Promise<boolean> {
       const status = await api.available(opts);
       if (status === 'available') return true;
       if (status === 'unavailable') return false;
+      onDownloadStart?.();
       return await api.install(opts);
     }
     if (api.availableOnDevice && api.installOnDevice) {
       const status = await api.availableOnDevice(lang);
       if (status === 'available') return true;
       if (status === 'unavailable') return false;
+      onDownloadStart?.();
       return await api.installOnDevice(lang);
     }
   } catch {

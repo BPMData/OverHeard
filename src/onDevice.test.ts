@@ -52,7 +52,68 @@ describe('on-device translation', () => {
   });
 });
 
+describe('download progress', () => {
+  it('reads fractions, byte counts, and clamps', async () => {
+    const m = await load();
+    expect(m.progressFraction({ loaded: 0.42 })).toBe(0.42);
+    expect(m.progressFraction({ loaded: 50, total: 200 })).toBe(0.25);
+    expect(m.progressFraction({ loaded: 1.5 })).toBe(1);
+  });
+
+  it('reports 0, download events, then 1 when the pack is ready', async () => {
+    g.Translator = {
+      availability: async () => 'downloadable',
+      create: async (opts: { monitor?: (m: EventTarget) => void }) => {
+        const target = new EventTarget();
+        opts.monitor?.(target);
+        const event = Object.assign(new Event('downloadprogress'), { loaded: 0.5 });
+        target.dispatchEvent(event);
+        return { translate: async () => 'Hola' };
+      },
+    };
+    const m = await load();
+    const onProgress = vi.fn();
+    m.prepareOnDeviceTranslators(['es'], onProgress);
+    await vi.waitFor(() => expect(onProgress).toHaveBeenLastCalledWith('es', 1));
+    expect(onProgress.mock.calls.map((c) => c[1])).toEqual([0, 0.5, 1]);
+  });
+
+  it('reports null for a language the device cannot translate', async () => {
+    g.Translator = { availability: async () => 'unavailable', create: vi.fn() };
+    const m = await load();
+    const onProgress = vi.fn();
+    m.prepareOnDeviceTranslators(['so'], onProgress);
+    await vi.waitFor(() => expect(onProgress).toHaveBeenCalledWith('so', null));
+  });
+
+  it('skips progress entirely when the pack is already installed', async () => {
+    g.Translator = {
+      availability: async () => 'available',
+      create: async () => ({ translate: async () => 'Hola' }),
+    };
+    const m = await load();
+    const onProgress = vi.fn();
+    m.prepareOnDeviceTranslators(['es'], onProgress);
+    await vi.waitFor(() => expect(onProgress).toHaveBeenCalled());
+    expect(onProgress.mock.calls).toEqual([['es', 1]]);
+  });
+});
+
 describe('on-device speech', () => {
+  it('signals a download start only when the pack needs installing', async () => {
+    const onStart = vi.fn();
+    g.SpeechRecognition = { available: async () => 'available', install: vi.fn() };
+    let m = await load();
+    await m.prepareOnDeviceSpeech('en-US', onStart);
+    expect(onStart).not.toHaveBeenCalled();
+
+    vi.resetModules();
+    g.SpeechRecognition = { available: async () => 'downloadable', install: async () => true };
+    m = await load();
+    await m.prepareOnDeviceSpeech('en-US', onStart);
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
   it('is false without the speech API', async () => {
     const m = await load();
     await expect(m.prepareOnDeviceSpeech()).resolves.toBe(false);

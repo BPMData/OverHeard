@@ -1,4 +1,9 @@
 import React from 'react';
+import {
+  CaptionText,
+  ENGLISH_CAPTION_COLOR,
+  languageCaptionColor,
+} from '../captionColors';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Minus, Plus, X } from 'lucide-react';
 import { LANGUAGE_MAP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../constants';
@@ -189,13 +194,15 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                 key="en"
                 style={{ fontSize: `${Math.round(pipFontSize * 0.82)}px` }}
                 className={`flex-1 min-h-0 flex flex-col justify-end overflow-hidden font-medium leading-snug ${
-                  isSpeaking
-                    ? 'text-slate-500 dark:text-[#94A3B8] italic'
-                    : 'text-slate-700 dark:text-slate-200'
+                  isSpeaking ? 'italic opacity-70' : ''
                 }`}
               >
                 <div>
-                  {englishLine || (
+                  {englishLine ? (
+                    <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
+                      {englishLine}
+                    </CaptionText>
+                  ) : (
                     <span className="text-slate-400 dark:text-slate-600 text-base">
                       {isListening
                         ? 'Listening for teacher speech…'
@@ -209,6 +216,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
 
           const cfg = LANGUAGE_MAP[line];
           const text = translationFor(line);
+          const captionColor = languageCaptionColor(Math.max(0, selectedLangs.indexOf(line)));
           const isLive = isSpeaking && Boolean(liveTranslations[line]);
           return (
             <div
@@ -233,12 +241,18 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                   text === 'translation unavailable'
                     ? 'text-amber-500 text-base font-normal italic'
                     : isLive
-                      ? 'text-[#0284C7]/80 dark:text-[#38BDF8]/80 italic'
-                      : 'text-[#0284C7] dark:text-[#38BDF8]'
+                      ? 'italic opacity-80'
+                      : ''
                 }`}
               >
                 <div>
-                  {text || (
+                  {text && text !== 'translation unavailable' && text !== 'Translating…' ? (
+                    <CaptionText color={captionColor} isDark={isDark}>
+                      {text}
+                    </CaptionText>
+                  ) : text ? (
+                    text
+                  ) : (
                     <span className="text-slate-400 dark:text-slate-600 text-sm font-normal">
                       {cfg.name} translation appears here as sentences complete
                     </span>
