@@ -135,6 +135,11 @@ function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
 
+const formatElapsed = (ms: number) => {
+  const total = Math.floor(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
 const overBy = (ms: number) =>
   ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
 
@@ -251,6 +256,34 @@ export default function App() {
   // Whether speech recognition is running on this device (null = not started yet)
   const [speechIsLocal, setSpeechIsLocal] = useState<boolean | null>(null);
   const onDeviceSupported = isOnDeviceTranslationSupported();
+
+  // On-device language pack downloads in progress: language code → 0–1, or 'speech' → -1
+  // (Chrome reports no progress for speech packs, so that one shows elapsed time only)
+  const [packProgress, setPackProgress] = useState<Record<string, number>>({});
+  const [packStartedAt, setPackStartedAt] = useState<number | null>(null);
+  const [, setPackTick] = useState(0);
+  const packDownloading = Object.keys(packProgress).length > 0;
+
+  const reportPack = useCallback((key: string, fraction: number | null) => {
+    setPackProgress((prev) => {
+      const next = { ...prev };
+      if (fraction === null || fraction >= 1) delete next[key];
+      else next[key] = fraction;
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (packDownloading && packStartedAt === null) setPackStartedAt(Date.now());
+    if (!packDownloading && packStartedAt !== null) setPackStartedAt(null);
+  }, [packDownloading, packStartedAt]);
+
+  // Re-render once a second while downloading so the elapsed time ticks
+  useEffect(() => {
+    if (!packDownloading) return;
+    const id = window.setInterval(() => setPackTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [packDownloading]);
 
   useEffect(() => {
     mtPreferenceRef.current = mtPreference;
@@ -721,10 +754,10 @@ export default function App() {
 
     if (mtPreferenceRef.current === 'on-device') {
       // Both downloads need a click, and this runs inside the Start click
-      prepareOnDeviceTranslators(selectedLangsRef.current);
+      prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
       setIsListening(true);
-      setSpeechStatusNotice('Preparing on-device speech…');
-      void prepareOnDeviceSpeech('en-US').then((local) => {
+      void prepareOnDeviceSpeech('en-US', () => reportPack('speech', -1)).then((local) => {
+        reportPack('speech', null);
         setSpeechStatusNotice(
           local ? null : 'On-device speech not available here — using Google’s speech service.'
         );
@@ -733,7 +766,7 @@ export default function App() {
     } else {
       begin(false);
     }
-  }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation]);
+  }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation, reportPack]);
 
   const stopListening = useCallback(() => {
     userStoppedRef.current = true;
@@ -1156,6 +1189,46 @@ export default function App() {
                 {speechStatusNotice}
               </span>
             )}
+
+            {packDownloading && (
+              <div
+                role="status"
+                className="flex flex-col gap-1.5 px-3 py-2 rounded-lg border border-sky-500/30 bg-sky-500/10 text-xs text-slate-700 dark:text-slate-200 min-w-[16rem]"
+              >
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <Download className="w-3.5 h-3.5 animate-pulse text-[#0284C7] dark:text-[#38BDF8]" />
+                  <span>Downloading on-device language packs</span>
+                  {packStartedAt !== null && (
+                    <span className="font-mono text-[#64748B] dark:text-[#94A3B8]">
+                      {formatElapsed(Date.now() - packStartedAt)}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[#64748B] dark:text-[#94A3B8]">
+                  First time only — can take 5–10 minutes. Chrome keeps them for next time.
+                </div>
+                {Object.entries(packProgress).map(([key, fraction]) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="w-28 truncate">
+                      {key === 'speech'
+                        ? 'English speech'
+                        : (LANGUAGE_MAP[key as LanguageCode]?.name ?? key)}
+                    </span>
+                    <div className="flex-1 h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700 overflow-hidden">
+                      <div
+                        className={`h-full bg-[#0284C7] dark:bg-[#38BDF8] ${
+                          fraction < 0 ? 'w-1/3 animate-pulse' : ''
+                        }`}
+                        style={fraction < 0 ? undefined : { width: `${Math.round(fraction * 100)}%` }}
+                      />
+                    </div>
+                    <span className="w-10 text-right font-mono">
+                      {fraction < 0 ? '…' : `${Math.round(fraction * 100)}%`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Projector Display & Classroom Controls */}
@@ -1278,7 +1351,7 @@ export default function App() {
                   const next = e.target.value as MtPreference;
                   setMtPreference(next);
                   // Choosing it is a user gesture, so start downloading language packs now
-                  if (next === 'on-device') prepareOnDeviceTranslators(selectedLangs);
+                  if (next === 'on-device') prepareOnDeviceTranslators(selectedLangs, reportPack);
                 }}
                 className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
               >
