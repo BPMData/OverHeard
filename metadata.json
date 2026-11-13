@@ -1,0 +1,10 @@
+{
+  "name": "OverHeard — Classroom Live-Caption Translator",
+  "description": "Projector-first classroom live-caption translator for multilingual learners using Web Speech API and Gemini Flash.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
