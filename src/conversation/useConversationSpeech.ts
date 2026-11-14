@@ -1,4 +1,4 @@
-import { appendDistinct, createFinalDeduper, mergeInterim } from '../speechDedupe';
+import { appendDistinct, createFinalDeduper, dropLastWords, mergeInterim } from '../speechDedupe';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
@@ -182,7 +182,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         if (result.isFinal) {
           if (!finals.has(index)) {
             finals.add(index);
-            current.draft = appendDistinct(current.draft, newWords(text));
+            const { drop, add } = newWords.revise(text);
+            current.draft = appendDistinct(dropLastWords(current.draft, drop), add);
           }
         } else {
           parts.push(text);
