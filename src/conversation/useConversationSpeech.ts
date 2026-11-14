@@ -1,4 +1,5 @@
-import { appendDistinct, createFinalDeduper } from '../speechDedupe';
+import { appendDistinct, createFinalDeduper, mergeInterim } from '../speechDedupe';
+import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
 import { isFailedSession, restartDelay } from '../speechRestart';
@@ -95,6 +96,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   function send() {
     const current = session.current;
     const text = appendDistinct(current.draft, current.interim).trim();
+    logSpeechNote(`send draft="${current.draft}" interim="${current.interim}"`);
     if (text) opts.current.onSend(current.side, text);
     clearDraft();
   }
@@ -172,6 +174,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
 
     recognition.onresult = (event) => {
       if (!valid()) return;
+      logSpeechEvent(event);
       const parts: string[] = [];
       for (let index = 0; index < event.results.length; index++) {
         const result = event.results[index];
@@ -185,7 +188,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
           parts.push(text);
         }
       }
-      current.interim = newWords.peek(parts.join(' '));
+      current.interim = newWords.peek(mergeInterim(parts));
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;
@@ -208,6 +211,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
 
     function scheduleRestart() {
       if (!valid()) return;
+      logSpeechNote(`end (${lastError ?? 'ok'})`);
       // The turn's silence timer survives ordinary browser ends.
       preserveInterim();
       detach();

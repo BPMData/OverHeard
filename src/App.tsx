@@ -4,6 +4,7 @@
  */
 
 import { createFinalDeduper } from './speechDedupe';
+import { SpeechDebugPanel, logSpeechEvent } from './speechDebug';
 import { withMicAccess } from './micPermission';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -716,6 +717,7 @@ export default function App() {
       };
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
+        logSpeechEvent(event);
         // Hearing speech means the service is healthy again
         restartFailuresRef.current = 0;
         setSpeechStatusNotice(null);
@@ -1265,6 +1267,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#090D16] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
+      <SpeechDebugPanel />
       {/* Browser Compatibility Banner */}
       {displayMode !== 'conversation' && (!isSupportedBrowser || !hasSpeechApi) && (
         <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between gap-4">

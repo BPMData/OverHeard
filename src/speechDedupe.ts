@@ -48,3 +48,20 @@ export function appendDistinct(draft: string, text: string): string {
   }
   return [...a, ...b].join(' ');
 }
+
+/**
+ * Join the unfinished results of one recognition event. Desktop Chrome splits a phrase into
+ * separate pieces ("hello" + "how are"), which are joined. Some Android engines instead keep
+ * several growing copies ("why", "why is", "why is it"), so a piece that extends the text so
+ * far replaces it and a piece already contained at its start is skipped.
+ */
+export function mergeInterim(parts: string[]): string {
+  let words: string[] = [];
+  for (const part of parts) {
+    const next = split(part);
+    if (!next.length) continue;
+    if (starts(next, words) || !words.length) words = next;
+    else if (!starts(words, next)) words = [...words, ...next];
+  }
+  return words.join(' ');
+}
