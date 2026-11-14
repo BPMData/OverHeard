@@ -47,8 +47,10 @@ import {
   ENGLISH_CAPTION_COLOR,
   languageCaptionColor,
 } from './captionColors';
+import { RateLimitedError } from './http';
 import {
   isOnDeviceTranslationSupported,
+  isOnDeviceUsable,
   prepareOnDeviceSpeech,
   prepareOnDeviceTranslators,
   translateOnDevice,
@@ -133,6 +135,9 @@ const MT_CLIENT_CACHE_MAX = 2000;
 // TESTING VALUE: deliberately generous so slow on-device translations can be measured instead
 // of abandoned. Lower to about 2500 (matching the server's per-provider timeout) before sharing.
 const ON_DEVICE_TIMEOUT_MS = 30_000;
+// In Auto mode on-device is only a first choice: if it hasn't answered this fast, that
+// sentence goes to the online translators while on-device keeps loading for the next one.
+const AUTO_ON_DEVICE_TIMEOUT_MS = 2500;
 // Translations slower than this are flagged in the UI and console with how far over they went
 const SLOW_TRANSLATION_MS = 2500;
 
@@ -143,6 +148,9 @@ function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
+
+const mtCacheKey = (preference: string, source: string, lang: string, text: string) =>
+  `${preference}\u0000${source}\u0000${lang}\u0000${text}`;
 
 const overBy = (ms: number) =>
   ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
@@ -242,6 +250,9 @@ export default function App() {
   // Fast MT: in-flight + resolved translations keyed by `${lang}\u0000${text}`.
   // Sharing promises means the final sentence reuses an interim request that's still running.
   const mtCacheRef = useRef<Map<string, Promise<string>>>(new Map());
+  // Which translator produced each cached result, so the Gemini clean-up can skip anything
+  // that was translated on this device
+  const mtProviderRef = useRef<Map<string, TranslatorId>>(new Map());
   const refineEnabledRef = useRef<boolean>(false);
 
   // Translator picker: 'auto' uses the server's default order; anything else goes first
@@ -393,6 +404,7 @@ export default function App() {
             context,
           }),
         });
+        if (res.status === 429) throw new RateLimitedError();
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
@@ -407,7 +419,9 @@ export default function App() {
 
       try {
         return await attemptFetch();
-      } catch {
+      } catch (error) {
+        // Throttled: retrying straight away would only add load
+        if (error instanceof RateLimitedError) throw error;
         // Retry once after 1 second before giving up
         await new Promise((resolve) => setTimeout(resolve, 1000));
         return await attemptFetch();
@@ -421,13 +435,21 @@ export default function App() {
     (text: string, lang: ConversationLanguage, source: ConversationLanguage = 'en'): Promise<string> => {
       if (source === lang) return Promise.resolve(text);
       const preference = mtPreferenceRef.current;
-      const key = `${preference}\u0000${source}\u0000${lang}\u0000${text}`;
+      const key = mtCacheKey(preference, source, lang, text);
       const cache = mtCacheRef.current;
       const existing = cache.get(key);
       if (existing) return existing;
 
       const started = performance.now();
       const recordTiming = () => setLastTranslateMs(Math.round(performance.now() - started));
+      const rememberProvider = (provider: TranslatorId) => {
+        const providers = mtProviderRef.current;
+        providers.set(key, provider);
+        if (providers.size > MT_CLIENT_CACHE_MAX) {
+          const oldest = providers.keys().next().value;
+          if (oldest !== undefined) providers.delete(oldest);
+        }
+      };
 
       const attemptServer = async (): Promise<string> => {
         const res = await fetch('/api/mt', {
@@ -445,6 +467,7 @@ export default function App() {
               : { provider: preference }),
           }),
         });
+        if (res.status === 429) throw new RateLimitedError();
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as {
           translation?: string;
@@ -453,38 +476,49 @@ export default function App() {
         if (!data.translation) throw new Error('Missing translation');
         if (data.provider && data.provider !== 'cache') {
           setLastUsedProvider(data.provider);
+          rememberProvider(data.provider);
         }
         recordTiming();
         return data.translation;
       };
 
-      // On-device mode: Chrome's built-in Translator; anything it can't do falls back to the server
+      // On this device first: always in "On this device" mode, and in Auto whenever the language
+      // pack is already installed. Anything it can't do falls back to the server's chain
+      // (free endpoint, then Cloud Translation, then Gemini).
       const attempt = async (): Promise<string> => {
-        if (preference === 'on-device') {
+        const forced = preference === 'on-device';
+        const useOnDevice =
+          forced || (preference === 'auto' && (await isOnDeviceUsable(lang, source)));
+        if (useOnDevice) {
           const t0 = performance.now();
           try {
             const translation = await rejectAfter(
               translateOnDevice(text, lang, source),
-              ON_DEVICE_TIMEOUT_MS
+              forced ? ON_DEVICE_TIMEOUT_MS : AUTO_ON_DEVICE_TIMEOUT_MS
             );
             const ms = Math.round(performance.now() - t0);
             console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
             setLastUsedProvider('on-device');
+            rememberProvider('on-device');
             recordTiming();
             return translation;
           } catch (error) {
-            // Unsupported language, model not downloaded yet, blocked by policy, or too slow
-            const ms = Math.round(performance.now() - t0);
-            console.warn(
-              `[on-device] ${lang}: gave up after ${ms} ms, using online translation —`,
-              error instanceof Error ? error.message : error
-            );
+            // Unsupported language, model not ready yet, blocked by policy, or too slow
+            if (forced) {
+              const ms = Math.round(performance.now() - t0);
+              console.warn(
+                `[on-device] ${lang}: gave up after ${ms} ms, using online translation —`,
+                error instanceof Error ? error.message : error
+              );
+            }
           }
         }
         return attemptServer();
       };
 
-      const promise = attempt().catch(async () => {
+      const promise = attempt().catch(async (error) => {
+        // Throttled: retrying straight away would only add load
+        if (error instanceof RateLimitedError) throw error;
         await new Promise((resolve) => setTimeout(resolve, 250));
         return attempt();
       });
@@ -606,25 +640,34 @@ export default function App() {
         )
       );
 
-      // Start refinement immediately, but only apply it after the fast results so it can't be overwritten
-      // On-device mode skips the Gemini pass so text stays on this machine when possible
-      const refineJob =
-        refineEnabledRef.current && mtPreferenceRef.current !== 'on-device'
-        ? fetchTranslationWithRetry(phrase, langs, contextSnapshot).catch(
-            () => null
-          )
-        : Promise.resolve(null);
-
       void Promise.all(mtJobs).then(async () => {
         patch((seg) => ({
           ...seg,
           status: failures === langs.length ? 'error' : 'done',
         }));
-        const refined = await refineJob;
+
+        // Optional Gemini clean-up, only for languages that weren't translated on this device
+        // (so on-device text never leaves the machine, and the server's Gemini calls stay low).
+        // "On this device" mode skips it entirely.
+        const preference = mtPreferenceRef.current;
+        const refineLangs =
+          !refineEnabledRef.current || preference === 'on-device'
+            ? []
+            : langs.filter(
+                (code) =>
+                  mtProviderRef.current.get(mtCacheKey(preference, 'en', code, phrase)) !==
+                  'on-device'
+              );
+        if (refineLangs.length === 0) return;
+        const refined = await fetchTranslationWithRetry(
+          phrase,
+          refineLangs,
+          contextSnapshot
+        ).catch(() => null);
         if (!refined) return;
         patch((seg) => {
           const merged = { ...seg.translations };
-          for (const code of langs) {
+          for (const code of refineLangs) {
             const value = refined[code];
             if (value && value !== 'translation unavailable') merged[code] = value;
           }
@@ -772,6 +815,12 @@ export default function App() {
         begin(local);
       });
     } else {
+      // Auto: fetch the translation packs now (this click is the gesture Chrome requires) so
+      // on-device translation takes over as soon as they're ready. Captions keep flowing
+      // through the online translators in the meantime. Speech stays on Google's service.
+      if (mtPreferenceRef.current === 'auto' && isOnDeviceTranslationSupported()) {
+        prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
+      }
       begin(false);
     }
   }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation, reportPack]);
@@ -1115,7 +1164,7 @@ export default function App() {
       title={
         lastUsedProvider
           ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
-          : 'Which translator powers live captions. Others are used as automatic fallbacks.'
+          : 'Which translator powers live captions. Auto uses this device when it can, then the online translators in order.'
       }
     >
       <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
@@ -1125,19 +1174,26 @@ export default function App() {
           const next = e.target.value as MtPreference;
           setMtPreference(next);
           // Choosing it is a user gesture, so start downloading language packs now
-          if (next === 'on-device' && displayMode !== 'conversation') prepareOnDeviceTranslators(selectedLangs, reportPack);
+          if (
+            (next === 'on-device' || (next === 'auto' && onDeviceSupported)) &&
+            displayMode !== 'conversation'
+          ) {
+            prepareOnDeviceTranslators(selectedLangs, reportPack);
+          }
         }}
         className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
       >
         <option value="auto">
           Auto
-          {availableProviders[0]
-            ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
-            : ''}
+          {onDeviceSupported
+            ? ' (On this device first)'
+            : availableProviders[0]
+              ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
+              : ''}
         </option>
         <option value="on-device" disabled={!onDeviceSupported}>
           {MT_PROVIDER_LABELS['on-device']}
-          {onDeviceSupported ? '' : ' (needs desktop Chrome 138+)'}
+          {onDeviceSupported ? ' (speech too)' : ' (needs desktop Chrome 138+)'}
         </option>
         {availableProviders.map((p) => (
           <option key={p} value={p}>

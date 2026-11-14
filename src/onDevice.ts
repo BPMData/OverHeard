@@ -48,6 +48,9 @@ const TRANSLATOR_CODES: Record<string, string> = { prs: 'fa-AF' };
 const toTranslatorCode = (code: string) => TRANSLATOR_CODES[code] ?? code;
 
 const translators = new Map<string, Promise<TranslatorInstance | null>>();
+// Pairs (`source>target`) known to work on this device, and pairs it can't do at all
+const readyPairs = new Set<string>();
+const unsupportedPairs = new Set<string>();
 
 /** Download progress for a language: 0–1 while downloading, null when it ended without a pack. */
 export type PackProgress = (code: string, fraction: number | null) => void;
@@ -93,7 +96,10 @@ export function getOnDeviceTranslator(
 
   translators.set(key, promise);
   // Don't cache failures (e.g. a download that needed a user gesture); try again next time
-  promise.catch(() => translators.delete(key));
+  promise.then(
+    (translator) => void (translator ? readyPairs : unsupportedPairs).add(key),
+    () => translators.delete(key)
+  );
   return promise;
 }
 
@@ -113,6 +119,32 @@ export function prepareOnDeviceTranslators(
       (translator) => onProgress?.(code, translator ? 1 : null),
       () => onProgress?.(code, null)
     );
+  }
+}
+
+/**
+ * Can on-device translation for `source` → `code` run right now, without waiting for a
+ * download or needing a click? True once the language pack is installed. False while it is
+ * still downloading, not installed yet, or unsupported on this device.
+ */
+export async function isOnDeviceUsable(code: string, source = 'en'): Promise<boolean> {
+  const api = getTranslatorApi();
+  if (!api) return false;
+  const key = `${source}>${code}`;
+  if (readyPairs.has(key)) return true;
+  if (unsupportedPairs.has(key)) return false;
+  try {
+    const availability = await api.availability({
+      sourceLanguage: toTranslatorCode(source),
+      targetLanguage: toTranslatorCode(code),
+    });
+    if (availability === 'unavailable') {
+      unsupportedPairs.add(key);
+      return false;
+    }
+    return availability === 'available';
+  } catch {
+    return false;
   }
 }
 
@@ -191,15 +223,18 @@ export function prepareOnDeviceSpeech(
  * until the gesture has expired.
  *
  * Progress keys: translation packs are keyed by target language, speech packs `speech:<code>`.
+ * Pass `{ speech: false }` to fetch only the translation packs (Auto mode keeps cloud speech).
  */
 export function prepareOnDeviceConversation(
   langs: { a: string; b: string },
-  onProgress?: PackProgress
+  onProgress?: PackProgress,
+  options: { speech?: boolean } = {}
 ): void {
   if (langs.a !== langs.b) {
     prepareOnDeviceTranslators([langs.b], langs.a, onProgress);
     prepareOnDeviceTranslators([langs.a], langs.b, onProgress);
   }
+  if (options.speech === false) return;
   for (const code of new Set([langs.a, langs.b])) {
     const key = `speech:${code}`;
     void prepareOnDeviceSpeech(speechLocale(code), () => onProgress?.(key, -1)).then(() =>

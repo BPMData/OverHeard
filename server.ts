@@ -8,11 +8,15 @@ import {
   buildProviderChain,
   createMachineTranslator,
   isMtProvider,
+  ProviderBudgetError,
   translateGoogleCloud,
   translateGtx,
   type MtProvider,
 } from './server/mt.ts';
 import { createGeminiSingleTranslator } from './server/geminiSingle.ts';
+import { createDailyBudget } from './server/budget.ts';
+import { intFromEnv } from './server/config.ts';
+import { createUsageTracker, forwardedCount } from './server/usage.ts';
 import { createRateLimiter, type RateLimiter } from './server/rateLimit.ts';
 import { SESSION_HEADER, sessionKey } from './server/clientKeys.ts';
 
@@ -45,10 +49,14 @@ const SYSTEM_INSTRUCTION =
 // - Per IP: a looser backstop (about 10 teachers' worth), because session IDs come from the
 //   client and can be rotated to dodge the per-session limit.
 // The fast MT endpoint is hit once per language per interim chunk, so it gets a much larger budget.
+// All of these can be changed with environment variables, without rebuilding the app.
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const IP_LIMIT_MULTIPLIER = 10;
-const REFINE_PER_SESSION = 60;
-const MT_PER_SESSION = 900;
+const IP_LIMIT_MULTIPLIER = Math.max(1, intFromEnv(process.env.RATE_LIMIT_IP_MULTIPLIER, 10));
+const REFINE_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_REFINE_PER_SESSION, 60));
+const MT_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_MT_PER_SESSION, 900));
+// How many proxies sit in front of this server and can be trusted to report the real client
+// address. Cloud Run's front end is one. Too low and every user looks like the same visitor.
+const TRUST_PROXY_HOPS = intFromEnv(process.env.TRUST_PROXY_HOPS, 1);
 const refineSessionLimiter = createRateLimiter(REFINE_PER_SESSION, RATE_LIMIT_WINDOW_MS);
 const mtSessionLimiter = createRateLimiter(MT_PER_SESSION, RATE_LIMIT_WINDOW_MS);
 const refineIpLimiter = createRateLimiter(
@@ -57,15 +65,36 @@ const refineIpLimiter = createRateLimiter(
 );
 const mtIpLimiter = createRateLimiter(MT_PER_SESSION * IP_LIMIT_MULTIPLIER, RATE_LIMIT_WINDOW_MS);
 
+// Daily spending guards for the paid services (0 = unlimited). Once a budget is used up the
+// paid service is skipped until midnight UTC and captions continue on the free translator.
+// Defaults are guesses: about $20 of Cloud Translation at list price, and a few thousand
+// Gemini calls. Raise or lower them to taste.
+const cloudBudget = createDailyBudget(intFromEnv(process.env.CLOUD_TRANSLATE_DAILY_CHARS, 1_000_000));
+const geminiBudget = createDailyBudget(intFromEnv(process.env.GEMINI_DAILY_CALLS, 5_000));
+
+const usage = createUsageTracker();
+
 // Periodically prune stale entries
 setInterval(() => {
   for (const limiter of [refineSessionLimiter, mtSessionLimiter, refineIpLimiter, mtIpLimiter]) {
     limiter.prune();
   }
+  // One line per busy minute: who's using it, which translators did the work, any throttling
+  const summary = usage.flush();
+  if (summary) {
+    console.log(
+      '[usage]',
+      JSON.stringify({
+        ...summary,
+        cloudCharsToday: `${cloudBudget.used()}/${cloudBudget.limit || 'unlimited'}`,
+        geminiCallsToday: `${geminiBudget.used()}/${geminiBudget.limit || 'unlimited'}`,
+      })
+    );
+  }
 }, RATE_LIMIT_WINDOW_MS).unref();
 
-// With `trust proxy` set to 1 hop, req.ip is the address Cloud Run's front end saw — the
-// right-most X-Forwarded-For entry. Never read the left-most entry: the client controls it.
+// With `trust proxy` set to TRUST_PROXY_HOPS, req.ip is the address the outermost trusted
+// proxy saw. Never read the left-most X-Forwarded-For entry yourself: the client controls it.
 function getClientIp(req: Request): string {
   return req.ip || 'unknown';
 }
@@ -80,6 +109,23 @@ function isRateLimited(
     ipLimiter.isLimited(ip) ||
     sessionLimiter.isLimited(sessionKey(req.headers[SESSION_HEADER], ip))
   );
+}
+
+/** Rate-limit check for an API request; also records who is using the server. */
+function rejectIfLimited(
+  req: Request,
+  res: Response,
+  ipLimiter: RateLimiter,
+  sessionLimiter: RateLimiter,
+  message: string
+): boolean {
+  usage.seenSession(sessionKey(req.headers[SESSION_HEADER], getClientIp(req)));
+  usage.forwardedEntries(forwardedCount(req.headers['x-forwarded-for']));
+  if (!isRateLimited(req, ipLimiter, sessionLimiter)) return false;
+  usage.rateLimited();
+  res.set('Retry-After', '5');
+  res.status(429).json({ error: message });
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,13 +168,15 @@ const translateGeminiSingle = createGeminiSingleTranslator({
 
 const machineTranslator = createMachineTranslator({
   chain: MT_CHAIN,
-  callProvider: (provider, text, code, source) => {
+  callProvider: async (provider, text, code, source) => {
     switch (provider) {
       case 'google-cloud':
+        if (!cloudBudget.tryUse(text.length)) throw new ProviderBudgetError(provider);
         return translateGoogleCloud(text, code, GOOGLE_TRANSLATE_API_KEY!, source);
       case 'gtx':
         return translateGtx(text, code, source);
       case 'gemini':
+        if (!geminiBudget.tryUse(1)) throw new ProviderBudgetError(provider);
         return translateGeminiSingle(text, code, source);
     }
   },
@@ -151,8 +199,8 @@ function getGenAIClient(): GoogleGenAI {
 
 async function startServer() {
   const app = express();
-  // Trust only the one proxy hop in front of us (Cloud Run's front end)
-  app.set('trust proxy', 1);
+  // Trust only the proxy hops we expect in front of us (Cloud Run's front end is one)
+  app.set('trust proxy', TRUST_PROXY_HOPS);
   app.use(express.json({ limit: '16kb' }));
 
   app.get('/api/config', (_req: Request, res: Response) => {
@@ -166,10 +214,7 @@ async function startServer() {
   // Fast path: one language per request so the client can fire them in parallel
   // and paint each column the moment its translation lands.
   app.post('/api/mt', async (req: Request, res: Response) => {
-    if (isRateLimited(req, mtIpLimiter, mtSessionLimiter)) {
-      res.status(429).json({ error: 'Rate limit exceeded.' });
-      return;
-    }
+    if (rejectIfLimited(req, res, mtIpLimiter, mtSessionLimiter, 'Rate limit exceeded.')) return;
 
     const { text, lang, source = 'en', provider: requestedProvider } = req.body ?? {};
     if (typeof text !== 'string' || text.trim().length === 0) {
@@ -198,8 +243,10 @@ async function startServer() {
         isMtProvider(requestedProvider) ? requestedProvider : undefined,
         source
       );
+      usage.mtOk(provider, text.trim().slice(0, 500).length);
       res.json({ translation, provider, ms: Date.now() - started });
     } catch (error: unknown) {
+      usage.mtFailed();
       const errMessage = error instanceof Error ? error.message : 'MT request failed';
       console.error('[/api/mt] all providers failed:', errMessage);
       res.status(502).json({ error: 'Translation unavailable', details: errMessage });
@@ -208,12 +255,16 @@ async function startServer() {
 
   // Slow path: context-aware Gemini refinement of a finished sentence.
   app.post('/api/translate', async (req: Request, res: Response) => {
-    if (isRateLimited(req, refineIpLimiter, refineSessionLimiter)) {
-      res.status(429).json({
-        error: `Rate limit exceeded (maximum ${REFINE_PER_SESSION} requests per minute).`,
-      });
+    if (
+      rejectIfLimited(
+        req,
+        res,
+        refineIpLimiter,
+        refineSessionLimiter,
+        `Rate limit exceeded (maximum ${REFINE_PER_SESSION} requests per minute).`
+      )
+    )
       return;
-    }
 
     const { phrase, targetLangs, context } = req.body ?? {};
 
@@ -291,6 +342,12 @@ async function startServer() {
 
     const prompt = `${contextBlock}Target languages: ${targetDescription}\nTeacher's current English sentence to translate:\n"${trimmedPhrase}"`;
 
+    if (!geminiBudget.tryUse(1)) {
+      usage.refine(false);
+      res.status(429).json({ error: 'Daily Gemini budget reached.' });
+      return;
+    }
+
     try {
       const ai = getGenAIClient();
       const response = await ai.models.generateContent({
@@ -316,8 +373,10 @@ async function startServer() {
             : 'translation unavailable';
       }
 
+      usage.refine(true);
       res.json({ translations });
     } catch (error: unknown) {
+      usage.refine(false);
       const errMessage =
         error instanceof Error ? error.message : 'Translation request failed';
       console.error('[/api/translate] Gemini error:', errMessage);
@@ -349,6 +408,11 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`OverHeard server running on http://0.0.0.0:${PORT}`);
+    console.log(
+      `[limits] per tab/min: ${MT_PER_SESSION} translations, ${REFINE_PER_SESSION} refinements; per IP: ${IP_LIMIT_MULTIPLIER}x; ` +
+        `trusted proxy hops: ${TRUST_PROXY_HOPS}; daily caps: ${cloudBudget.limit || 'unlimited'} Cloud Translation chars, ` +
+        `${geminiBudget.limit || 'unlimited'} Gemini calls`
+    );
     console.log(
       `[translate] live MT providers: ${MT_CHAIN.join(' → ')}; Gemini refine: ${REFINE_ENABLED ? `on (${GEMINI_MODEL})` : 'off'}`
     );

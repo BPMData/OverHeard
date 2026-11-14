@@ -99,6 +99,13 @@ export async function translateGtx(
   return out;
 }
 
+/** A paid provider skipped because today's spending cap is used up. Benched like a quota error. */
+export class ProviderBudgetError extends ProviderError {
+  constructor(provider: string) {
+    super(`${provider} daily budget reached`, 429);
+  }
+}
+
 /** A provider that took too long to answer. Treated like a quota error: it gets benched. */
 export class ProviderTimeoutError extends ProviderError {
   constructor(provider: string, ms: number) {
@@ -221,7 +228,9 @@ export function createMachineTranslator({
               const reason =
                 error instanceof ProviderTimeoutError
                   ? 'was too slow'
-                  : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
+                  : error instanceof ProviderBudgetError
+                    ? 'hit its daily budget'
+                    : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
               log.warn(
                 `[translate] ${provider} ${reason}; skipping it for ${
                   cooldownMs / 60_000
