@@ -235,3 +235,66 @@ describe('sharing speech preparation', () => {
     await expect(m.prepareOnDeviceSpeech('es-US')).resolves.toBe(true);
   });
 });
+
+describe('isOnDeviceUsable', () => {
+  it('is true only once the language pack is installed', async () => {
+    const availability = vi.fn(async () => 'available');
+    g.Translator = { availability, create: vi.fn() };
+    const m = await load();
+    await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+    expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'en', targetLanguage: 'es' });
+  });
+
+  it('is false while a pack still needs downloading, so Auto uses the online translators', async () => {
+    g.Translator = { availability: async () => 'downloadable', create: vi.fn() };
+    const m = await load();
+    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+  });
+
+  it('remembers unsupported languages and stops asking the device', async () => {
+    const availability = vi.fn(async () => 'unavailable');
+    g.Translator = { availability, create: vi.fn() };
+    const m = await load();
+    await expect(m.isOnDeviceUsable('ht')).resolves.toBe(false);
+    await expect(m.isOnDeviceUsable('ht')).resolves.toBe(false);
+    expect(availability).toHaveBeenCalledTimes(1);
+  });
+
+  it('is true without asking again once a translator has been created', async () => {
+    const availability = vi.fn(async () => 'available');
+    g.Translator = {
+      availability,
+      create: async () => ({ translate: async () => 'Hola' }),
+    };
+    const m = await load();
+    await m.translateOnDevice('Hello', 'es');
+    availability.mockClear();
+    await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+    expect(availability).not.toHaveBeenCalled();
+  });
+
+  it('is false in browsers without the Translator API or when the check throws', async () => {
+    let m = await load();
+    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+    vi.resetModules();
+    g.Translator = {
+      availability: async () => {
+        throw new Error('blocked');
+      },
+      create: vi.fn(),
+    };
+    m = await load();
+    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+  });
+
+  it('prepareOnDeviceConversation can skip speech packs', async () => {
+    const create = vi.fn(async () => ({ translate: async () => '' }));
+    g.Translator = { availability: async () => 'available', create };
+    const install = vi.fn(async () => true);
+    g.SpeechRecognition = { available: async () => 'downloadable', install };
+    const m = await load();
+    m.prepareOnDeviceConversation({ a: 'en', b: 'es' }, undefined, { speech: false });
+    await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    expect(install).not.toHaveBeenCalled();
+  });
+});

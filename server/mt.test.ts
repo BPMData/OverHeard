@@ -3,6 +3,7 @@ import {
   buildProviderChain,
   createMachineTranslator,
   isBenchingError,
+  ProviderBudgetError,
   ProviderError,
   toGoogleCode,
   translateGoogleCloud,
@@ -173,6 +174,26 @@ describe('createMachineTranslator', () => {
     });
     expect(translator.cooldowns().has('gtx')).toBe(true);
     expect(translator.cooldowns().has('google-cloud')).toBe(false);
+  });
+
+  it('skips a provider whose daily budget is used up and benches it', async () => {
+    const warnings: unknown[][] = [];
+    const callProvider = vi.fn(async (provider: MtProvider) => {
+      if (provider === 'google-cloud') throw new ProviderBudgetError('google-cloud');
+      return provider === 'gtx' ? 'Hola (gtx)' : 'Hola (gemini)';
+    });
+    const translator = createMachineTranslator({
+      chain: ['google-cloud', 'gtx', 'gemini'],
+      callProvider,
+      log: { log: () => {}, warn: (...args: unknown[]) => void warnings.push(args) },
+    });
+    await expect(translator.translate('Hello', 'es')).resolves.toMatchObject({ provider: 'gtx' });
+    expect(translator.cooldowns().has('google-cloud')).toBe(true);
+    expect(String(warnings[0]?.[0])).toContain('hit its daily budget');
+    // Benched: the next sentence doesn't even try it
+    callProvider.mockClear();
+    await translator.translate('Goodbye', 'es');
+    expect(callProvider.mock.calls.map((c) => c[0])).toEqual(['gtx']);
   });
 
   it('returns the first provider that succeeds', async () => {

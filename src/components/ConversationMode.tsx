@@ -11,7 +11,11 @@ import {
   type Side,
 } from '../conversation/state';
 import { useConversationSpeech } from '../conversation/useConversationSpeech';
-import { prepareOnDeviceConversation, type PackProgress } from '../onDevice';
+import {
+  isOnDeviceTranslationSupported,
+  prepareOnDeviceConversation,
+  type PackProgress,
+} from '../onDevice';
 import {
   conversationCsv,
   loadConversationSettings,
@@ -201,8 +205,12 @@ export function ConversationMode({
     setUiError('');
     // Downloads need this click, and the automatic hand-off between speakers isn't one,
     // so fetch every pack both people will need now.
+    const langs = { a: settings.a.lang, b: settings.b.lang };
     if (mtPreference === 'on-device') {
-      prepareOnDeviceConversation({ a: settings.a.lang, b: settings.b.lang }, onPackProgress);
+      prepareOnDeviceConversation(langs, onPackProgress);
+    } else if (mtPreference === 'auto' && isOnDeviceTranslationSupported()) {
+      // Auto translates on this device once packs are ready; speech stays on Google's service
+      prepareOnDeviceConversation(langs, onPackProgress, { speech: false });
     }
     speech.start(mtPreference === 'on-device');
   };

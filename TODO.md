@@ -25,6 +25,48 @@ Not specified yet. Starting points: readable from across a desk at a slight angl
 chrome around the captions, and possibly a one-language-at-a-time layout for a single
 student. Decide after using it with a small group.
 
+### Split up `src/App.tsx` (about 2,000 lines)
+
+It works, but everything lives in one component: captioning, speech recognition, translation,
+the pop-out window, the language modal and the header, so any change risks a side effect. Fix
+sooner rather than later, but carefully:
+
+- Do it as its own PR with **no behavior changes**, in small steps, running CI after each.
+- Suggested pieces: a speech hook for caption mode (start/stop, restart backoff, on-device
+  speech), a translation hook (`fetchMT`, the cache, Auto / On this device logic, the Gemini
+  clean-up), the on-device download state (`packProgress`, `reportPack`), the header and
+  translator picker as components, and the transcript export.
+- Conversation mode already lives in its own files and shows the pattern.
+- Test coverage of the caption path is thin, so add tests around `handleFinalizedPhrase` and
+  `fetchMT` *before* moving them.
+
+### Small cleanups
+
+- `getOnDeviceTranslator`, `prepareOnDeviceTranslators` and `translateGoogleCloud` / `translateGtx`
+  take an argument that can be a language code *or* a helper function. It works but is
+  confusing; switch to an options object.
+- Old branches in the repo: `ci-tests`, `fast-live-translation`, `popout-compact`,
+  `popout-lines` and merged feature branches. Delete once you're sure nothing is on them.
+- `PLAN.md` was Codex's plan for Conversation mode and is finished. Delete it, or keep it as
+  history (the Conversation mode spec below links to nothing there).
+- `ON_DEVICE_TIMEOUT_MS` in `src/App.tsx` is 10 s for the "On this device" mode, deliberately
+  longer than the online translators' 2.5 s so slow results can be measured. Revisit it once
+  you've seen real timings on the school MacBooks.
+
+### If many teachers use it
+
+- The Cloud Run service is set to a maximum of **1 instance**. That's fine for dozens of
+  teachers, since the server mostly waits on other services. If you raise it, each instance
+  keeps its own rate limits, translation cache, daily spending guards and "benched translator"
+  list, so the guards become *per instance*. Divide the daily caps accordingly.
+- Watch the `[usage]` lines in the Cloud Run logs: active tabs, requests per translator,
+  throttling, and how much of today's spending guards are used.
+- If the link spreads beyond people you trust, add an access code. Anyone with the URL can
+  currently use your translation quota.
+- Switch Gemini to a cheaper model by setting `GEMINI_MODEL` to the Flash-Lite model ID shown in
+  AI Studio's model picker. Test one sentence afterwards: the code sets a thinking level that
+  some models may not accept.
+
 ---
 
 ## Done
