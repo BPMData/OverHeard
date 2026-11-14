@@ -1,3 +1,4 @@
+import { createFinalDeduper } from '../speechDedupe';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
 import { isFailedSession, restartDelay } from '../speechRestart';
@@ -167,6 +168,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     const startedAt = Date.now();
     let lastError: string | null = null;
     const finals = new Set<number>();
+    const newWords = createFinalDeduper();
 
     recognition.onresult = (event) => {
       if (!valid()) return;
@@ -177,7 +179,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         if (result.isFinal) {
           if (!finals.has(index)) {
             finals.add(index);
-            current.draft = [current.draft, text].filter(Boolean).join(' ');
+            current.draft = [current.draft, newWords(text)].filter(Boolean).join(' ');
           }
         } else {
           parts.push(text);

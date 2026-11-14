@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createFinalDeduper } from './speechDedupe';
 import { withMicAccess } from './micPermission';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -705,8 +706,10 @@ export default function App() {
       recognition.lang = 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
+      let newWords = createFinalDeduper();
 
       recognition.onstart = () => {
+        newWords = createFinalDeduper();
         sessionStartedAtRef.current = Date.now();
         lastSpeechErrorRef.current = null;
         setIsListening(true);
@@ -723,7 +726,8 @@ export default function App() {
           if (result.isFinal) {
             setInterimTranscript('');
             clearLiveTranslation();
-            handleFinalizedPhrase(transcriptText);
+            const fresh = newWords(transcriptText);
+            if (fresh) handleFinalizedPhrase(fresh);
           } else {
             interim += transcriptText;
           }
