@@ -1,4 +1,4 @@
-import { createFinalDeduper } from '../speechDedupe';
+import { appendDistinct, createFinalDeduper } from '../speechDedupe';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
 import { isFailedSession, restartDelay } from '../speechRestart';
@@ -94,7 +94,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
 
   function send() {
     const current = session.current;
-    const text = [current.draft, current.interim].filter(Boolean).join(' ').trim();
+    const text = appendDistinct(current.draft, current.interim).trim();
     if (text) opts.current.onSend(current.side, text);
     clearDraft();
   }
@@ -133,7 +133,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   // A replacement recognizer cannot revise an old recognizer's interim result.
   function preserveInterim() {
     const current = session.current;
-    current.draft = [current.draft, current.interim].filter(Boolean).join(' ');
+    current.draft = appendDistinct(current.draft, current.interim);
     current.interim = '';
     updateDraft(current.draft);
     updateInterim('');
@@ -179,13 +179,13 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         if (result.isFinal) {
           if (!finals.has(index)) {
             finals.add(index);
-            current.draft = [current.draft, newWords(text)].filter(Boolean).join(' ');
+            current.draft = appendDistinct(current.draft, newWords(text));
           }
         } else {
           parts.push(text);
         }
       }
-      current.interim = parts.join(' ');
+      current.interim = newWords.peek(parts.join(' '));
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;

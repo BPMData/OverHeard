@@ -70,6 +70,24 @@ describe('conversation turn recognition', () => {
     expect(result.current.turn).toBe('b');
     expect(latest().lang).toBe('es-US');
   });
+  it('does not repeat cumulative Android results in the sent message', () => {
+    const { result, onSend } = setup();
+    act(() => {
+      latest().result('why', true, 0);
+      latest().result('why is', true, 1);
+      latest().result('why is it doubling', false, 2);
+    });
+    expect(result.current.draft).toBe('why is');
+    expect(result.current.interim).toBe('it doubling');
+    // The engine ends mid-phrase; the next session repeats the tail before adding to it
+    act(() => {
+      latest().onend?.();
+      vi.advanceTimersByTime(400);
+    });
+    act(() => latest().result('it doubling anything', true, 0));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it doubling anything');
+  });
   it('waits indefinitely through no-speech and unexpected ends', () => {
     const { result, onSend } = setup();
     act(() => {
