@@ -20,7 +20,7 @@ echo "$CONFIG"
 echo "$CONFIG" | grep -q '"mtProvider":"gtx"'
 
 echo "--- /api/mt rejects bad input"
-for body in '{"text":"hi","lang":"xx"}' '{"text":"","lang":"es"}' '{}'; do
+for body in '{"text":"hi","lang":"xx"}' '{"text":"","lang":"es"}' '{}' '{"text":"hola","lang":"es","source":"xx"}' '{"text":"hola","lang":"es","source":"es"}'; do
   code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$PORT_URL/api/mt" \
     -H 'Content-Type: application/json' -d "$body")"
   echo "$body -> $code"

@@ -12,6 +12,7 @@ import {
   translateGtx,
   type MtProvider,
 } from './server/mt.ts';
+import { createGeminiSingleTranslator } from './server/geminiSingle.ts';
 import { createRateLimiter, type RateLimiter } from './server/rateLimit.ts';
 import { SESSION_HEADER, sessionKey } from './server/clientKeys.ts';
 
@@ -112,32 +113,23 @@ const REFINE_ENABLED =
   MT_PROVIDER !== 'gemini' &&
   process.env.REFINE_WITH_GEMINI !== 'false';
 
-async function translateGeminiSingle(text: string, code: string): Promise<string> {
-  const ai = getGenAIClient();
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: `Translate into ${SUPPORTED_LANGUAGES[code]}. Output only the translation.\n\n${text}`,
-    config: {
-      systemInstruction:
-        'You are a classroom interpreter. Natural, student-friendly, keep subject vocabulary accurate.',
-      thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
-    },
-  });
-  const out = (response.text ?? '').trim();
-  if (!out) throw new Error('Gemini returned no text');
-  return out;
-}
+const translateGeminiSingle = createGeminiSingleTranslator({
+  generateContent: (request) => getGenAIClient().models.generateContent(request),
+  model: GEMINI_MODEL,
+  thinkingLevel: GEMINI_THINKING_LEVEL,
+  languages: SUPPORTED_LANGUAGES,
+});
 
 const machineTranslator = createMachineTranslator({
   chain: MT_CHAIN,
-  callProvider: (provider, text, code) => {
+  callProvider: (provider, text, code, source) => {
     switch (provider) {
       case 'google-cloud':
-        return translateGoogleCloud(text, code, GOOGLE_TRANSLATE_API_KEY!);
+        return translateGoogleCloud(text, code, GOOGLE_TRANSLATE_API_KEY!, source);
       case 'gtx':
-        return translateGtx(text, code);
+        return translateGtx(text, code, source);
       case 'gemini':
-        return translateGeminiSingle(text, code);
+        return translateGeminiSingle(text, code, source);
     }
   },
 });
@@ -179,13 +171,22 @@ async function startServer() {
       return;
     }
 
-    const { text, lang, provider: requestedProvider } = req.body ?? {};
+    const { text, lang, source = 'en', provider: requestedProvider } = req.body ?? {};
     if (typeof text !== 'string' || text.trim().length === 0) {
       res.status(400).json({ error: 'Text must be a non-empty string.' });
       return;
     }
-    if (typeof lang !== 'string' || !SUPPORTED_LANGUAGES[lang]) {
+    if (typeof lang !== 'string' || (lang !== 'en' && !Object.hasOwn(SUPPORTED_LANGUAGES, lang))) {
       res.status(400).json({ error: `Unsupported language code: ${String(lang)}` });
+      return;
+    }
+
+    if (typeof source !== 'string' || (source !== 'en' && !Object.hasOwn(SUPPORTED_LANGUAGES, source))) {
+      res.status(400).json({ error: `Unsupported source language code: ${String(source)}` });
+      return;
+    }
+    if (source === lang) {
+      res.status(400).json({ error: 'Source and target languages must differ.' });
       return;
     }
 
@@ -194,7 +195,8 @@ async function startServer() {
       const { translation, provider } = await machineTranslator.translate(
         text.trim().slice(0, 500),
         lang,
-        isMtProvider(requestedProvider) ? requestedProvider : undefined
+        isMtProvider(requestedProvider) ? requestedProvider : undefined,
+        source
       );
       res.json({ translation, provider, ms: Date.now() - started });
     } catch (error: unknown) {

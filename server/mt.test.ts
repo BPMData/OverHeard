@@ -304,3 +304,28 @@ describe('createMachineTranslator', () => {
     await expect(translator.translate('Hello', 'es')).rejects.toThrow('gtx down');
   });
 });
+
+describe('bidirectional translation', () => {
+  it('sends the source language to GTX and Cloud', async () => {
+    const gtxFetch = vi.fn(async () => jsonResponse([[['Hello', 'Hola']]]));
+    await translateGtx('Hola', 'en', 'es', gtxFetch);
+    expect(String((gtxFetch.mock.calls[0] as unknown[])[0])).toContain('sl=es');
+    expect(String((gtxFetch.mock.calls[0] as unknown[])[0])).toContain('tl=en');
+    const cloudFetch = vi.fn(async () => jsonResponse({ data: { translations: [{ translatedText: 'Hello' }] } }));
+    await translateGoogleCloud('Hola', 'en', 'KEY', 'es', cloudFetch);
+    const init = (cloudFetch.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(JSON.parse(String(init.body))).toMatchObject({ source: 'es', target: 'en' });
+  });
+
+  it('isolates language pairs and passes the source to every provider including Gemini', async () => {
+    const callProvider = vi.fn(async (_provider: MtProvider, _text: string, target: string, source: string) => `${source}>${target}`);
+    const translator = createMachineTranslator({ chain: ['gemini'], callProvider, log: quietLog });
+    expect((await translator.translate('same', 'en', undefined, 'es')).translation).toBe('es>en');
+    expect((await translator.translate('same', 'es')).translation).toBe('en>es');
+    // Same target and text, different source must also miss the cache.
+    expect((await translator.translate('same', 'en', undefined, 'fr')).translation).toBe('fr>en');
+    expect((await translator.translate('same', 'en', undefined, 'es')).provider).toBe('cache');
+    expect(callProvider).toHaveBeenCalledTimes(3);
+    expect(callProvider).toHaveBeenCalledWith('gemini', 'same', 'en', 'es');
+  });
+});

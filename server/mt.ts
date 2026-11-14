@@ -47,8 +47,11 @@ export async function translateGoogleCloud(
   text: string,
   code: string,
   apiKey: string,
-  fetchImpl: FetchLike = fetch
+  sourceOrFetch: string | FetchLike = 'en',
+  fetchOverride: FetchLike = fetch
 ): Promise<string> {
+  const source = typeof sourceOrFetch === 'string' ? sourceOrFetch : 'en';
+  const fetchImpl = typeof sourceOrFetch === 'function' ? sourceOrFetch : fetchOverride;
   const res = await fetchImpl(
     `https://translation.googleapis.com/language/translate/v2?key=${encodeURIComponent(apiKey)}`,
     {
@@ -56,7 +59,7 @@ export async function translateGoogleCloud(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         q: text,
-        source: 'en',
+        source: toGoogleCode(source),
         target: toGoogleCode(code),
         format: 'text',
       }),
@@ -79,10 +82,13 @@ export async function translateGoogleCloud(
 export async function translateGtx(
   text: string,
   code: string,
-  fetchImpl: FetchLike = fetch
+  sourceOrFetch: string | FetchLike = 'en',
+  fetchOverride: FetchLike = fetch
 ): Promise<string> {
+  const source = typeof sourceOrFetch === 'string' ? sourceOrFetch : 'en';
+  const fetchImpl = typeof sourceOrFetch === 'function' ? sourceOrFetch : fetchOverride;
   const url =
-    'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&dt=t' +
+    `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(toGoogleCode(source))}&dt=t` +
     `&tl=${encodeURIComponent(toGoogleCode(code))}&q=${encodeURIComponent(text)}`;
   const res = await fetchImpl(url);
   if (!res.ok) throw new ProviderError(`gtx HTTP ${res.status}`, res.status);
@@ -123,7 +129,7 @@ export function isBenchingError(error: unknown): boolean {
 
 export interface MachineTranslatorOptions {
   chain: MtProvider[];
-  callProvider: (provider: MtProvider, text: string, code: string) => Promise<string>;
+  callProvider: (provider: MtProvider, text: string, code: string, source: string) => Promise<string>;
   /** How long a benched provider is skipped. Default 10 minutes. */
   cooldownMs?: number;
   /**
@@ -141,7 +147,8 @@ export interface MachineTranslator {
   translate(
     text: string,
     code: string,
-    preferred?: MtProvider
+    preferred?: MtProvider,
+    source?: string
   ): Promise<{ translation: string; provider: MtProvider | 'cache' }>;
   /** Providers currently skipped, with the time they'll be retried. */
   cooldowns(): ReadonlyMap<MtProvider, number>;
@@ -180,13 +187,13 @@ export function createMachineTranslator({
   return {
     cooldowns: () => cooldownUntil,
 
-    async translate(text, code, preferred) {
+    async translate(text, code, preferred, source = 'en') {
       const chain =
         preferred && defaultChain.includes(preferred)
           ? [preferred, ...defaultChain.filter((p) => p !== preferred)]
           : defaultChain;
       // Keyed by the first-choice provider so switching translators in the UI gives fresh results.
-      const key = `${chain[0]}\u0000${code}\u0000${text}`;
+      const key = `${chain[0]}\u0000${source}\u0000${code}\u0000${text}`;
       const cached = cacheGet(key);
       if (cached !== undefined) return { translation: cached, provider: 'cache' };
 
@@ -198,7 +205,7 @@ export function createMachineTranslator({
       let lastError: unknown;
       for (const [index, provider] of order.entries()) {
         try {
-          const call = callProvider(provider, text, code);
+          const call = callProvider(provider, text, code, source);
           const isLast = index === order.length - 1;
           const translation = await (isLast ? call : withTimeout(call, timeoutMs, provider));
           if (cooldownUntil.has(provider)) {

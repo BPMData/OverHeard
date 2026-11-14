@@ -34,7 +34,9 @@ import {
   SAMPLE_SENTENCES,
   VALID_LANGUAGE_CODES,
 } from './constants';
-import { CaptionSegment, DisplayMode, LanguageCode, PipLine } from './types';
+import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLine } from './types';
+import { translateConversationMessage } from './conversation/translateMessage';
+import { ConversationMode } from './components/ConversationMode';
 import { LanguageModal } from './components/LanguageModal';
 import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
@@ -178,6 +180,8 @@ export default function App() {
   // Display & typography controls
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
   const [showPreviousLine, setShowPreviousLine] = useState<boolean>(true);
+  const [conversationVisited, setConversationVisited] = useState(false);
+  const previousMode = useRef<'columns' | 'subtitle'>('columns');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('columns');
 
   // Modals & drawers
@@ -418,9 +422,10 @@ export default function App() {
 
   // Fast single-language machine translation (deduped + cached, one quick retry)
   const fetchMT = useCallback(
-    (text: string, lang: LanguageCode): Promise<string> => {
+    (text: string, lang: ConversationLanguage, source: ConversationLanguage = 'en'): Promise<string> => {
+      if (source === lang) return Promise.resolve(text);
       const preference = mtPreferenceRef.current;
-      const key = `${preference}\u0000${lang}\u0000${text}`;
+      const key = `${preference}\u0000${source}\u0000${lang}\u0000${text}`;
       const cache = mtCacheRef.current;
       const existing = cache.get(key);
       if (existing) return existing;
@@ -438,6 +443,7 @@ export default function App() {
           body: JSON.stringify({
             text,
             lang,
+            source,
             ...(preference === 'auto' || preference === 'on-device'
               ? {}
               : { provider: preference }),
@@ -462,7 +468,7 @@ export default function App() {
           const t0 = performance.now();
           try {
             const translation = await rejectAfter(
-              translateOnDevice(text, lang),
+              translateOnDevice(text, lang, source),
               ON_DEVICE_TIMEOUT_MS
             );
             const ms = Math.round(performance.now() - t0);
@@ -821,7 +827,7 @@ export default function App() {
   // Spacebar toggles Start/Stop unless focus is inside <input>, <textarea>, or <select>
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== 'Space') return;
+      if (displayMode === 'conversation' || e.code !== 'Space') return;
       const target = e.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
       if (
@@ -838,7 +844,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleListening]);
+  }, [displayMode, toggleListening]);
 
   // Toggle a target language (minimum 1, maximum 3)
   const handleToggleLanguage = (code: LanguageCode) => {
@@ -1071,10 +1077,120 @@ export default function App() {
       ? 'grid-cols-1 lg:grid-cols-3'
       : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
 
+  const translateConversation = useCallback(
+    (text: string, target: ConversationLanguage, source: ConversationLanguage) =>
+      translateConversationMessage(text, target, source, fetchMT),
+    [fetchMT]
+  );
+
+  const permissionBanner = micPermissionDenied && (
+    <div className="bg-red-500/15 border-b border-red-500/30 px-4 py-3 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-start sm:items-center gap-2.5 text-red-800 dark:text-red-200">
+        <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400 mt-0.5 sm:mt-0" />
+        <div>
+          <strong>Microphone Permission Blocked:</strong> Chrome could not access your microphone. Click the tune/lock icon in your browser&apos;s address bar, set{' '}
+          <strong>Microphone</strong> to <strong>Allow</strong>, and press{' '}
+          <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
+          {isEmbeddedIframe && (
+            <span>
+              {' '}
+              (Note: Microphones are often blocked inside embedded preview panes — open OverHeard in a full browser tab.)
+            </span>
+          )}
+        </div>
+      </div>
+      {isEmbeddedIframe && (
+        <a
+          href={window.location.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-500 transition-colors whitespace-nowrap shrink-0"
+        >
+          <span>Open Full Tab</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      )}
+    </div>
+  );
+
+  const translatorPicker = (
+    <label
+      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
+      title={
+        lastUsedProvider
+          ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
+          : 'Which translator powers live captions. Others are used as automatic fallbacks.'
+      }
+    >
+      <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
+      <select
+        value={effectiveMtPreference}
+        onChange={(e) => {
+          const next = e.target.value as MtPreference;
+          setMtPreference(next);
+          // Choosing it is a user gesture, so start downloading language packs now
+          if (next === 'on-device' && displayMode !== 'conversation') prepareOnDeviceTranslators(selectedLangs, reportPack);
+        }}
+        className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
+      >
+        <option value="auto">
+          Auto
+          {availableProviders[0]
+            ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
+            : ''}
+        </option>
+        <option value="on-device" disabled={!onDeviceSupported}>
+          {MT_PROVIDER_LABELS['on-device']}
+          {onDeviceSupported ? '' : ' (needs desktop Chrome 138+)'}
+        </option>
+        {availableProviders.map((p) => (
+          <option key={p} value={p}>
+            {MT_PROVIDER_LABELS[p]}
+          </option>
+        ))}
+      </select>
+      {lastTranslateMs !== null && (
+        <span
+          className={`font-mono ${
+            lastTranslateMs > SLOW_TRANSLATION_MS
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-[#64748B] dark:text-[#94A3B8]'
+          }`}
+          title="Time for the most recent translation, measured in this browser. Every translation is also logged in the browser console."
+        >
+          {lastTranslateMs} ms{overBy(lastTranslateMs)}
+        </span>
+      )}
+      {displayMode !== 'conversation' && effectiveMtPreference === 'on-device' && speechIsLocal !== null && (
+        <span
+          className={`font-mono ${
+            speechIsLocal
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-amber-600 dark:text-amber-400'
+          }`}
+          title={
+            speechIsLocal
+              ? 'Speech recognition is running on this device'
+              : 'On-device speech is not available here; using Google’s speech service'
+          }
+        >
+          🎙 {speechIsLocal ? 'local' : 'cloud'}
+        </span>
+      )}
+      {lastUsedProvider &&
+        effectiveMtPreference !== 'auto' &&
+        lastUsedProvider !== effectiveMtPreference && (
+          <span className="text-amber-600 dark:text-amber-400 font-mono">
+            ↪ {MT_PROVIDER_LABELS[lastUsedProvider]}
+          </span>
+        )}
+    </label>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#090D16] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
       {/* Browser Compatibility Banner */}
-      {(!isSupportedBrowser || !hasSpeechApi) && (
+      {displayMode !== 'conversation' && (!isSupportedBrowser || !hasSpeechApi) && (
         <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1088,36 +1204,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Microphone Permission Banner */}
-      {micPermissionDenied && (
-        <div className="bg-red-500/15 border-b border-red-500/30 px-4 py-3 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-2.5 text-red-800 dark:text-red-200">
-            <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400 mt-0.5 sm:mt-0" />
-            <div>
-              <strong>Microphone Permission Blocked:</strong> Chrome could not access your microphone. Click the tune/lock icon in your browser&apos;s address bar, set{' '}
-              <strong>Microphone</strong> to <strong>Allow</strong>, and press{' '}
-              <strong>Start Listening</strong> again.
-              {isEmbeddedIframe && (
-                <span>
-                  {' '}
-                  (Note: Microphones are often blocked inside embedded preview panes — open OverHeard in a full browser tab.)
-                </span>
-              )}
-            </div>
-          </div>
-          {isEmbeddedIframe && (
-            <a
-              href={window.location.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-500 transition-colors whitespace-nowrap shrink-0"
-            >
-              <span>Open Full Tab</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
-      )}
+      {displayMode !== 'conversation' && permissionBanner}
 
       {/* Pip Notice Banner */}
       {pipNotice && (
@@ -1147,6 +1234,7 @@ export default function App() {
       )}
 
       {/* Top Teacher Control Bar */}
+      {displayMode !== 'conversation' && <>
       <header className="border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Left: Brand & Primary Start/Stop Mic Action */}
@@ -1312,6 +1400,20 @@ export default function App() {
                 <Subtitles className="w-3.5 h-3.5" />
                 <span>Subtitle</span>
               </button>
+              <button
+                type="button"
+                className="px-2.5 py-1.5 rounded-md text-xs font-semibold"
+                onClick={() => {
+                  previousMode.current = displayMode;
+                  stopListening();
+                  pipWindow?.close();
+                  setPipWindow(null);
+                  setPipNotice(null);
+                  setMicPermissionDenied(false);
+                  setConversationVisited(true);
+                  setDisplayMode('conversation');
+                }}
+              >Conversation</button>
             </div>
 
             {/* Pop Out Captions (Document Picture-in-Picture) */}
@@ -1345,77 +1447,7 @@ export default function App() {
             </button>
 
             {/* Translator Picker (live caption provider) */}
-            <label
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
-              title={
-                lastUsedProvider
-                  ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
-                  : 'Which translator powers live captions. Others are used as automatic fallbacks.'
-              }
-            >
-              <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
-              <select
-                value={effectiveMtPreference}
-                onChange={(e) => {
-                  const next = e.target.value as MtPreference;
-                  setMtPreference(next);
-                  // Choosing it is a user gesture, so start downloading language packs now
-                  if (next === 'on-device') prepareOnDeviceTranslators(selectedLangs, reportPack);
-                }}
-                className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
-              >
-                <option value="auto">
-                  Auto
-                  {availableProviders[0]
-                    ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
-                    : ''}
-                </option>
-                <option value="on-device" disabled={!onDeviceSupported}>
-                  {MT_PROVIDER_LABELS['on-device']}
-                  {onDeviceSupported ? '' : ' (needs desktop Chrome 138+)'}
-                </option>
-                {availableProviders.map((p) => (
-                  <option key={p} value={p}>
-                    {MT_PROVIDER_LABELS[p]}
-                  </option>
-                ))}
-              </select>
-              {lastTranslateMs !== null && (
-                <span
-                  className={`font-mono ${
-                    lastTranslateMs > SLOW_TRANSLATION_MS
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-[#64748B] dark:text-[#94A3B8]'
-                  }`}
-                  title="Time for the most recent translation, measured in this browser. Every translation is also logged in the browser console."
-                >
-                  {lastTranslateMs} ms{overBy(lastTranslateMs)}
-                </span>
-              )}
-              {effectiveMtPreference === 'on-device' && speechIsLocal !== null && (
-                <span
-                  className={`font-mono ${
-                    speechIsLocal
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-amber-600 dark:text-amber-400'
-                  }`}
-                  title={
-                    speechIsLocal
-                      ? 'Speech recognition is running on this device'
-                      : 'On-device speech is not available here; using Google’s speech service'
-                  }
-                >
-                  🎙 {speechIsLocal ? 'local' : 'cloud'}
-                </span>
-              )}
-              {lastUsedProvider &&
-                effectiveMtPreference !== 'auto' &&
-                lastUsedProvider !== effectiveMtPreference && (
-                  <span className="text-amber-600 dark:text-amber-400 font-mono">
-                    ↪ {MT_PROVIDER_LABELS[lastUsedProvider]}
-                  </span>
-                )}
-            </label>
+            {translatorPicker}
 
             {/* Silent Test Input Bar Toggle */}
             <button
@@ -1967,6 +1999,27 @@ export default function App() {
             </div>
           </section>
         </main>
+      )}
+
+      </>}
+      {conversationVisited && (
+        <ConversationMode
+          active={displayMode === 'conversation'}
+          fontSize={fontSize}
+          onAdjustFont={handleAdjustFont}
+          isDark={isDark}
+          translate={translateConversation}
+          initialLanguage={selectedLangs[0] ?? 'es'}
+          mtPreference={effectiveMtPreference}
+          translatorPicker={translatorPicker}
+          permissionBanner={permissionBanner}
+          onStartAttempt={() => setMicPermissionDenied(false)}
+          onPermissionDenied={() => setMicPermissionDenied(true)}
+          onExit={() => {
+            setMicPermissionDenied(false);
+            setDisplayMode(previousMode.current);
+          }}
+        />
       )}
 
       {/* Modals & Portals */}
