@@ -356,7 +356,7 @@ export function ConversationMode({
                 setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))
               }
             >
-              {[1500, 2500, 3500, 5000].map((ms) => (
+              {[1000, 1500, 2500, 3500, 5000].map((ms) => (
                 <option key={ms} value={ms}>
                   {ms / 1000} s
                 </option>
