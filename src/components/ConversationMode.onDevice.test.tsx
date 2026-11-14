@@ -74,14 +74,19 @@ describe('conversation with On this device', () => {
   });
 
   it('Auto fetches only the translation packs and leaves speech on the online service', async () => {
+    // French, not the default Spanish: the previous test left Spanish translators cached
+    localStorage.setItem(
+      'overheard.conversation',
+      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } }),
+    );
     mount('auto');
     await vi.waitFor(() => expect(translator.availability).toHaveBeenCalledTimes(2));
     expect(translator.availability).toHaveBeenCalledWith({
       sourceLanguage: 'en',
-      targetLanguage: 'es',
+      targetLanguage: 'fr',
     });
     expect(translator.availability).toHaveBeenCalledWith({
-      sourceLanguage: 'es',
+      sourceLanguage: 'fr',
       targetLanguage: 'en',
     });
     expect(Recognition.install).not.toHaveBeenCalled();
