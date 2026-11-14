@@ -50,7 +50,7 @@ export const SAMPLE_SENTENCES: SampleSentence[] = [
   },
   {
     subject: 'History',
-    text: 'The Constitutional Convention met in Philadelphia in 1787 to draft a new framework of government.',
+    text: 'According to legend, the Zaporozhian Cossacks answered an ultimatum from Ottoman Sultan Mehmed IV with an insulting letter, a scene Ilya Repin painted between 1880 and 1891.',
   },
   {
     subject: 'Classroom',
