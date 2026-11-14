@@ -168,3 +168,70 @@ describe('bidirectional on-device translation', () => {
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ sourceLanguage: 'es', targetLanguage: 'en' }));
   });
 });
+
+describe('conversation preparation', () => {
+  it('starts every download at once: both translation directions and both speech packs', async () => {
+    const availability = vi.fn(async () => 'downloadable');
+    g.Translator = { availability, create: () => new Promise(() => {}) };
+    const install = vi.fn(() => new Promise<boolean>(() => {}));
+    g.SpeechRecognition = { available: async () => 'downloadable', install };
+    const m = await load();
+    m.prepareOnDeviceConversation({ a: 'en', b: 'es' });
+    // Neither install has finished, yet both have started: none waits for another
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(2));
+    expect(install).toHaveBeenCalledWith({ langs: ['en-US'], processLocally: true });
+    expect(install).toHaveBeenCalledWith({ langs: ['es-US'], processLocally: true });
+    expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'en', targetLanguage: 'es' });
+    expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'es', targetLanguage: 'en' });
+  });
+
+  it('skips translation and downloads one speech pack when both sides share a language', async () => {
+    const availability = vi.fn(async () => 'downloadable');
+    g.Translator = { availability, create: vi.fn() };
+    const install = vi.fn(async () => true);
+    g.SpeechRecognition = { available: async () => 'downloadable', install };
+    const m = await load();
+    m.prepareOnDeviceConversation({ a: 'en', b: 'en' });
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+    expect(availability).not.toHaveBeenCalled();
+  });
+
+  it('reports speech packs as speech:<code> and clears them when done', async () => {
+    g.SpeechRecognition = { available: async () => 'downloadable', install: async () => true };
+    const m = await load();
+    const onProgress = vi.fn();
+    m.prepareOnDeviceConversation({ a: 'en', b: 'en' }, onProgress);
+    await vi.waitFor(() => expect(onProgress).toHaveBeenLastCalledWith('speech:en', null));
+    expect(onProgress.mock.calls).toEqual([
+      ['speech:en', -1],
+      ['speech:en', null],
+    ]);
+  });
+});
+
+describe('sharing speech preparation', () => {
+  it('shares an install that is already running instead of starting a second one', async () => {
+    let finish!: (ok: boolean) => void;
+    const install = vi.fn(() => new Promise<boolean>((resolve) => (finish = resolve)));
+    g.SpeechRecognition = { available: async () => 'downloadable', install };
+    const m = await load();
+    const first = m.prepareOnDeviceSpeech('es-US');
+    const second = m.prepareOnDeviceSpeech('es-US');
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+    finish(true);
+    await expect(first).resolves.toBe(true);
+    await expect(second).resolves.toBe(true);
+    expect(install).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks again once an attempt has finished instead of remembering its result', async () => {
+    const available = vi
+      .fn()
+      .mockResolvedValueOnce('unavailable')
+      .mockResolvedValueOnce('available');
+    g.SpeechRecognition = { available, install: vi.fn() };
+    const m = await load();
+    await expect(m.prepareOnDeviceSpeech('es-US')).resolves.toBe(false);
+    await expect(m.prepareOnDeviceSpeech('es-US')).resolves.toBe(true);
+  });
+});

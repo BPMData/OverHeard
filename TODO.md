@@ -1,18 +1,54 @@
 # TODO
 
-## How OverHeard is used (context for every item below)
+## How OverHeard is used
 
 1. **Projector / smartboard:** the teacher presents, and captions float over the slides in the
    pop-out (Document Picture-in-Picture) window.
 2. **Laptop on the desk:** the teacher carries the laptop to a student or small group, sets it
    down in front of everyone, and shows live captions in the column view.
-
-The planned **Conversation mode** adds a third use: a one-on-one, two-way conversation,
-including English ↔ English for a deaf or hard-of-hearing person.
+3. **Conversation mode:** a one-on-one, two-way conversation with a student, or English ↔
+   English with a deaf or hard-of-hearing person.
 
 ---
 
-## 1. Conversation mode: turn-based, text-message-style live translation
+## Open
+
+### Face-to-face layout for a tablet (pinned)
+
+Pinned until OverHeard is used on a tablet. In Conversation mode, split the screen top and
+bottom and rotate the top half 180°. Two people facing each other across a tablet lying flat
+can then each read their own side of the conversation right way up.
+
+### Rework the column view for the "laptop on the desk" use case
+
+Not specified yet. Starting points: readable from across a desk at a slight angle, less
+chrome around the captions, and possibly a one-language-at-a-time layout for a single
+student. Decide after using it with a small group.
+
+---
+
+## Done
+
+### Conversation mode
+
+Built from the spec below (PRs #9 and #10). Turns switch automatically after silence, or
+manually with Space / **Next speaker**. Each side has a typed name and language, saved between
+visits. Messages never expire, and the thread scrolls all the way back. It also has ⇄ to
+correct a misattributed message, full screen, read aloud, CSV export and import, and typed
+messages. Translation works from any language, not just English, on all three online
+translators and on Chrome's on-device translator. With **On this device**, Start downloads
+every pack both people need (translation in both directions and a speech pack for each
+language) and shows the download progress.
+
+Code: `src/conversation/` (state, locales, speech hook, translation chunking) and
+`src/components/ConversationMode.tsx`.
+
+The checklist in section 1.7 is for re-testing on a new device. It isn't ticked off here.
+
+<details>
+<summary>Original spec (implemented), kept for reference</summary>
+
+#### Spec: turn-based, text-message-style live translation
 
 > Written as an implementation spec for an AI coding agent. Follow it closely; where it says
 > "must", treat that as an acceptance criterion.
@@ -275,18 +311,4 @@ Every translator currently assumes English is the source language. Generalize it
 - [ ] Switching back to Columns or Subtitle mode works, and normal captioning starts with
       Start Listening.
 
----
-
-## 2. Later: face-to-face layout for a tablet
-
-Pinned until OverHeard is used on a tablet. In conversation mode, split the screen top and
-bottom and rotate the top half 180°. Two people facing each other across a tablet lying flat
-can then each read their own side of the conversation right way up.
-
----
-
-## 3. Rework the column view for the "laptop on the desk" use case
-
-Not specified yet. Starting points: readable from across a desk at a slight angle, less
-chrome around the captions, and possibly a one-language-at-a-time layout for a single
-student. Decide after using it with a small group.
+</details>

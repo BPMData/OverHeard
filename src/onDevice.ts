@@ -2,6 +2,8 @@
 // Nothing here talks to a server. Callers fall back to the cloud path when something
 // isn't available (unsupported browser, unsupported language, blocked by policy).
 
+import { speechLocale } from './conversation/locales';
+
 type Availability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
 
 interface TranslatorInstance {
@@ -128,9 +130,8 @@ export async function translateOnDevice(text: string, code: string, source = 'en
  * Make sure on-device English speech recognition is ready, downloading it if needed.
  * Returns true if recognition can run locally. Call from a click handler (install needs one).
  */
-export async function prepareOnDeviceSpeech(
-  lang = 'en-US',
-  /** Called when a download actually starts (Chrome gives no progress for speech packs) */
+async function prepareSpeechUncached(
+  lang: string,
   onDownloadStart?: () => void
 ): Promise<boolean> {
   const api = getSpeechApi();
@@ -155,4 +156,54 @@ export async function prepareOnDeviceSpeech(
     // Treat any error (policy block, missing gesture, ChromeOS) as "not available"
   }
   return false;
+}
+
+// Preparations still running, so a second caller (e.g. the first conversation turn, started
+// while the Start click is still downloading the pack) shares them instead of installing twice.
+const speechPreparations = new Map<string, Promise<boolean>>();
+
+/**
+ * Make sure on-device speech recognition for `lang` is ready, downloading it if needed.
+ * Returns true if recognition can run locally. Call from a click handler (install needs one).
+ */
+export function prepareOnDeviceSpeech(
+  lang = 'en-US',
+  /** Called when a download actually starts (Chrome gives no progress for speech packs) */
+  onDownloadStart?: () => void
+): Promise<boolean> {
+  const running = speechPreparations.get(lang);
+  if (running) return running;
+  const promise = prepareSpeechUncached(lang, onDownloadStart);
+  speechPreparations.set(lang, promise);
+  // Only in-flight work is shared; a finished result is re-checked next time
+  const done = () => speechPreparations.delete(lang);
+  promise.then(done, done);
+  return promise;
+}
+
+/**
+ * Start every on-device download a conversation needs: translation in both directions and a
+ * speech pack for each side's language.
+ *
+ * Call this straight from the Start click. Chrome only allows these downloads during a user
+ * gesture, and the automatic hand-off between speakers isn't one, so a pack left for later
+ * would never install. Everything starts at once, so no download sits waiting for another
+ * until the gesture has expired.
+ *
+ * Progress keys: translation packs are keyed by target language, speech packs `speech:<code>`.
+ */
+export function prepareOnDeviceConversation(
+  langs: { a: string; b: string },
+  onProgress?: PackProgress
+): void {
+  if (langs.a !== langs.b) {
+    prepareOnDeviceTranslators([langs.b], langs.a, onProgress);
+    prepareOnDeviceTranslators([langs.a], langs.b, onProgress);
+  }
+  for (const code of new Set([langs.a, langs.b])) {
+    const key = `speech:${code}`;
+    void prepareOnDeviceSpeech(speechLocale(code), () => onProgress?.(key, -1)).then(() =>
+      onProgress?.(key, null)
+    );
+  }
 }
