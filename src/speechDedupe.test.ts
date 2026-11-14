@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendDistinct, createFinalDeduper } from './speechDedupe';
+import { appendDistinct, createFinalDeduper, mergeInterim } from './speechDedupe';
 
 describe('createFinalDeduper', () => {
   it('collapses cumulative Android finals into new words only', () => {
@@ -22,5 +22,13 @@ describe('appendDistinct', () => {
     expect(appendDistinct('why is it doubling', 'it doubling anything')).toBe('why is it doubling anything');
     expect(appendDistinct('I said no', 'no way')).toBe('I said no no way');
     expect(appendDistinct('', 'hello')).toBe('hello');
+  });
+});
+
+describe('mergeInterim', () => {
+  it('collapses growing copies but joins desktop pieces', () => {
+    expect(mergeInterim(['why', 'why is', 'why is it'])).toBe('why is it');
+    expect(mergeInterim(['hello', 'how are'])).toBe('hello how are');
+    expect(mergeInterim(['why is it', 'why'])).toBe('why is it');
   });
 });

@@ -88,6 +88,17 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it doubling anything');
   });
+  it('sends one copy when the engine keeps several growing unfinished results', () => {
+    const { onSend } = setup();
+    act(() =>
+      latest().onresult?.({
+        resultIndex: 0,
+        results: ['why', 'why is', 'why is it doubling'].map((t) => ({ isFinal: false, 0: { transcript: t } })),
+      }),
+    );
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it doubling');
+  });
   it('waits indefinitely through no-speech and unexpected ends', () => {
     const { result, onSend } = setup();
     act(() => {
