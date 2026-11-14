@@ -33,7 +33,7 @@ export function loadConversationSettings(
       if (typeof saved[side]?.name === 'string') defaults[side].name = saved[side].name;
       if (validLanguage(saved[side]?.lang)) defaults[side].lang = saved[side].lang;
     }
-    if ([1500, 2500, 3500, 5000].includes(saved.switchAfterMs))
+    if ([1000, 1500, 2500, 3500, 5000].includes(saved.switchAfterMs))
       defaults.switchAfterMs = saved.switchAfterMs;
     defaults.manualTurns = saved.manualTurns === true;
     defaults.readAloud = saved.readAloud === true;
