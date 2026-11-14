@@ -11,7 +11,7 @@ import {
   type Side,
 } from '../conversation/state';
 import { useConversationSpeech } from '../conversation/useConversationSpeech';
-import { prepareOnDeviceTranslators } from '../onDevice';
+import { prepareOnDeviceConversation, type PackProgress } from '../onDevice';
 import {
   conversationCsv,
   loadConversationSettings,
@@ -37,6 +37,10 @@ interface Props {
   translatorPicker?: React.ReactNode;
   onAdjustFont?: (delta: number) => void;
   permissionBanner?: React.ReactNode;
+  /** Receives on-device download progress, for the panel below */
+  onPackProgress?: PackProgress;
+  /** The on-device download progress panel (renders nothing when idle) */
+  packPanel?: React.ReactNode;
 }
 const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
 const color = (side: Side, lang: ConversationLanguage) =>
@@ -58,6 +62,8 @@ export function ConversationMode({
   translatorPicker,
   onAdjustFont,
   permissionBanner,
+  onPackProgress,
+  packPanel,
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
   const [messages, dispatch] = useReducer(messagesReducer, []);
@@ -193,9 +199,10 @@ export function ConversationMode({
   const start = () => {
     onStartAttempt?.();
     setUiError('');
-    if (mtPreference === 'on-device' && settings.a.lang !== settings.b.lang) {
-      void prepareOnDeviceTranslators([settings.b.lang], settings.a.lang);
-      void prepareOnDeviceTranslators([settings.a.lang], settings.b.lang);
+    // Downloads need this click, and the automatic hand-off between speakers isn't one,
+    // so fetch every pack both people will need now.
+    if (mtPreference === 'on-device') {
+      prepareOnDeviceConversation({ a: settings.a.lang, b: settings.b.lang }, onPackProgress);
     }
     speech.start(mtPreference === 'on-device');
   };
@@ -424,6 +431,7 @@ export function ConversationMode({
           : 'Pause to send and pass the turn.'}{' '}
         Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
       </p>
+      {packPanel}
       {(uiError || speech.error || !speech.supported) && (
         <p role="alert">
           {uiError ||
