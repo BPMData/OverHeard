@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createFinalDeduper } from './speechDedupe';
+import { withMicAccess } from './micPermission';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AlertTriangle,
@@ -199,6 +201,7 @@ export default function App() {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
+  const [micInsecure, setMicInsecure] = useState(false);
   const [speechStatusNotice, setSpeechStatusNotice] = useState<string | null>(null);
 
   // Transcript store
@@ -703,8 +706,10 @@ export default function App() {
       recognition.lang = 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
+      let newWords = createFinalDeduper();
 
       recognition.onstart = () => {
+        newWords = createFinalDeduper();
         sessionStartedAtRef.current = Date.now();
         lastSpeechErrorRef.current = null;
         setIsListening(true);
@@ -721,7 +726,8 @@ export default function App() {
           if (result.isFinal) {
             setInterimTranscript('');
             clearLiveTranslation();
-            handleFinalizedPhrase(transcriptText);
+            const fresh = newWords(transcriptText);
+            if (fresh) handleFinalizedPhrase(fresh);
           } else {
             interim += transcriptText;
           }
@@ -849,7 +855,10 @@ export default function App() {
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      withMicAccess(startListening, (reason) => {
+        setMicInsecure(reason === 'insecure');
+        setMicPermissionDenied(true);
+      });
     }
   }, [isListening, startListening, stopListening]);
 
@@ -1134,9 +1143,23 @@ export default function App() {
       <div className="flex items-start sm:items-center gap-2.5 text-red-800 dark:text-red-200">
         <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 dark:text-red-400 mt-0.5 sm:mt-0" />
         <div>
-          <strong>Microphone Permission Blocked:</strong> Chrome could not access your microphone. Click the tune/lock icon in your browser&apos;s address bar, set{' '}
-          <strong>Microphone</strong> to <strong>Allow</strong>, and press{' '}
-          <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
+          {micInsecure ? (
+            <>
+              <strong>Microphone unavailable on this address:</strong> browsers only allow the
+              microphone on <strong>https://</strong> pages (or localhost). Open OverHeard from its
+              https link instead of {window.location.origin}.
+            </>
+          ) : (
+            <>
+              <strong>Microphone Permission Blocked:</strong> the browser didn&apos;t allow the
+              microphone. On a computer, click the tune/lock icon in the address bar and set{' '}
+              <strong>Microphone</strong> to <strong>Allow</strong>. On Android, tap the tune/lock
+              icon → <strong>Permissions</strong> → <strong>Microphone</strong> → Allow (in the
+              installed app: long-press its icon → App info → Permissions). If Chrome itself lacks
+              mic access, enable it in Android Settings → Apps → Chrome → Permissions. Then press{' '}
+              <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
+            </>
+          )}
           {isEmbeddedIframe && (
             <span>
               {' '}
@@ -2031,7 +2054,10 @@ export default function App() {
           onPackProgress={reportPack}
           packPanel={<PackProgressPanel progress={packProgress} startedAt={packStartedAt} />}
           onStartAttempt={() => setMicPermissionDenied(false)}
-          onPermissionDenied={() => setMicPermissionDenied(true)}
+          onPermissionDenied={(reason) => {
+            setMicInsecure(reason === 'insecure');
+            setMicPermissionDenied(true);
+          }}
           onExit={() => {
             setMicPermissionDenied(false);
             setDisplayMode(previousMode.current);

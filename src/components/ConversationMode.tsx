@@ -1,4 +1,5 @@
 import { useWakeLock } from '../wakeLock';
+import { withMicAccess, type MicBlock } from '../micPermission';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
@@ -36,7 +37,7 @@ interface Props {
   ) => Promise<string>;
   onExit: () => void;
   onStartAttempt?: () => void;
-  onPermissionDenied: () => void;
+  onPermissionDenied: (reason?: MicBlock) => void;
   initialLanguage?: ConversationLanguage;
   mtPreference: string;
   translatorPicker?: React.ReactNode;
@@ -214,7 +215,10 @@ export function ConversationMode({
       // Auto translates on this device once packs are ready; speech stays on Google's service
       prepareOnDeviceConversation(langs, onPackProgress, { speech: false });
     }
-    speech.start(mtPreference === 'on-device');
+    withMicAccess(
+      () => speech.start(mtPreference === 'on-device'),
+      (reason) => onPermissionDenied(reason),
+    );
   };
   const exportCsv = () => {
     const url = URL.createObjectURL(
