@@ -2,6 +2,7 @@ import { SUPPORTED_LANGUAGES } from '../constants';
 import type { ConversationLanguage } from '../types';
 import type { Message, Participants } from '../conversation/state';
 export interface ConversationSettings extends Participants {
+  manualTurns: boolean;
   switchAfterMs: number;
   readAloud: boolean;
   placement: 'speaker' | 'reader';
@@ -14,6 +15,7 @@ export function loadConversationSettings(
   const defaults: ConversationSettings = {
     a: { name: 'Me', lang: 'en' },
     b: { name: 'Student', lang: initialLanguage },
+    manualTurns: false,
     switchAfterMs: 2500,
     readAloud: false,
     placement: 'speaker',
@@ -27,6 +29,7 @@ export function loadConversationSettings(
     }
     if ([1500, 2500, 3500, 5000].includes(saved.switchAfterMs))
       defaults.switchAfterMs = saved.switchAfterMs;
+    defaults.manualTurns = saved.manualTurns === true;
     defaults.readAloud = saved.readAloud === true;
     defaults.placement = saved.placement === 'reader' ? 'reader' : 'speaker';
   } catch {

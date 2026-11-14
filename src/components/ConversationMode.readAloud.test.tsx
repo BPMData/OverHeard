@@ -70,7 +70,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount() {
+function mount(readAloud = true) {
   const translate = vi.fn(async (text: string) => `translated ${text}`);
   render(
     <ConversationMode
@@ -83,7 +83,7 @@ function mount() {
       onPermissionDenied={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
+  if (readAloud) fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   return { translate };
 }
@@ -151,4 +151,27 @@ describe('conversation read aloud', () => {
     expect(Recognition.instances).toHaveLength(count);
     expect(screen.getByRole('status').textContent).toContain('Conversation stopped');
   });
+});
+
+it('holds a live draft in manual mode and passes it once by Space or button', async () => {
+  const { translate } = mount(false);
+  await act(async () => result(Recognition.instances[0].onresult, 'One moment'));
+  fireEvent.change(screen.getByLabelText('Turn-taking'), { target: { value: 'manual' } });
+  await tick(30_000);
+  const next = screen.getByRole('button', { name: /Next speaker/ });
+  expect(document.activeElement).toBe(next);
+  fireEvent.keyDown(screen.getByLabelText('Message text'), { code: 'Space' });
+  fireEvent.keyDown(next, { code: 'Space', repeat: true });
+  expect(translate).not.toHaveBeenCalled();
+  fireEvent.keyDown(next, { code: 'Space' });
+  expect(translate).toHaveBeenCalledExactlyOnceWith('One moment', 'es', 'en');
+  expect(screen.getByRole('status').textContent).toContain('Listening for Student');
+  fireEvent.click(next);
+  expect(screen.getByRole('status').textContent).toContain('Listening for Me');
+  expect(translate).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(localStorage.getItem('overheard.conversation')!).manualTurns).toBe(true);
+  await act(async () => result(Recognition.instances.at(-1)!.onresult, 'Ready'));
+  fireEvent.change(screen.getByLabelText('Turn-taking'), { target: { value: 'auto' } });
+  await tick(2500);
+  expect(translate).toHaveBeenLastCalledWith('Ready', 'es', 'en');
 });
