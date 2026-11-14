@@ -7,14 +7,16 @@
  * words: a final that extends the previous one yields the extension, a repeat of (part of)
  * the previous one yields '', anything else passes through whole.
  */
+const norm = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
+const split = (text: string) => text.trim().split(/\s+/).filter(Boolean);
+const starts = (long: string[], short: string[]) =>
+  short.length > 0 && short.length <= long.length && short.every((w, i) => norm(w) === norm(long[i]));
+
 export function createFinalDeduper() {
   let previous: string[] = [];
-  const norm = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '');
-  return (text: string): string => {
-    const words = text.trim().split(/\s+/).filter(Boolean);
+  const take = (text: string): string => {
+    const words = split(text);
     if (!words.length) return '';
-    const starts = (long: string[], short: string[]) =>
-      short.length > 0 && short.length <= long.length && short.every((w, i) => norm(w) === norm(long[i]));
     if (starts(words, previous)) {
       const delta = words.slice(previous.length);
       previous = words;
@@ -24,4 +26,25 @@ export function createFinalDeduper() {
     previous = words;
     return words.join(' ');
   };
+  /** The same filtering for an interim result, without remembering it. */
+  const peek = (text: string): string => {
+    const words = split(text);
+    if (starts(words, previous)) return words.slice(previous.length).join(' ');
+    return starts(previous, words) ? '' : words.join(' ');
+  };
+  return Object.assign(take, { peek });
+}
+
+/**
+ * Join `text` onto `draft`, dropping any words at the start of `text` that repeat the end of
+ * `draft` (two or more words, so a deliberately repeated single word survives). Catches
+ * cumulative results that carry over a recognizer restart.
+ */
+export function appendDistinct(draft: string, text: string): string {
+  const a = split(draft);
+  const b = split(text);
+  for (let k = Math.min(a.length, b.length); k >= 2; k--) {
+    if (starts(b, a.slice(a.length - k))) return [...a, ...b.slice(k)].join(' ');
+  }
+  return [...a, ...b].join(' ');
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFinalDeduper } from './speechDedupe';
+import { appendDistinct, createFinalDeduper } from './speechDedupe';
 
 describe('createFinalDeduper', () => {
   it('collapses cumulative Android finals into new words only', () => {
@@ -14,5 +14,13 @@ describe('createFinalDeduper', () => {
   it('passes ordinary incremental finals through', () => {
     const next = createFinalDeduper();
     expect([next('hello there'), next('how are you')]).toEqual(['hello there', 'how are you']);
+  });
+});
+
+describe('appendDistinct', () => {
+  it('drops a repeated multi-word overlap but keeps a single repeated word', () => {
+    expect(appendDistinct('why is it doubling', 'it doubling anything')).toBe('why is it doubling anything');
+    expect(appendDistinct('I said no', 'no way')).toBe('I said no no way');
+    expect(appendDistinct('', 'hello')).toBe('hello');
   });
 });
