@@ -13,6 +13,23 @@
 
 ## Open
 
+### Test a dedicated Android tablet for Grandpa (Fully Kiosk Browser)
+
+Goal: a tablet that only runs OverHeard Conversation mode, survives reboots, and needs no
+help from him.
+
+1. First, check speech on any Android phone in Chrome: run the Grandpa scenario for 5+
+   minutes. Watch for dropped turns, restart chimes, and the 2.5 s pause handoff.
+2. Serve OverHeard over HTTPS, then install it as a PWA (Chrome menu → Install app).
+3. Install Fully Kiosk Browser (Plus license, about €8). Set: start URL = OverHeard, launch
+   on boot, keep screen on, hide status/navigation bars, PIN to exit, auto-grant microphone.
+4. Try motion/camera wake, a power-cycle (does it come back on its own?), and remote admin.
+5. Hardware: stand, always-on charger, and a clip-on mic if he speaks softly.
+6. Fallback if Fully Kiosk isn't needed: Android screen pinning with a PIN to unpin.
+
+If Chrome's speech handling on Android is the weak point, consider a Capacitor wrapper that
+uses Android's native `SpeechRecognizer`.
+
 ### Face-to-face layout for a tablet (pinned)
 
 Pinned until OverHeard is used on a tablet. In Conversation mode, split the screen top and

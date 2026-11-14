@@ -1,3 +1,4 @@
+import { useWakeLock } from '../wakeLock';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
@@ -103,6 +104,7 @@ export function ConversationMode({
   useEffect(() => {
     if (active && settings.manualTurns && speech.isListening) nextButton.current?.focus();
   }, [active, settings.manualTurns, speech.isListening]);
+  useWakeLock(active);
   useEffect(() => saveConversationSettings(settings), [settings]);
   useEffect(() => {
     if (!active) {
