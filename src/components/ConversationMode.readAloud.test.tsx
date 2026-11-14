@@ -139,14 +139,14 @@ describe('conversation read aloud', () => {
     expect(screen.getByRole('status').textContent).toContain('Listening for Me');
   });
 
-  it('does not restart recognition when playback ends after Stop', async () => {
+  it('does not restart recognition when playback ends after Pause', async () => {
     mount();
     await act(async () => {
       result(Recognition.instances[0].onresult, 'Hello');
     });
     await tick(2500);
     const count = Recognition.instances.length;
-    fireEvent.click(screen.getByRole('button', { name: 'Stop conversation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause conversation' }));
     await finishVoice();
     expect(Recognition.instances).toHaveLength(count);
     expect(screen.getByRole('status').textContent).toContain('Conversation stopped');
@@ -174,4 +174,22 @@ it('holds a live draft in manual mode and passes it once by Space or button', as
   fireEvent.change(screen.getByLabelText('Turn-taking'), { target: { value: 'auto' } });
   await tick(2500);
   expect(translate).toHaveBeenLastCalledWith('Ready', 'es', 'en');
+});
+
+it('imports a conversation CSV into the conversation thread without reading imported messages aloud', async () => {
+  mount(true);
+  const csv = [
+    '"timestamp","sender name","original language","original text","translated language","translated text"',
+    '"2026-11-13T16:00:00.000Z","Me","en","Good morning","es","Buenos días"',
+    '"2026-11-13T16:01:00.000Z","Student","es","Hola","en","Hello"',
+  ].join('\r\n');
+  const file = new File([csv], 'conversation.csv', { type: 'text/csv' });
+  const input = screen.getByLabelText('Import CSV file');
+  await act(async () => {
+    fireEvent.change(input, { target: { files: [file] } });
+  });
+  expect(screen.getByText('Buenos días')).toBeTruthy();
+  expect(screen.getByText('Good morning')).toBeTruthy();
+  expect(screen.getByText('Hello')).toBeTruthy();
+  expect(speak).not.toHaveBeenCalled();
 });

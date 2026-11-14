@@ -9,7 +9,8 @@
   padding: 12px;
   gap: 8px;
 }
-.conversation-mode[hidden] {
+.conversation-mode[hidden],
+.conversation-mode [hidden] {
   display: none;
 }
 .conversation-dark {

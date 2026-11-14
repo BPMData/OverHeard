@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   conversationCsv,
   loadConversationSettings,
+  parseConversationCsv,
   saveConversationSettings,
 } from './conversationSettings';
 import { createMessage } from '../conversation/state';
@@ -37,17 +38,45 @@ describe('conversation settings', () => {
     });
     expect(() => saveConversationSettings(loadConversationSettings())).not.toThrow();
   });
-  it('exports BOM, quoted names, commas, quotes and embedded newlines', () => {
+  it('exports and imports BOM, quoted names, commas, quotes and embedded newlines', () => {
     const participants = {
       a: { name: 'Me, "teacher"', lang: 'en' as const },
       b: { name: 'Student', lang: 'es' as const },
     };
     const message = createMessage('a', 'Hello\n"friend"', participants);
     message.translated = 'Hola, amigo';
-    const csv = conversationCsv([message]);
+    message.status = 'done';
+    const reply = createMessage('b', '¡Hola!', participants);
+    reply.translated = 'Hi!';
+    reply.status = 'done';
+    const csv = conversationCsv([message, reply]);
     expect(csv.startsWith('\uFEFF')).toBe(true);
     expect(csv).toContain('"Me, ""teacher"""');
     expect(csv).toContain('"Hello\n""friend"""');
     expect(csv).toContain('"Hola, amigo"');
+
+    const imported = parseConversationCsv(csv, participants);
+    expect(imported).toHaveLength(2);
+    expect(imported[0]).toMatchObject({
+      side: 'a',
+      sender: participants.a,
+      reader: participants.b,
+      original: 'Hello\n"friend"',
+      translated: 'Hola, amigo',
+      status: 'done',
+      timestamp: message.timestamp,
+    });
+    expect(imported[1]).toMatchObject({
+      side: 'b',
+      sender: participants.b,
+      reader: participants.a,
+      original: '¡Hola!',
+      translated: 'Hi!',
+      status: 'done',
+      timestamp: reply.timestamp,
+    });
+    expect(() => parseConversationCsv('wrong,header', participants)).toThrow(
+      'Invalid conversation CSV header.',
+    );
   });
 });

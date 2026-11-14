@@ -15,6 +15,7 @@ import { prepareOnDeviceTranslators } from '../onDevice';
 import {
   conversationCsv,
   loadConversationSettings,
+  parseConversationCsv,
   saveConversationSettings,
 } from './conversationSettings';
 import './ConversationMode.css';
@@ -68,6 +69,7 @@ export function ConversationMode({
   const root = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const following = useRef(true);
   const requests = useRef(new Set<string>());
   const spoken = useRef(new Set<string>());
@@ -207,6 +209,23 @@ export function ConversationMode({
     link.click();
     URL.revokeObjectURL(url);
   };
+  const importCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const content =
+        typeof file.text === 'function' ? await file.text() : await new Response(file).text();
+      const imported = parseConversationCsv(content, settings);
+      setUiError('');
+      imported.forEach((m) => {
+        if (m.status === 'done') spoken.current.add(`${m.id}:${m.revision}`);
+      });
+      dispatch({ type: 'import', messages: imported });
+    } catch (err) {
+      setUiError(err instanceof Error ? err.message : 'Could not import CSV.');
+    }
+  };
   const renderMessage = (message: Message) => {
     const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
     const done = message.status === 'done';
@@ -342,7 +361,7 @@ export function ConversationMode({
           onClick={speech.isListening ? speech.stop : start}
           disabled={!speech.supported}
         >
-          {speech.isListening ? 'Stop conversation' : 'Start conversation'}
+          {speech.isListening ? 'Pause conversation' : 'Start conversation'}
         </button>
         <button
           onClick={() => {
@@ -352,6 +371,15 @@ export function ConversationMode({
           Clear conversation
         </button>
         <button onClick={exportCsv}>Export CSV</button>
+        <button onClick={() => fileInput.current?.click()}>Import CSV</button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".csv,text/csv"
+          aria-label="Import CSV file"
+          hidden
+          onChange={importCsv}
+        />
         <button
           onClick={() => {
             if (fullscreen) void document.exitFullscreen();

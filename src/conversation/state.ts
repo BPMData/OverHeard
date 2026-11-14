@@ -58,8 +58,26 @@ export function correctMessage(message: Message): Message {
   };
 }
 
+export function createImportedMessage(
+  message: Omit<Message, 'id' | 'revision' | 'status'> & { status?: TranslationStatus },
+): Message {
+  const original = message.original.trim();
+  const fallbackState = translationState(original, message.sender, message.reader);
+  const translated = message.translated.trim() || fallbackState.translated;
+  const status = message.status ?? (translated ? 'done' : fallbackState.status);
+  return {
+    ...message,
+    id: String(++nextId),
+    revision: 0,
+    original,
+    translated,
+    status,
+  };
+}
+
 type MessageAction =
   | { type: 'add' | 'correct'; message: Message }
+  | { type: 'import'; messages: Message[] }
   | { type: 'resolve'; id: string; revision: number; translated: string | null }
   | { type: 'clear' };
 
@@ -69,6 +87,8 @@ export function messagesReducer(messages: Message[], action: MessageAction): Mes
       return [];
     case 'add':
       return action.message.original ? [...messages, action.message] : messages;
+    case 'import':
+      return [...messages, ...action.messages.filter((m) => m.original)];
     case 'correct':
       return messages.map((m) => (m.id === action.message.id ? action.message : m));
     case 'resolve':
