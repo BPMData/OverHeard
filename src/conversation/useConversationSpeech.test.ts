@@ -99,6 +99,17 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it doubling');
   });
+  it('replaces a corrected word instead of repeating the paragraph', () => {
+    const { onSend } = setup();
+    const finals = (texts: string[]) =>
+      latest().onresult?.({ resultIndex: texts.length - 1, results: texts.map((t) => ({ isFinal: true, 0: { transcript: t } })) });
+    const a = 'and never bugs all you have the bee bug mode';
+    const b = 'and never bugs while you have the bee bug mode on';
+    act(() => finals([a]));
+    act(() => finals([a, b]));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', b);
+  });
   it('waits indefinitely through no-speech and unexpected ends', () => {
     const { result, onSend } = setup();
     act(() => {
