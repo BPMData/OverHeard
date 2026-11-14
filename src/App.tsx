@@ -132,9 +132,10 @@ const LIVE_DEBOUNCE_MS = 450;
 const LIVE_WORD_STEP = 6;
 const MT_CLIENT_CACHE_MAX = 2000;
 
-// TESTING VALUE: deliberately generous so slow on-device translations can be measured instead
-// of abandoned. Lower to about 2500 (matching the server's per-provider timeout) before sharing.
-const ON_DEVICE_TIMEOUT_MS = 30_000;
+// "On this device" mode waits this long for the built-in translator before a sentence falls
+// back to the online translators. Deliberately generous (the server's online translators get
+// 2.5 s) so slow on-device translations can be measured instead of abandoned.
+const ON_DEVICE_TIMEOUT_MS = 10_000;
 // In Auto mode on-device is only a first choice: if it hasn't answered this fast, that
 // sentence goes to the online translators while on-device keeps loading for the next one.
 const AUTO_ON_DEVICE_TIMEOUT_MS = 2500;

@@ -49,8 +49,9 @@ sooner rather than later, but carefully:
   `popout-lines` and merged feature branches. Delete once you're sure nothing is on them.
 - `PLAN.md` was Codex's plan for Conversation mode and is finished. Delete it, or keep it as
   history (the Conversation mode spec below links to nothing there).
-- The `ON_DEVICE_TIMEOUT_MS` in `src/App.tsx` is a deliberately long 30 s testing value for the
-  "On this device" mode. Lower it to about 2500 before sharing widely.
+- `ON_DEVICE_TIMEOUT_MS` in `src/App.tsx` is 10 s for the "On this device" mode, deliberately
+  longer than the online translators' 2.5 s so slow results can be measured. Revisit it once
+  you've seen real timings on the school MacBooks.
 
 ### If many teachers use it
 
