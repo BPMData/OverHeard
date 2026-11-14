@@ -31,7 +31,7 @@ function recognitionConstructor() {
 
 export interface ConversationSpeechOptions {
   participants: Record<Side, { lang: string }>;
-  switchAfterMs: number;
+  switchAfterMs: number | null;
   onSend: (side: Side, text: string) => void;
   onPermissionDenied?: () => void;
   onUnsupportedLanguage?: (lang: string) => void;
@@ -110,13 +110,24 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     const current = session.current;
     const token = current.generation;
     if (silence.current !== null) clearTimeout(silence.current);
-    if (!current.active || current.suspended || !(current.draft || current.interim)) return;
+    const delay = opts.current.switchAfterMs;
+    if (
+      delay === null ||
+      !current.active ||
+      current.suspended ||
+      !(current.draft || current.interim)
+    )
+      return;
     silence.current = setTimeout(() => {
       if (token !== current.generation || !current.active || current.suspended) return;
       send();
       handoff(otherSide(current.side));
-    }, opts.current.switchAfterMs);
+    }, delay);
   }
+
+  useEffect(() => {
+    armSilence();
+  }, [options.switchAfterMs]);
 
   // A replacement recognizer cannot revise an old recognizer's interim result.
   function preserveInterim() {

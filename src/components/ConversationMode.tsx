@@ -67,6 +67,7 @@ export function ConversationMode({
   const [uiError, setUiError] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
+  const nextButton = useRef<HTMLButtonElement>(null);
   const following = useRef(true);
   const requests = useRef(new Set<string>());
   const spoken = useRef(new Set<string>());
@@ -79,7 +80,7 @@ export function ConversationMode({
   );
   const speech = useConversationSpeech({
     participants: settings,
-    switchAfterMs: settings.switchAfterMs,
+    switchAfterMs: settings.manualTurns ? null : settings.switchAfterMs,
     onSend: send,
     onPermissionDenied,
     onUnsupportedLanguage: (language) =>
@@ -87,6 +88,9 @@ export function ConversationMode({
         `Speech recognition doesn't support ${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name ?? 'English'} in this browser. You can type a message below.`,
       ),
   });
+  useEffect(() => {
+    if (active && settings.manualTurns && speech.isListening) nextButton.current?.focus();
+  }, [active, settings.manualTurns, speech.isListening]);
   useEffect(() => saveConversationSettings(settings), [settings]);
   useEffect(() => {
     if (!active) {
@@ -97,6 +101,22 @@ export function ConversationMode({
   useEffect(() => {
     if (!active) return;
     const handler = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && settings.manualTurns && speech.isListening) {
+        const target = event.target;
+        if (
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          (target instanceof Element &&
+            target !== nextButton.current &&
+            target.closest('button,a,summary,input,textarea,select,[contenteditable]'))
+        )
+          return;
+        event.preventDefault();
+        if (!event.repeat) speech.setTurn(otherSide(speech.turn));
+        return;
+      }
       if (
         event.repeat ||
         (event.target instanceof Element &&
@@ -110,7 +130,7 @@ export function ConversationMode({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [active, speech.setTurn]);
+  }, [active, settings.manualTurns, speech.isListening, speech.turn, speech.setTurn]);
   useEffect(() => {
     for (const message of messages) {
       const key = `${message.id}:${message.revision}`;
@@ -276,18 +296,34 @@ export function ConversationMode({
           </fieldset>
         ))}
         <label>
-          Switch after{' '}
+          Turn-taking
           <select
-            value={settings.switchAfterMs}
-            onChange={(e) => setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))}
+            value={settings.manualTurns ? 'manual' : 'auto'}
+            onChange={(e) =>
+              setSettings((s) => ({ ...s, manualTurns: e.target.value === 'manual' }))
+            }
           >
-            {[1500, 2500, 3500, 5000].map((ms) => (
-              <option key={ms} value={ms}>
-                {ms / 1000} s
-              </option>
-            ))}
+            <option value="auto">Hands-free</option>
+            <option value="manual">Manual · Spacebar</option>
           </select>
         </label>
+        {!settings.manualTurns && (
+          <label>
+            Switch after{' '}
+            <select
+              value={settings.switchAfterMs}
+              onChange={(e) =>
+                setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))
+              }
+            >
+              {[1500, 2500, 3500, 5000].map((ms) => (
+                <option key={ms} value={ms}>
+                  {ms / 1000} s
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           Bubbles on{' '}
           <select
@@ -354,8 +390,11 @@ export function ConversationMode({
         <button onClick={exit}>Exit</button>
       </div>
       <p className="conversation-help">
-        Speakers are identified by their turn, not their voice. Take turns and pause to send. Use ⇄
-        to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
+        Each message uses the current speaker’s name.{' '}
+        {settings.manualTurns
+          ? 'Press Space or click Next speaker to pass the turn.'
+          : 'Pause to send and pass the turn.'}{' '}
+        Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
       </p>
       {(uiError || speech.error || !speech.supported) && (
         <p role="alert">
@@ -423,6 +462,17 @@ export function ConversationMode({
             : 'Conversation stopped'}{' '}
           {speech.isListening && <small>🎙 {speech.speechLocal ? 'local' : 'cloud'}</small>}
         </div>
+        {settings.manualTurns && speech.isListening && (
+          <button
+            type="button"
+            ref={nextButton}
+            className="conversation-next-speaker conversation-start"
+            aria-keyshortcuts="Space"
+            onClick={() => speech.setTurn(otherSide(speech.turn))}
+          >
+            Next speaker · {settings[otherSide(speech.turn)].name} <kbd>Space</kbd>
+          </button>
+        )}
         <details>
           <summary>Type a message</summary>
           <form
