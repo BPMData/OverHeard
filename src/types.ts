@@ -12,6 +12,8 @@ export type LanguageCode =
   | 'prs'
   | 'ps';
 
+export type ConversationLanguage = LanguageCode | 'en';
+
 export interface LanguageConfig {
   code: LanguageCode;
   name: string;
@@ -29,7 +31,7 @@ export interface CaptionSegment {
   status: TranslationStatus;
 }
 
-export type DisplayMode = 'columns' | 'subtitle';
+export type DisplayMode = 'columns' | 'subtitle' | 'conversation';
 
 /** A line shown in the pop-out caption window: English or one of the selected languages. */
 export type PipLine = 'en' | LanguageCode;

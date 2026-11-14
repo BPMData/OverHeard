@@ -58,21 +58,25 @@ export function progressFraction(event: { loaded: number; total?: number }): num
 }
 
 /**
- * Get (and, if needed, download) the on-device translator for English → `code`.
+ * Get (and, if needed, download) the on-device translator for `source` → `code`.
  * Resolves to null when the language isn't supported on this device.
  * The first call that triggers a download must come from a click or key press.
  */
 export function getOnDeviceTranslator(
   code: string,
-  onProgress?: PackProgress
+  sourceOrProgress: string | PackProgress = 'en',
+  progress?: PackProgress
 ): Promise<TranslatorInstance | null> {
-  const existing = translators.get(code);
+  const source = typeof sourceOrProgress === 'string' ? sourceOrProgress : 'en';
+  const onProgress = typeof sourceOrProgress === 'function' ? sourceOrProgress : progress;
+  const key = `${source}>${code}`;
+  const existing = translators.get(key);
   if (existing) return existing;
 
   const api = getTranslatorApi();
   const promise: Promise<TranslatorInstance | null> = (async () => {
     if (!api) return null;
-    const langs = { sourceLanguage: 'en', targetLanguage: toTranslatorCode(code) };
+    const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
     const availability = await api.availability(langs);
     if (availability === 'unavailable') return null;
     if (availability !== 'available') onProgress?.(code, 0);
@@ -85,9 +89,9 @@ export function getOnDeviceTranslator(
     });
   })();
 
-  translators.set(code, promise);
+  translators.set(key, promise);
   // Don't cache failures (e.g. a download that needed a user gesture); try again next time
-  promise.catch(() => translators.delete(code));
+  promise.catch(() => translators.delete(key));
   return promise;
 }
 
@@ -95,9 +99,15 @@ export function getOnDeviceTranslator(
  * Start downloading language packs for these languages. Call from a click handler.
  * `onProgress` gets 0–1 while downloading, 1 when ready, and null if a language can't run here.
  */
-export function prepareOnDeviceTranslators(codes: string[], onProgress?: PackProgress): void {
+export function prepareOnDeviceTranslators(
+  codes: string[],
+  sourceOrProgress: string | PackProgress = 'en',
+  progress?: PackProgress
+): void {
+  const source = typeof sourceOrProgress === 'string' ? sourceOrProgress : 'en';
+  const onProgress = typeof sourceOrProgress === 'function' ? sourceOrProgress : progress;
   for (const code of codes) {
-    getOnDeviceTranslator(code, onProgress).then(
+    getOnDeviceTranslator(code, source, onProgress).then(
       (translator) => onProgress?.(code, translator ? 1 : null),
       () => onProgress?.(code, null)
     );
@@ -106,8 +116,8 @@ export function prepareOnDeviceTranslators(codes: string[], onProgress?: PackPro
 
 export class OnDeviceUnavailableError extends Error {}
 
-export async function translateOnDevice(text: string, code: string): Promise<string> {
-  const translator = await getOnDeviceTranslator(code);
+export async function translateOnDevice(text: string, code: string, source = 'en'): Promise<string> {
+  const translator = await getOnDeviceTranslator(code, source);
   if (!translator) {
     throw new OnDeviceUnavailableError(`No on-device translator for ${code}`);
   }

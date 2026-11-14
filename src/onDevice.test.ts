@@ -151,3 +151,20 @@ describe('on-device speech', () => {
     expect(installOnDevice).toHaveBeenCalledWith('en-US');
   });
 });
+
+describe('bidirectional on-device translation', () => {
+  it('caches by pair and maps the source for availability and creation', async () => {
+    const availability = vi.fn(async () => 'available');
+    const create = vi.fn(async () => ({ translate: async (text: string) => text }));
+    g.Translator = { availability, create };
+    const m = await load();
+    await m.translateOnDevice('same', 'en', 'es');
+    await m.translateOnDevice('same', 'es', 'en');
+    await m.translateOnDevice('same', 'en', 'es');
+    await m.translateOnDevice('same', 'en', 'prs');
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'es', targetLanguage: 'en' });
+    expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'fa-AF', targetLanguage: 'en' });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ sourceLanguage: 'es', targetLanguage: 'en' }));
+  });
+});
