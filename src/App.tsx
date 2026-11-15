@@ -41,6 +41,7 @@ import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLin
 import { translateConversationMessage } from './conversation/translateMessage';
 import { ConversationMode } from './components/ConversationMode';
 import { LanguageModal } from './components/LanguageModal';
+import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
 import { isFailedSession, restartDelay } from './speechRestart';
@@ -352,11 +353,11 @@ export default function App() {
     if (isDark) {
       root.classList.add('dark');
       document.body.className =
-        'bg-[#090D16] text-[#F8FAFC] antialiased selection:bg-sky-500/30';
+        'bg-[#090D16] text-[#F8FAFC] antialiased selection:bg-[#5843A5]/35';
     } else {
       root.classList.remove('dark');
       document.body.className =
-        'bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-sky-500/20';
+        'bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#5843A5]/20';
     }
 
     if (pipWindow && !pipWindow.closed) {
@@ -1287,7 +1288,7 @@ export default function App() {
 
       {/* Pip Notice Banner */}
       {pipNotice && (
-        <div className="bg-sky-500/15 border-b border-sky-500/30 px-4 py-2 text-xs flex items-center justify-between gap-4 text-sky-900 dark:text-sky-200">
+        <div className="bg-[#5843A5]/15 border-b border-[#5843A5]/30 px-4 py-2 text-xs flex items-center justify-between gap-4 text-[#3F2E80] dark:text-[#DDD6FE]">
           <span>{pipNotice}</span>
           <div className="flex items-center gap-2 shrink-0">
             {isEmbeddedIframe && (
@@ -1295,7 +1296,7 @@ export default function App() {
                 href={window.location.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 font-semibold"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#5843A5] dark:bg-[#6D56C6] text-white font-semibold"
               >
                 <span>Open Full Tab</span>
                 <ExternalLink className="w-3 h-3" />
@@ -1318,15 +1319,11 @@ export default function App() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Left: Brand & Primary Start/Stop Mic Action */}
           <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
-                  OverHeard
-                </span>
-                <span className="hidden xl:inline-block text-xs text-[#64748B] dark:text-[#94A3B8] whitespace-nowrap">
-                  · OverBoard · AllAboard · OverHeard
-                </span>
-              </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <WhiteboatIcon app="overheard" size={28} className="shadow-2xs" />
+              <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
+                OverHeard
+              </span>
             </div>
 
             {/* Primary Start/Stop Button + Pulsing Mic Indicator */}
@@ -1336,7 +1333,7 @@ export default function App() {
               className={`inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer whitespace-nowrap shrink-0 shadow-xs ${
                 isListening
                   ? 'bg-[#059669] dark:bg-[#10B981] text-white dark:text-slate-950 ring-4 ring-emerald-500/25'
-                  : 'bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 hover:opacity-95'
+                  : 'bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
               }`}
               title="Toggle microphone (Shortcut: Spacebar)"
             >
@@ -1406,7 +1403,7 @@ export default function App() {
               onClick={() => setShowPreviousLine((v) => !v)}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
                 showPreviousLine
-                  ? 'border-[#0284C7] dark:border-[#38BDF8] bg-sky-500/10 text-[#0284C7] dark:text-[#38BDF8]'
+                  ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
                   : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
               }`}
               title="Show or hide the preceding caption line"
@@ -1416,13 +1413,13 @@ export default function App() {
             </button>
 
             {/* Columns vs Subtitle Mode */}
-            <div className="inline-flex items-center rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] p-0.5">
+            <div className="inline-flex items-stretch rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] p-0.5">
               <button
                 type="button"
                 onClick={() => setDisplayMode('columns')}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
                   displayMode === 'columns'
-                    ? 'bg-white dark:bg-[#111827] text-[#0F172A] dark:text-[#F8FAFC] shadow-2xs'
+                    ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
                     : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
                 }`}
               >
@@ -1434,7 +1431,7 @@ export default function App() {
                 onClick={() => setDisplayMode('subtitle')}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
                   displayMode === 'subtitle'
-                    ? 'bg-white dark:bg-[#111827] text-[#0F172A] dark:text-[#F8FAFC] shadow-2xs'
+                    ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
                     : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
                 }`}
               >
@@ -1443,7 +1440,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className="px-2.5 py-1.5 rounded-md text-xs font-semibold"
+                className="flex flex-col items-center justify-center px-2.5 py-0.5 rounded-md text-xs font-semibold leading-[1.1] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors text-center"
                 onClick={() => {
                   previousMode.current = displayMode;
                   stopListening();
@@ -1454,7 +1451,10 @@ export default function App() {
                   setConversationVisited(true);
                   setDisplayMode('conversation');
                 }}
-              >Conversation</button>
+              >
+                <span>Conversation</span>{' '}
+                <span className="text-[10px] font-medium opacity-85">mode</span>
+              </button>
             </div>
 
             {/* Pop Out Captions (Document Picture-in-Picture) */}
@@ -1480,7 +1480,7 @@ export default function App() {
               onClick={() => setIsLangModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
             >
-              <Globe className="w-3.5 h-3.5 text-[#0284C7] dark:text-[#38BDF8]" />
+              <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
               <span>Languages</span>
               <span className="font-mono text-[#64748B] dark:text-[#94A3B8]">
                 ({selectedLangs.join(', ')})
@@ -1496,7 +1496,7 @@ export default function App() {
               onClick={() => setIsTestBarOpen((v) => !v)}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
                 isTestBarOpen
-                  ? 'border-[#0284C7] dark:border-[#38BDF8] bg-sky-500/10 text-[#0284C7] dark:text-[#38BDF8]'
+                  ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
                   : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
               }`}
               title="Toggle silent text input & sample classroom phrases"
@@ -1588,12 +1588,12 @@ export default function App() {
                 onChange={(e) => setManualInput(e.target.value)}
                 maxLength={500}
                 placeholder="Type an English classroom sentence to test translation silently…"
-                className="flex-1 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F8FAFC] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none focus:border-[#0284C7] dark:focus:border-[#38BDF8]"
+                className="flex-1 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F8FAFC] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none focus:border-[#5843A5] dark:focus:border-[#A78BFA]"
               />
               <button
                 type="submit"
                 disabled={!manualInput.trim()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 text-xs font-bold disabled:opacity-40 transition-opacity whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white text-xs font-bold disabled:opacity-40 transition-all whitespace-nowrap"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Translate</span>
@@ -1609,7 +1609,7 @@ export default function App() {
                   key={sample.subject}
                   type="button"
                   onClick={() => handleFinalizedPhrase(sample.text)}
-                  className="px-2.5 py-1.5 rounded-md text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] hover:border-[#0284C7] dark:hover:border-[#38BDF8] transition-colors whitespace-nowrap"
+                  className="px-2.5 py-1.5 rounded-md text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] hover:border-[#5843A5] dark:hover:border-[#A78BFA] transition-colors whitespace-nowrap"
                 >
                   {sample.subject}
                 </button>
@@ -1707,7 +1707,7 @@ export default function App() {
                   {/* Live Interim Speech (dimmed) */}
                   {interimTranscript.trim().length > 0 && (
                     <div className="pt-2">
-                      <span className="inline-block text-xs font-mono text-[#0284C7] dark:text-[#38BDF8] mb-1">
+                      <span className="inline-block text-xs font-mono text-[#5843A5] dark:text-[#C4B5FD] mb-1">
                         Speaking live…
                       </span>
                       <p
@@ -1871,7 +1871,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleTogglePip}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 text-xs font-bold whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white text-xs font-bold whitespace-nowrap transition-colors"
                 >
                   <PictureInPicture2 className="w-4 h-4" />
                   <span>
@@ -1903,7 +1903,7 @@ export default function App() {
                     </span>
                     <span
                       dir={LANGUAGE_MAP[activeSubtitleLang].dir}
-                      className="text-[#0284C7] dark:text-[#38BDF8]"
+                      className="text-[#5843A5] dark:text-[#C4B5FD]"
                     >
                       → {seg.translations[activeSubtitleLang] || '…'}
                     </span>
@@ -1916,7 +1916,7 @@ export default function App() {
           {/* Fixed Bottom Subtitle Bar */}
           <section
             aria-label="Bottom Subtitle Bar"
-            className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#0284C7]/40 dark:border-[#38BDF8]/40 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md px-6 py-4 shadow-2xl"
+            className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#5843A5]/50 dark:border-[#A78BFA]/45 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md px-6 py-4 shadow-2xl"
           >
             <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
               {/* Top Row: English Caption + Language Switcher Pill */}
@@ -1965,7 +1965,7 @@ export default function App() {
                           onClick={() => setSubtitleLang(code)}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${
                             active
-                              ? 'bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950'
+                              ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
                               : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
                           }`}
                         >

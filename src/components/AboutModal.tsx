@@ -1,5 +1,6 @@
 import React from 'react';
-import { ExternalLink, Info, ShieldAlert, X } from 'lucide-react';
+import { ExternalLink, ShieldAlert, X } from 'lucide-react';
+import { WhiteboatIcon } from './WhiteboatIcon';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -23,14 +24,28 @@ export const AboutModal: React.FC<AboutModalProps> = ({
     >
       <div className="w-full max-w-xl rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#1E293B]">
-          <div className="flex items-center gap-2.5">
-            <Info className="w-5 h-5 text-[#0284C7] dark:text-[#38BDF8]" />
+          <div className="flex items-center gap-3">
+            <WhiteboatIcon app="overheard" size={32} className="shadow-xs" />
             <div>
               <h2 id="about-modal-title" className="text-lg font-bold tracking-tight">
                 About OverHeard & Privacy
               </h2>
-              <p className="text-xs text-slate-500 dark:text-[#94A3B8]">
-                Part of the family: OverBoard · AllAboard · OverHeard
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-[#94A3B8]">
+                <span>Part of the family:</span>
+                <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200">
+                  <WhiteboatIcon app="overboard" size={16} />
+                  <span>OverBoard</span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1 font-medium text-slate-700 dark:text-slate-200">
+                  <WhiteboatIcon app="allaboard" size={16} />
+                  <span>AllAboard</span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-[#5843A5] dark:text-[#C4B5FD]">
+                  <WhiteboatIcon app="overheard" size={16} />
+                  <span>OverHeard</span>
+                </span>
               </p>
             </div>
           </div>
@@ -76,7 +91,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
           </div>
 
           {isEmbeddedIframe && (
-            <div className="p-3.5 rounded-lg border border-sky-500/30 bg-sky-500/10 flex items-center justify-between gap-4">
+            <div className="p-3.5 rounded-lg border border-[#5843A5]/30 dark:border-[#A78BFA]/30 bg-[#5843A5]/10 dark:bg-[#5843A5]/20 flex items-center justify-between gap-4">
               <div className="text-xs text-slate-700 dark:text-slate-200">
                 Running inside an embedded preview frame? Open OverHeard in a full Chrome tab for unrestricted microphone and floating Picture-in-Picture support.
               </div>
@@ -84,7 +99,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 href={window.location.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 font-semibold text-xs whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white font-semibold text-xs whitespace-nowrap shrink-0 transition-colors"
               >
                 <span>Open Full Tab</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -96,7 +111,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold rounded-lg bg-slate-900 dark:bg-[#38BDF8] text-white dark:text-slate-950 hover:opacity-90 transition-opacity"
+              className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors"
             >
               Close
             </button>

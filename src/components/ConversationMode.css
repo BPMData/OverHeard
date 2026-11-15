@@ -44,6 +44,19 @@
   flex-wrap: wrap;
   font-size: 12px;
 }
+.conversation-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.conversation-mode input[type='checkbox'] {
+  accent-color: #5843a5;
+}
 .conversation-settings fieldset {
   display: flex;
   gap: 5px;
@@ -151,7 +164,8 @@
   bottom: 115px;
   left: 50%;
   transform: translateX(-50%);
-  background: #2563eb !important;
+  background: #5843a5 !important;
+  border-color: #4b3891 !important;
   color: white !important;
 }
 .conversation-pulse {
@@ -187,10 +201,29 @@
 }
 
 .conversation-mode .conversation-start {
-  background: #0369a1;
+  background: #5843a5;
   color: white;
-  border-color: #0284c7;
+  border-color: #4b3891;
   font-weight: 650;
+}
+.conversation-mode .conversation-start:hover:not(:disabled) {
+  background: #4b3891;
+}
+.conversation-mode .conversation-start.is-listening {
+  background: #059669;
+  border-color: #047857;
+}
+.conversation-mode .conversation-start.is-listening:hover:not(:disabled) {
+  background: #047857;
+}
+.conversation-mode .conversation-exit {
+  background: #5843a5;
+  color: white;
+  border-color: #4b3891;
+  font-weight: 650;
+}
+.conversation-mode .conversation-exit:hover:not(:disabled) {
+  background: #4b3891;
 }
 
 .conversation-next-speaker {

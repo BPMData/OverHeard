@@ -24,6 +24,7 @@ import {
   parseConversationCsv,
   saveConversationSettings,
 } from './conversationSettings';
+import { WhiteboatIcon } from './WhiteboatIcon';
 import './ConversationMode.css';
 
 interface Props {
@@ -300,6 +301,10 @@ export function ConversationMode({
     >
       {permissionBanner}
       <div className="conversation-settings">
+        <span className="conversation-brand">
+          <WhiteboatIcon app="overheard" size={22} />
+          <span>OverHeard</span>
+        </span>
         {(['a', 'b'] as const).map((side) => (
           <fieldset key={side}>
             <legend>Side {side.toUpperCase()}</legend>
@@ -378,7 +383,7 @@ export function ConversationMode({
         </label>
         {translatorPicker}
         <button
-          className="conversation-start"
+          className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
           onClick={speech.isListening ? speech.stop : start}
           disabled={!speech.supported}
         >
@@ -436,7 +441,9 @@ export function ConversationMode({
           />
           Read aloud
         </label>
-        <button onClick={exit}>Exit</button>
+        <button type="button" className="conversation-exit" onClick={exit}>
+          <span aria-hidden="true">← </span>Back to Listening Mode
+        </button>
       </div>
       <p className="conversation-help">
         Each message uses the current speaker’s name.{' '}

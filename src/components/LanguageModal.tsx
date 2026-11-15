@@ -44,7 +44,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
       <div className="w-full max-w-2xl rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#1E293B]">
           <div className="flex items-center gap-2.5">
-            <Globe className="w-5 h-5 text-[#0284C7] dark:text-[#38BDF8]" />
+            <Globe className="w-5 h-5 text-[#5843A5] dark:text-[#A78BFA]" />
             <h2 id="lang-modal-title" className="text-lg font-bold tracking-tight">
               Target Classroom Languages
             </h2>
@@ -82,7 +82,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                   key={lang.code}
                   className={`flex items-start gap-3 p-3.5 rounded-lg border transition-colors select-none ${
                     isChecked
-                      ? 'border-[#0284C7] dark:border-[#38BDF8] bg-sky-50/70 dark:bg-sky-950/30'
+                      ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/8 dark:bg-[#5843A5]/20'
                       : isDisabled
                       ? 'border-slate-200 dark:border-[#1E293B] opacity-45 cursor-not-allowed'
                       : 'border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
@@ -93,7 +93,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                     checked={isChecked}
                     disabled={isDisabled}
                     onChange={() => onToggleLang(lang.code)}
-                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[#0284C7] focus:ring-[#38BDF8]"
+                    className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#5843A5] text-[#5843A5] focus:ring-[#A78BFA]"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
@@ -147,7 +147,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950 hover:opacity-90 transition-opacity whitespace-nowrap"
+                className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors whitespace-nowrap"
               >
                 Done
               </button>

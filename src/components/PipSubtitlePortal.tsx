@@ -6,6 +6,7 @@ import {
 } from '../captionColors';
 import { createPortal } from 'react-dom';
 import { Mic, MicOff, Minus, Plus, X } from 'lucide-react';
+import { WhiteboatIcon } from './WhiteboatIcon';
 import { LANGUAGE_MAP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../constants';
 import { CaptionSegment, LanguageCode, PipLine } from '../types';
 
@@ -94,8 +95,9 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         }`}
       >
         <div className="flex items-center gap-2.5">
-          <span className="font-bold tracking-tight text-slate-900 dark:text-white">
-            OverHeard
+          <span className="inline-flex items-center gap-1.5 font-bold tracking-tight text-slate-900 dark:text-white">
+            <WhiteboatIcon app="overheard" size={18} />
+            <span>OverHeard</span>
           </span>
           <button
             type="button"
@@ -103,7 +105,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
               isListening
                 ? 'bg-emerald-600 text-white'
-                : 'bg-sky-500 text-slate-950'
+                : 'bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
             }`}
           >
             {isListening ? (
@@ -143,7 +145,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                 }
                 className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
                   shown
-                    ? 'bg-[#0284C7] dark:bg-[#38BDF8] text-white dark:text-slate-950'
+                    ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
                     : 'hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40'
                 }`}
               >
