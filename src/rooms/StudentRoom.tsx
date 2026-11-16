@@ -62,7 +62,15 @@ export function StudentRoom({ code }: { code: string }) {
   const adjustFont = (delta: number) => setFontSize(value => Math.min(56, Math.max(20, value + delta)));
   return <main className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}>
     <div className="conversation-settings">
-      <span className="conversation-brand"><WhiteboatIcon app="overheard" size={22} /> OverHeard</span>
+      <a
+        href={window.location.pathname}
+        className="conversation-brand"
+        aria-label="OverHeard — Go to main Columns page"
+        title="Back to OverHeard Columns view"
+      >
+        <WhiteboatIcon app="overheard" size={22} />
+        <span>OverHeard</span>
+      </a>
       <strong>Room {code}</strong>
       <label>My language
         <select aria-label="My language" value={language} onChange={event => {

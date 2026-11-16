@@ -1393,12 +1393,18 @@ export default function App() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Left: Brand & Primary Start/Stop Mic Action */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('columns')}
+              aria-label="OverHeard — Go to Columns view"
+              title="Back to main Columns view"
+              className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-lg px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
+            >
               <WhiteboatIcon app="overheard" size={28} className="shadow-2xs" />
               <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
                 OverHeard
               </span>
-            </div>
+            </button>
 
             {/* Primary Start/Stop Button + Pulsing Mic Indicator */}
             <button
@@ -2202,6 +2208,10 @@ export default function App() {
           onExit={() => {
             setMicPermissionDenied(false);
             setDisplayMode(previousMode.current);
+          }}
+          onHome={() => {
+            setMicPermissionDenied(false);
+            setDisplayMode('columns');
           }}
         />
       )}

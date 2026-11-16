@@ -10,10 +10,12 @@ vi.mock('./components/ConversationMode', () => ({
   ConversationMode: ({
     active,
     onExit,
+    onHome,
     translate,
   }: {
     active: boolean;
     onExit: () => void;
+    onHome?: () => void;
     translate: (
       text: string,
       target: ConversationLanguage,
@@ -22,6 +24,7 @@ vi.mock('./components/ConversationMode', () => ({
   }) =>
     active ? (
       <section aria-label="Conversation test surface">
+        <button onClick={onHome ?? onExit}>OverHeard — Go to Columns view</button>
         <button onClick={onExit}>Exit conversation</button>
         <button
           onClick={() => {
@@ -229,5 +232,23 @@ describe('App conversation integration', () => {
       URL.createObjectURL = originalCreateObjectURL;
       URL.revokeObjectURL = originalRevokeObjectURL;
     }
+  });
+
+  it('returns to Columns view when clicking the top-left OverHeard brand from Subtitle or Conversation mode', async () => {
+    render(<App />);
+
+    // Switch to Subtitle view, then click top-left OverHeard brand -> returns to Columns view
+    fireEvent.click(screen.getByRole('button', { name: 'Subtitle' }));
+    expect(screen.getByRole('button', { name: 'Subtitle' }).className).toContain('shadow-2xs');
+    fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
+    expect(screen.getByRole('button', { name: 'Columns' }).className).toContain('shadow-2xs');
+    expect(screen.getByRole('button', { name: 'Subtitle' }).className).not.toContain('shadow-2xs');
+
+    // Enter Conversation mode from Subtitle view, then click OverHeard brand -> goes to Columns (not Subtitle)
+    fireEvent.click(screen.getByRole('button', { name: 'Subtitle' }));
+    await enterConversation();
+    fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
+    expect(screen.getByRole('button', { name: 'Columns' }).className).toContain('shadow-2xs');
+    expect(screen.getByRole('button', { name: 'Subtitle' }).className).not.toContain('shadow-2xs');
   });
 });

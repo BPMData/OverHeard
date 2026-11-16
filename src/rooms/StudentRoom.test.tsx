@@ -244,6 +244,9 @@ describe('student lecture view', () => {
     const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement;
     expect(anchor.download).toMatch(/^Lecture for piper-test-001 on .+\.json$/);
 
+    const homeLink = screen.getByRole('link', { name: /OverHeard/i }) as HTMLAnchorElement;
+    expect(homeLink.getAttribute('href')).toBe(window.location.pathname);
+
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
   });

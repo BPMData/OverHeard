@@ -57,6 +57,7 @@ interface Props {
     source: ConversationLanguage,
   ) => Promise<string>;
   onExit: () => void;
+  onHome?: () => void;
   onStartAttempt?: () => void;
   onPermissionDenied: (reason?: MicBlock) => void;
   initialLanguage?: ConversationLanguage;
@@ -87,6 +88,7 @@ export function ConversationMode({
   isDark,
   translate,
   onExit,
+  onHome,
   onStartAttempt,
   onPermissionDenied,
   initialLanguage,
@@ -303,13 +305,21 @@ export function ConversationMode({
     document.addEventListener('fullscreenchange', change);
     return () => document.removeEventListener('fullscreenchange', change);
   }, []);
-  const exit = () => {
+  const stopConversationAndCleanup = () => {
     speech.stop();
     lecture.stop();
     twoWayPlayback.cancelAll();
     lecturePlayback.stop();
     if (document.fullscreenElement === root.current) void document.exitFullscreen();
+  };
+  const exit = () => {
+    stopConversationAndCleanup();
     onExit();
+  };
+  const goHome = () => {
+    stopConversationAndCleanup();
+    if (onHome) onHome();
+    else onExit();
   };
   const switchSubMode = (nextMode: ConversationSubMode) => {
     if (nextMode === settings.mode) return;
@@ -442,10 +452,16 @@ export function ConversationMode({
     >
       {permissionBanner}
       <div className="conversation-settings">
-        <span className="conversation-brand">
+        <button
+          type="button"
+          className="conversation-brand"
+          onClick={goHome}
+          aria-label="OverHeard — Go to Columns view"
+          title="Back to main Columns view"
+        >
           <WhiteboatIcon app="overheard" size={22} />
           <span>OverHeard</span>
-        </span>
+        </button>
         <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
           <button
             type="button"

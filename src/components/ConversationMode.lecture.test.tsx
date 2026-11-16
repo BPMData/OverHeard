@@ -281,3 +281,47 @@ it('suspends teacher lecture speech recognition while reading a cell aloud and r
   });
   expect(FakeRecognition.instances).toHaveLength(2);
 });
+
+it('clicking the top-left OverHeard brand stops active lecture capture and calls onHome (or falls back to onExit)', () => {
+  const onExit = vi.fn();
+  const onHome = vi.fn();
+  const translate = vi.fn(async (text: string) => text);
+  const { rerender } = render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={translate}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={onExit}
+      onHome={onHome}
+      onPermissionDenied={vi.fn()}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  const rec = FakeRecognition.instances[0];
+  expect(rec).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
+  expect(rec.abort).toHaveBeenCalled();
+  expect(onHome).toHaveBeenCalledTimes(1);
+  expect(onExit).not.toHaveBeenCalled();
+
+  rerender(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={translate}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={onExit}
+      onPermissionDenied={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
+  expect(onExit).toHaveBeenCalledTimes(1);
+});

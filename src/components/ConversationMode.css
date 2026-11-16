@@ -87,7 +87,9 @@
   flex-wrap: wrap;
   font-size: 12px;
 }
-.conversation-brand {
+.conversation-brand,
+.conversation-mode button.conversation-brand,
+.conversation-mode a.conversation-brand {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -96,6 +98,27 @@
   letter-spacing: -0.01em;
   margin-right: 4px;
   white-space: nowrap;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.conversation-brand:hover,
+.conversation-mode button.conversation-brand:hover,
+.conversation-mode a.conversation-brand:hover {
+  opacity: 0.85;
+}
+.conversation-brand:focus-visible {
+  outline: 2px solid #5843a5;
+  outline-offset: 2px;
+}
+.conversation-dark .conversation-brand:focus-visible {
+  outline-color: #a78bfa;
 }
 .conversation-mode input[type='checkbox'] {
   accent-color: #5843a5;
