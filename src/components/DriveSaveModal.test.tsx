@@ -110,6 +110,9 @@ describe('DriveLectureActions', () => {
           setMimeTypes() { return this; }
           setIncludeFolders() { return this; }
           setSelectFolderEnabled() { return this; }
+          setLabel() { return this; }
+          setOwnedByMe() { return this; }
+          setParent() { return this; }
         },
         PickerBuilder: class {
           private cb: ((data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) | null = null;
@@ -117,6 +120,7 @@ describe('DriveLectureActions', () => {
           setOAuthToken() { return this; }
           setDeveloperKey() { return this; }
           setAppId() { return this; }
+          setOrigin() { return this; }
           setTitle() { return this; }
           setCallback(cb: (data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) {
             this.cb = cb;

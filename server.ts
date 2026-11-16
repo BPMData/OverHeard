@@ -203,8 +203,10 @@ async function startServer() {
   // Trust only the proxy hops we expect in front of us (Cloud Run's front end is one)
   app.set('trust proxy', TRUST_PROXY_HOPS);
   app.use((_req: Request, res: Response, next) => {
+    // Allow Google OAuth popups and third-party iframes (such as Google Picker,
+    // which returns `cross-origin-resource-policy: same-site`); Piper WASM runs
+    // cleanly single-threaded without Cross-Origin-Embedder-Policy.
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
     next();
   });
   app.use('/api/rooms', createRoomRouter().router);

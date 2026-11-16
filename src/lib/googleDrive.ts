@@ -97,6 +97,10 @@ interface GooglePickerDocsView {
   setMimeTypes: (mimeTypes: string) => GooglePickerDocsView;
   setIncludeFolders: (include: boolean) => GooglePickerDocsView;
   setSelectFolderEnabled: (enable: boolean) => GooglePickerDocsView;
+  setLabel?: (label: string) => GooglePickerDocsView;
+  setOwnedByMe?: (owned: boolean) => GooglePickerDocsView;
+  setParent?: (parentId: string) => GooglePickerDocsView;
+  setMode?: (mode: string) => GooglePickerDocsView;
 }
 
 interface GooglePickerBuilder {
@@ -104,6 +108,7 @@ interface GooglePickerBuilder {
   setOAuthToken: (token: string) => GooglePickerBuilder;
   setDeveloperKey: (key: string) => GooglePickerBuilder;
   setAppId: (appId: string) => GooglePickerBuilder;
+  setOrigin?: (origin: string) => GooglePickerBuilder;
   setTitle: (title: string) => GooglePickerBuilder;
   setCallback: (cb: (data: GooglePickerResponse) => void) => GooglePickerBuilder;
   build: () => { setVisible: (visible: boolean) => void };
@@ -114,6 +119,7 @@ interface GoogleGlobal {
   picker?: {
     Action: { PICKED: string; CANCEL: string };
     ViewId: { DOCS: string; FOLDERS: string };
+    DocsViewMode?: { LIST?: string };
     DocsView: new (viewId?: string) => GooglePickerDocsView;
     PickerBuilder: new () => GooglePickerBuilder;
   };
@@ -545,34 +551,57 @@ export async function ensureNamedDriveFolder(
   return folder;
 }
 
+export function pickerOrigin(): string {
+  if (typeof window === 'undefined') return '';
+  const ancestors = (window.location as Location & { ancestorOrigins?: { length: number; [index: number]: string } }).ancestorOrigins;
+  if (ancestors && ancestors.length > 0) {
+    return ancestors[ancestors.length - 1];
+  }
+  return window.location.origin;
+}
+
+function tryCall<T>(target: T, method: string, ...args: unknown[]): void {
+  const fn = (target as Record<string, unknown> | null | undefined)?.[method];
+  if (typeof fn === 'function') {
+    (fn as (...a: unknown[]) => unknown).apply(target, args);
+  }
+}
+
 export async function pickDriveFolder(): Promise<DriveFolderRef | null> {
   const token = await getAccessToken();
   const pickerApi = await ensurePickerLoaded();
   const { apiKey, appId } = getGoogleConfig();
 
-  return new Promise<DriveFolderRef | null>((resolve) => {
-    const view = new pickerApi.DocsView(pickerApi.ViewId.FOLDERS)
-      .setIncludeFolders(true)
-      .setSelectFolderEnabled(true)
-      .setMimeTypes(FOLDER_MIME);
+  return new Promise<DriveFolderRef | null>((resolve, reject) => {
+    try {
+      const view = new pickerApi.DocsView(pickerApi.ViewId.FOLDERS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMimeTypes(FOLDER_MIME);
 
-    const picker = new pickerApi.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(token)
-      .setDeveloperKey(apiKey)
-      .setAppId(appId)
-      .setTitle('Choose a Google Drive folder')
-      .setCallback((data) => {
-        if (data.action === pickerApi.Action.PICKED) {
-          const doc = data.docs?.[0];
-          resolve(doc?.id ? { id: doc.id, name: doc.name || 'Drive folder' } : null);
-        } else if (data.action === pickerApi.Action.CANCEL) {
-          resolve(null);
-        }
-      })
-      .build();
+      const builder = new pickerApi.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(token)
+        .setDeveloperKey(apiKey)
+        .setAppId(appId)
+        .setTitle('Choose a Google Drive folder');
+      tryCall(builder, 'setOrigin', pickerOrigin());
 
-    picker.setVisible(true);
+      const picker = builder
+        .setCallback((data) => {
+          if (data.action === pickerApi.Action.PICKED) {
+            const doc = data.docs?.[0];
+            resolve(doc?.id ? { id: doc.id, name: doc.name || 'Drive folder' } : null);
+          } else if (data.action === pickerApi.Action.CANCEL) {
+            resolve(null);
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
@@ -580,29 +609,53 @@ export async function pickDriveJsonFile(): Promise<PickedDriveFile | null> {
   const token = await getAccessToken();
   const pickerApi = await ensurePickerLoaded();
   const { apiKey, appId } = getGoogleConfig();
+  const listMode = pickerApi.DocsViewMode?.LIST;
+  const lastFolder = getLastDriveFolder();
 
-  return new Promise<PickedDriveFile | null>((resolve) => {
-    const view = new pickerApi.DocsView(pickerApi.ViewId.DOCS)
-      .setIncludeFolders(true)
-      .setMimeTypes('application/json,text/plain');
+  return new Promise<PickedDriveFile | null>((resolve, reject) => {
+    try {
+      const mySavesView = new pickerApi.DocsView(pickerApi.ViewId.DOCS)
+        .setIncludeFolders(false)
+        .setSelectFolderEnabled(false)
+        .setMimeTypes(JSON_MIME);
+      tryCall(mySavesView, 'setLabel', 'My lecture saves');
+      tryCall(mySavesView, 'setOwnedByMe', true);
+      if (listMode) tryCall(mySavesView, 'setMode', listMode);
 
-    const picker = new pickerApi.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(token)
-      .setDeveloperKey(apiKey)
-      .setAppId(appId)
-      .setTitle('Open an OverHeard lecture JSON from Google Drive')
-      .setCallback((data) => {
-        if (data.action === pickerApi.Action.PICKED) {
-          const doc = data.docs?.[0];
-          resolve(doc?.id ? { id: doc.id, name: doc.name || 'lecture.json', mimeType: doc.mimeType } : null);
-        } else if (data.action === pickerApi.Action.CANCEL) {
-          resolve(null);
-        }
-      })
-      .build();
+      const browseView = new pickerApi.DocsView(pickerApi.ViewId.DOCS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(false)
+        .setMimeTypes(JSON_MIME);
+      tryCall(browseView, 'setLabel', 'Browse Drive');
+      if (lastFolder?.id && lastFolder.id !== 'root') {
+        tryCall(browseView, 'setParent', lastFolder.id);
+      }
+      if (listMode) tryCall(browseView, 'setMode', listMode);
 
-    picker.setVisible(true);
+      const builder = new pickerApi.PickerBuilder()
+        .addView(mySavesView)
+        .addView(browseView)
+        .setOAuthToken(token)
+        .setDeveloperKey(apiKey)
+        .setAppId(appId)
+        .setTitle('Open an OverHeard lecture JSON from Google Drive');
+      tryCall(builder, 'setOrigin', pickerOrigin());
+
+      const picker = builder
+        .setCallback((data) => {
+          if (data.action === pickerApi.Action.PICKED) {
+            const doc = data.docs?.[0];
+            resolve(doc?.id ? { id: doc.id, name: doc.name || 'lecture.json', mimeType: doc.mimeType } : null);
+          } else if (data.action === pickerApi.Action.CANCEL) {
+            resolve(null);
+          }
+        })
+        .build();
+
+      picker.setVisible(true);
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 

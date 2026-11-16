@@ -11,6 +11,8 @@ import {
   getLastDriveFolder,
   getRoomDriveSave,
   normalizeJsonFileName,
+  pickDriveJsonFile,
+  pickerOrigin,
   replacesLastSave,
   resetDriveStateForTests,
   saveLectureJsonToDrive,
@@ -196,5 +198,77 @@ describe('googleDrive helpers', () => {
     expect(friendlyGoogleError(new Error('popup_closed'))).toContain('cancelled');
     expect(friendlyGoogleError(new Error('admin_policy_enforced'))).toContain('administrator');
     expect(friendlyGoogleError(new Error('origin_mismatch'))).toContain('Google Cloud OAuth');
+  });
+
+  it('uses top ancestor origin for Google Picker inside nested iframes', async () => {
+    const origLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: {
+        origin: 'https://service-abc.a.run.app',
+        ancestorOrigins: ['https://over-heard.ai.studio'],
+      },
+    });
+
+    try {
+      expect(pickerOrigin()).toBe('https://over-heard.ai.studio');
+
+      const setOrigin = vi.fn();
+      const setSelectFolderEnabled = vi.fn();
+      window.google = {
+        accounts: {
+          oauth2: {
+            initTokenClient: (config) => ({
+              requestAccessToken: () => config.callback({ access_token: 'tok', expires_in: 3600 }),
+            }),
+          },
+        },
+        picker: {
+          Action: { PICKED: 'picked', CANCEL: 'cancel' },
+          ViewId: { DOCS: 'docs', FOLDERS: 'folders' },
+          DocsView: class {
+            setMimeTypes() { return this; }
+            setIncludeFolders() { return this; }
+            setSelectFolderEnabled(v: boolean) {
+              setSelectFolderEnabled(v);
+              return this;
+            }
+          },
+          PickerBuilder: class {
+            private cb: ((data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) | null = null;
+            addView() { return this; }
+            setOAuthToken() { return this; }
+            setDeveloperKey() { return this; }
+            setAppId() { return this; }
+            setOrigin(origin: string) {
+              setOrigin(origin);
+              return this;
+            }
+            setTitle() { return this; }
+            setCallback(cb: (data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) {
+              this.cb = cb;
+              return this;
+            }
+            build() {
+              return {
+                setVisible: () => {
+                  this.cb?.({ action: 'picked', docs: [{ id: 'doc-1', name: 'lecture.json' }] });
+                },
+              };
+            }
+          },
+        },
+      };
+
+      const picked = await pickDriveJsonFile();
+      expect(picked).toEqual({ id: 'doc-1', name: 'lecture.json', mimeType: undefined });
+      expect(setOrigin).toHaveBeenCalledWith('https://over-heard.ai.studio');
+      expect(setSelectFolderEnabled).toHaveBeenCalledWith(false);
+    } finally {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: origLocation,
+      });
+    }
   });
 });
