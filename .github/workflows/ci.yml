@@ -29,10 +29,13 @@ jobs:
         run: npm run lint
 
       - name: Unit and UI tests
-        run: npm test
+        run: npm test -- --run
 
       - name: Production build
         run: npm run build
+
+      - name: Node 22 production syntax check
+        run: NODE_ENV=production node --check server.ts
 
       - name: Server smoke test
         # Run through bash so it works even when the file loses its executable bit
