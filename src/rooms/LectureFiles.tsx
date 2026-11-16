@@ -1,19 +1,68 @@
 import { useRef, useState } from 'react';
 import { MAX_ROOM_FILE_BYTES, parseRoomJson, roomJson, type LectureState } from './protocol';
 
-export function LectureFiles({ state, onImport }: {
+function ordinalDay(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${day}th`;
+  switch (day % 10) {
+    case 1:
+      return `${day}st`;
+    case 2:
+      return `${day}nd`;
+    case 3:
+      return `${day}rd`;
+    default:
+      return `${day}th`;
+  }
+}
+
+export function formatLectureFilename(
+  roomCode?: string | null,
+  date: Date = new Date(),
+): string {
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const day = ordinalDay(date.getDate());
+  const year = date.getFullYear();
+  const cleanRoom = roomCode?.trim().replace(/[\\/:*?"<>|]+/g, '-');
+  const prefix = cleanRoom ? `Lecture for ${cleanRoom}` : 'Lecture';
+  return `${prefix} on ${weekday}, ${month} ${day}, ${year}.json`;
+}
+
+export function ExportLectureButton({
+  state,
+  roomCode,
+}: {
+  state: Pick<LectureState, 'entries' | 'selectedLangs'>;
+  roomCode?: string | null;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={state.entries.length === 0}
+      onClick={() => {
+        const url = URL.createObjectURL(new Blob([roomJson(state)], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = formatLectureFilename(roomCode);
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }}
+    >
+      Export JSON
+    </button>
+  );
+}
+
+export function LectureFiles({ state, onImport, roomCode }: {
   state: Pick<LectureState, 'entries' | 'selectedLangs'>;
   onImport: (value: Pick<LectureState, 'entries' | 'selectedLangs'>) => void;
+  roomCode?: string | null;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   return <>
-    <button type="button" disabled={state.entries.length === 0} onClick={() => {
-      const url = URL.createObjectURL(new Blob([roomJson(state)], { type: 'application/json' }));
-      const link = document.createElement('a');
-      link.href = url; link.download = `overheard-lecture-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }}>Export JSON</button>
+    <ExportLectureButton state={state} roomCode={roomCode} />
     <button type="button" onClick={() => input.current?.click()}>Import JSON</button>
     <input ref={input} type="file" accept=".json,application/json" aria-label="Import lecture JSON" hidden
       onChange={async event => {

@@ -24,6 +24,8 @@ import {
   Subtitles,
   Sun,
   Trash2,
+  Upload,
+  Volume2,
   Zap,
 } from 'lucide-react';
 import {
@@ -39,10 +41,14 @@ import {
 } from './constants';
 import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLayout, PipLine } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
+import { loadLectureEntries, saveLectureEntries, type LectureEntry } from './conversation/lectureState';
 import { ConversationMode } from './components/ConversationMode';
+import { loadConversationSettings, saveConversationSettings } from './components/conversationSettings';
 import { JoinRoomForm } from './rooms/StudentRoom';
+import { MAX_ROOM_FILE_BYTES, parseRoomJson } from './rooms/protocol';
 import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studentPrefs';
 import { LanguageModal } from './components/LanguageModal';
+import { VoiceSettingsModal } from './components/VoiceSettingsModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
@@ -197,9 +203,14 @@ export default function App() {
 
   // Modals & drawers
   const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [isTestBarOpen, setIsTestBarOpen] = useState<boolean>(false);
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
+  const [importError, setImportError] = useState<string>('');
+  const [importedLecture, setImportedLecture] = useState<{ seq: number; entries: LectureEntry[] } | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  const importSeqRef = useRef<number>(0);
 
   // Speech recognition & permission states
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -1331,6 +1342,15 @@ export default function App() {
         </div>
       )}
 
+      {importError && displayMode !== 'conversation' && (
+        <div role="alert" className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between gap-4 text-amber-800 dark:text-amber-200">
+          <span>{importError}</span>
+          <button type="button" onClick={() => setImportError('')} className="underline hover:opacity-80">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Top Teacher Control Bar */}
       {displayMode !== 'conversation' && <>
       <header className="border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
@@ -1476,6 +1496,63 @@ export default function App() {
             </div>
 
             <JoinRoomForm />
+            <button
+              type="button"
+              onClick={() => importFileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+              title="Open an exported OverHeard lecture JSON file"
+            >
+              <Upload className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+              <span>Import JSON</span>
+            </button>
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".json,application/json"
+              aria-label="Import lecture JSON on home screen"
+              hidden
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                try {
+                  if (file.size > MAX_ROOM_FILE_BYTES) {
+                    throw new Error('Room file is too large (8 MB maximum).');
+                  }
+                  const raw =
+                    typeof file.text === 'function' ? await file.text() : await new Response(file).text();
+                  const imported = parseRoomJson(raw);
+                  if (
+                    loadLectureEntries().length > 0 &&
+                    !window.confirm(
+                      'Replace the saved lecture with the imported file? Export JSON first to keep the current transcript.',
+                    )
+                  ) {
+                    return;
+                  }
+                  setImportError('');
+                  saveLectureEntries(imported.entries);
+                  saveConversationSettings({
+                    ...loadConversationSettings(selectedLangs[0] ?? 'es'),
+                    mode: 'lecture',
+                  });
+                  if (imported.selectedLangs.length > 0) {
+                    setSelectedLangs(imported.selectedLangs.slice(0, MAX_LANGUAGES));
+                  }
+                  previousMode.current = displayMode;
+                  stopListening();
+                  pipWindow?.close();
+                  setPipWindow(null);
+                  setPipNotice(null);
+                  setMicPermissionDenied(false);
+                  setImportedLecture({ seq: ++importSeqRef.current, entries: imported.entries });
+                  setConversationVisited(true);
+                  setDisplayMode('conversation');
+                } catch (err) {
+                  setImportError(err instanceof Error ? err.message : 'Could not read room file.');
+                }
+              }}
+            />
             {/* Pop Out Captions (Document Picture-in-Picture) */}
             {hasPipApi && (
               <button
@@ -1504,6 +1581,17 @@ export default function App() {
               <span className="font-mono text-[#64748B] dark:text-[#94A3B8]">
                 ({selectedLangs.join(', ')})
               </span>
+            </button>
+
+            {/* Voice Settings Button */}
+            <button
+              type="button"
+              onClick={() => setIsVoiceSettingsOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+              title="Choose default English, Spanish, and Portuguese reader voices"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+              <span>Voice settings</span>
             </button>
 
             {/* Translator Picker (live caption provider) */}
@@ -2078,6 +2166,7 @@ export default function App() {
           permissionBanner={permissionBanner}
           onPackProgress={reportPack}
           packPanel={<PackProgressPanel progress={packProgress} startedAt={packStartedAt} />}
+          importedLecture={importedLecture}
           onStartAttempt={() => setMicPermissionDenied(false)}
           onPermissionDenied={(reason) => {
             setMicInsecure(reason === 'insecure');
@@ -2096,6 +2185,12 @@ export default function App() {
         onClose={() => setIsLangModalOpen(false)}
         selectedLangs={selectedLangs}
         onToggleLang={handleToggleLanguage}
+      />
+
+      <VoiceSettingsModal
+        isOpen={isVoiceSettingsOpen}
+        onClose={() => setIsVoiceSettingsOpen(false)}
+        isDark={isDark}
       />
 
       <AboutModal

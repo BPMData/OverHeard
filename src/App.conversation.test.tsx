@@ -138,4 +138,42 @@ describe('App conversation integration', () => {
     await act(async () => {});
     expect(mtCalls).toHaveLength(3);
   });
+
+  it('opens Voice settings from the home page and imports a lecture JSON file into Lecture mode', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice settings' }));
+    expect(screen.getByRole('dialog', { name: 'Voice Settings' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Default Portuguese voice'), {
+      target: { value: 'pt_BR-cadu-medium' },
+    });
+    expect(JSON.parse(localStorage.getItem('overheard.voices')!).pt).toBe('pt_BR-cadu-medium');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    const lecturePayload = JSON.stringify({
+      format: 'overheard-lecture',
+      version: 1,
+      exportedAt: '2026-11-11T12:00:00.000Z',
+      selectedLangs: ['pt'],
+      entries: [
+        {
+          id: 'lec-1',
+          timestamp: 1000,
+          english: 'Imported line',
+          translations: { pt: 'Linha importada' },
+          failedLangs: {},
+        },
+      ],
+    });
+    const file = new File([lecturePayload], 'lecture.json', { type: 'application/json' });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Import lecture JSON on home screen'), {
+        target: { files: [file] },
+      });
+    });
+
+    await screen.findByRole('region', { name: 'Conversation test surface' });
+    expect(JSON.parse(localStorage.getItem('overheard.lecture')!)).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem('overheard.conversation')!).mode).toBe('lecture');
+  });
 });

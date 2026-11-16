@@ -10,6 +10,7 @@ import {
   loadVoicePreferences,
   resolveVoiceId,
   saveVoicePreferences,
+  voicePreviewText,
   voicesForLanguage,
 } from './voices';
 
@@ -108,5 +109,21 @@ describe('Piper voice catalog and preferences', () => {
     expect(() => saveVoicePreferences({ en: 'en_US-ryan-high' })).not.toThrow();
     expect(loadVoicePreferences()).toEqual({});
     vi.restoreAllMocks();
+  });
+
+  it('builds localized preview phrases for English, Spanish, and Portuguese voices', () => {
+    expect(voicePreviewText('en', 'en_US-kristin-medium')).toEqual({
+      spoken: "Hi, I'm Kristin. Should I be your reader for English?",
+      englishHint: "Hi, I'm Kristin. Should I be your reader for English?",
+    });
+    expect(voicePreviewText('es', 'es_MX-claude-high')).toEqual({
+      spoken: 'Hola, soy Claude. ¿Debería ser tu lectora de español?',
+      englishHint: "Hi, I'm Claude. Should I be your reader for Spanish?",
+    });
+    expect(voicePreviewText('es', 'es_MX-ald-medium').spoken).toContain('tu lector de español');
+    expect(voicePreviewText('pt', 'pt_BR-cadu-medium')).toEqual({
+      spoken: 'Olá, eu sou Cadu. Devo ser o seu leitor de português?',
+      englishHint: "Hi, I'm Cadu. Should I be your reader for Portuguese?",
+    });
   });
 });

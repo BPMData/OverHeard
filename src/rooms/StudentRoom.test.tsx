@@ -215,4 +215,36 @@ describe('student lecture view', () => {
     expect(cancel).toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
   });
+
+  it('lets students configure voices via the Voice settings modal and export lecture JSON with a legible room filename', async () => {
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => 'blob:student-export');
+    URL.revokeObjectURL = vi.fn();
+
+    render(<StudentRoom code="piper-test-001" />);
+    await emit();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice settings' }));
+    expect(screen.getByRole('dialog', { name: 'Voice Settings' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Default Spanish voice'), {
+      target: { value: 'es_MX-ald-medium' },
+    });
+    expect(JSON.parse(localStorage.getItem('overheard.voices')!).es).toBe('es_MX-ald-medium');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    // Selecting Spanish in My language reflects the saved default voice from Voice settings
+    fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });
+    expect((screen.getByLabelText('Voice') as HTMLSelectElement).value).toBe('es_MX-ald-medium');
+
+    // Exporting JSON sets a legible filename containing the room name
+    fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement;
+    expect(anchor.download).toMatch(/^Lecture for piper-test-001 on .+\.json$/);
+
+    URL.createObjectURL = originalCreateObjectURL;
+    URL.revokeObjectURL = originalRevokeObjectURL;
+  });
 });

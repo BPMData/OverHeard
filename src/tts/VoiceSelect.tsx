@@ -11,6 +11,7 @@ interface VoiceSelectProps {
   value: string;
   ariaLabel: string;
   disabled?: boolean;
+  className?: string;
   onChange: (voiceId: string) => void;
 }
 
@@ -19,6 +20,7 @@ export function VoiceSelect({
   value,
   ariaLabel,
   disabled = false,
+  className,
   onChange,
 }: VoiceSelectProps) {
   const piperVoices = voicesForLanguage(lang);
@@ -27,6 +29,7 @@ export function VoiceSelect({
       aria-label={ariaLabel}
       value={value}
       disabled={disabled}
+      className={className}
       onChange={(event) => onChange(event.target.value)}
     >
       {piperVoices.map((voice) => (

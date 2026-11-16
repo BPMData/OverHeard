@@ -27,6 +27,7 @@ import {
   type ConversationSubMode,
 } from './conversationSettings';
 import { LectureTranscript } from './LectureTranscript';
+import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
@@ -36,12 +37,11 @@ import { piperClient } from '../tts/piperClient';
 import { useLecturePlayback, useTwoWayPlayback } from '../tts/useSpeechPlayback';
 import {
   BROWSER_VOICE_ID,
-  loadVoicePreferences,
   resolveVoiceId,
-  saveVoicePreferences,
-  type VoicePreferences,
+  useVoicePreferences,
 } from '../tts/voices';
 import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
+import type { LectureEntry } from '../conversation/lectureState';
 
 interface Props {
   active: boolean;
@@ -67,6 +67,8 @@ interface Props {
   onPackProgress?: PackProgress;
   /** The on-device download progress panel (renders nothing when idle) */
   packPanel?: React.ReactNode;
+  /** Lecture imported from the base web-page */
+  importedLecture?: { seq: number; entries: LectureEntry[] } | null;
 }
 const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
 const color = (side: Side, lang: ConversationLanguage) =>
@@ -93,6 +95,7 @@ export function ConversationMode({
   permissionBanner,
   onPackProgress,
   packPanel,
+  importedLecture,
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
   const targetLangs: LanguageCode[] =
@@ -108,7 +111,8 @@ export function ConversationMode({
   const [newMessage, setNewMessage] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [uiError, setUiError] = useState('');
-  const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(loadVoicePreferences);
+  const [voicePrefs, persistVoicePref] = useVoicePreferences();
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(
     () => targetLangs[0] ?? 'en',
   );
@@ -120,16 +124,16 @@ export function ConversationMode({
   const following = useRef(true);
   const requests = useRef(new Set<string>());
   const spoken = useRef(new Set<string>());
-  const updateVoicePref = useCallback((lang: ConversationLanguage, voiceId: string) => {
-    setVoicePrefs((prev) => {
-      const next = { ...prev, [lang]: voiceId };
-      saveVoicePreferences(next);
-      return next;
-    });
-    if (voiceId !== BROWSER_VOICE_ID) {
-      piperClient.preloadVoice(voiceId);
-    }
-  }, []);
+  const lastImportedSeq = useRef(0);
+  const updateVoicePref = useCallback(
+    (lang: ConversationLanguage, voiceId: string) => {
+      persistVoicePref(lang, voiceId);
+      if (voiceId !== BROWSER_VOICE_ID) {
+        piperClient.preloadVoice(voiceId);
+      }
+    },
+    [persistVoicePref],
+  );
   const send = useCallback(
     (side: Side, value: string) => {
       if (value.trim())
@@ -187,6 +191,12 @@ export function ConversationMode({
     interim: active && isLecture ? lecture.speech.interim : '',
     liveTranslations: lecture.liveTranslations,
     isListening: active && isLecture && lecture.speech.isListening };
+  useEffect(() => {
+    if (!importedLecture || importedLecture.seq === lastImportedSeq.current) return;
+    lastImportedSeq.current = importedLecture.seq;
+    setSettings((s) => (s.mode === 'lecture' ? s : { ...s, mode: 'lecture' }));
+    lecture.replace(importedLecture.entries, { preserveIds: true });
+  }, [importedLecture, lecture.replace]);
   useEffect(() => {
     if (active && !isLecture && settings.manualTurns && speech.isListening)
       nextButton.current?.focus();
@@ -635,6 +645,9 @@ export function ConversationMode({
             />
           </>
         )}
+        <button type="button" onClick={() => setIsVoiceSettingsOpen(true)}>
+          Voice settings
+        </button>
         <button
           onClick={() => {
             if (fullscreen) void document.exitFullscreen();
@@ -838,6 +851,11 @@ export function ConversationMode({
           </footer>
         </>
       )}
+      <VoiceSettingsModal
+        isOpen={isVoiceSettingsOpen}
+        onClose={() => setIsVoiceSettingsOpen(false)}
+        isDark={isDark}
+      />
     </div>
   );
 }

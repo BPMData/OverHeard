@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
+import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { SUPPORTED_LANGUAGES } from '../constants';
 import { prepareOnDeviceTranslators } from '../onDevice';
@@ -8,13 +9,12 @@ import { piperClient } from '../tts/piperClient';
 import { useLecturePlayback } from '../tts/useSpeechPlayback';
 import {
   BROWSER_VOICE_ID,
-  loadVoicePreferences,
   resolveVoiceId,
-  saveVoicePreferences,
-  type VoicePreferences,
+  useVoicePreferences,
 } from '../tts/voices';
 import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
 import type { LanguageCode } from '../types';
+import { ExportLectureButton } from './LectureFiles';
 import { LecturePip } from './LecturePip';
 import { useStudentRoom } from './useStudentRoom';
 import { useStudentTranslations } from './useStudentTranslations';
@@ -44,7 +44,8 @@ export function StudentRoom({ code }: { code: string }) {
   const [fontSize, setFontSize] = useState(prefs.fontSize);
   const [isDark, setIsDark] = useState(prefs.isDark);
   useEffect(() => saveStudentPrefs({ isDark, language, fontSize }), [isDark, language, fontSize]);
-  const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(loadVoicePreferences);
+  const [voicePrefs, updateVoicePref] = useVoicePreferences();
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [readAloud, setReadAloud] = useState(false);
   const translations = useStudentTranslations(snapshot, language);
   const state = { ...(snapshot || emptyLecture()), entries: translations.entries,
@@ -79,15 +80,16 @@ export function StudentRoom({ code }: { code: string }) {
           ariaLabel="Voice"
           value={resolveVoiceId(language, voicePrefs)}
           onChange={(nextVoice) => {
-            const nextPrefs = { ...voicePrefs, [language]: nextVoice };
-            setVoicePrefs(nextPrefs);
-            saveVoicePreferences(nextPrefs);
+            updateVoicePref(language, nextVoice);
             if (nextVoice !== BROWSER_VOICE_ID) {
               piperClient.preloadVoice(nextVoice);
             }
           }}
         />
       </label>
+      <button type="button" onClick={() => setIsVoiceSettingsOpen(true)}>
+        Voice settings
+      </button>
       <label>
         <input
           type="checkbox"
@@ -114,6 +116,13 @@ export function StudentRoom({ code }: { code: string }) {
       />
       <LecturePip state={state} isDark={isDark} fontSize={fontSize} onAdjustFont={adjustFont}
         prefsPrefix="overheard.studentPip" />
+      <ExportLectureButton
+        state={{
+          entries: state.entries,
+          selectedLangs: language !== 'en' ? [language] : (snapshot?.selectedLangs ?? []),
+        }}
+        roomCode={code}
+      />
       <button type="button" aria-label="Smaller text" onClick={() => adjustFont(-4)}>A−</button>
       <button type="button" aria-label="Larger text" onClick={() => adjustFont(4)}>A+</button>
       <button
@@ -136,5 +145,10 @@ export function StudentRoom({ code }: { code: string }) {
       isListening={state.isListening} speechLocal={null} interim={state.interim} liveTranslations={state.liveTranslations}
       activePlayback={playback.activePlayback} onPlayFrom={playback.playFrom}
       onTogglePause={playback.togglePause} onStopPlayback={playback.stop} />
+    <VoiceSettingsModal
+      isOpen={isVoiceSettingsOpen}
+      onClose={() => setIsVoiceSettingsOpen(false)}
+      isDark={isDark}
+    />
   </main>;
 }
