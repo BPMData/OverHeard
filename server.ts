@@ -203,7 +203,7 @@ async function startServer() {
   // Trust only the proxy hops we expect in front of us (Cloud Run's front end is one)
   app.set('trust proxy', TRUST_PROXY_HOPS);
   app.use((_req: Request, res: Response, next) => {
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
     next();
   });

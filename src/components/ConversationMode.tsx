@@ -29,6 +29,8 @@ import {
 import { LectureTranscript } from './LectureTranscript';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
+import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
+import type { SaveLectureToDriveResult } from '../lib/googleDrive';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { LectureFiles } from '../rooms/LectureFiles';
@@ -111,6 +113,8 @@ export function ConversationMode({
   const [newMessage, setNewMessage] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [uiError, setUiError] = useState('');
+  const [driveStatus, setDriveStatus] = useState<{ message: string; link?: string } | null>(null);
+  const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [voicePrefs, persistVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(
@@ -594,6 +598,38 @@ export function ConversationMode({
               lecture.replace(value.entries);
               onSetLanguages?.(value.selectedLangs);
             }} />
+            <SaveLectureToDriveControl
+              state={lectureState}
+              roomCode={activeRoomCode}
+              className="inline-flex items-center gap-1.5"
+              onSaved={(result: SaveLectureToDriveResult) => {
+                setUiError('');
+                setDriveStatus({
+                  message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
+                  link: result.file.webViewLink,
+                });
+              }}
+              onError={(msg) => {
+                if (msg) setDriveStatus(null);
+                setUiError(msg);
+              }}
+            />
+            <OpenFromDriveButton
+              className="inline-flex items-center gap-1.5"
+              hasExistingEntries={() => lecture.entries.length > 0}
+              onImport={(imported, file) => {
+                setUiError('');
+                lecture.replace(imported.entries);
+                onSetLanguages?.(imported.selectedLangs);
+                setDriveStatus({
+                  message: `Opened "${file.name}" from Google Drive.`,
+                });
+              }}
+              onError={(msg) => {
+                if (msg) setDriveStatus(null);
+                setUiError(msg);
+              }}
+            />
             <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
               onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
             <label>
@@ -699,6 +735,7 @@ export function ConversationMode({
       <TeacherRoomControls
         state={lectureState}
         visible={isLecture}
+        onRoomCodeChange={setActiveRoomCode}
         onRestore={restored => {
           lecture.replace(restored.entries, { preserveIds: true });
           if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
@@ -711,6 +748,28 @@ export function ConversationMode({
             as you speak and stay saved locally until cleared.
           </p>
           {packPanel}
+          {driveStatus && (
+            <p role="status" className="text-xs flex flex-wrap items-center gap-2">
+              <span>{driveStatus.message}</span>
+              {driveStatus.link && (
+                <a
+                  href={driveStatus.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Open in Drive
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setDriveStatus(null)}
+                className="underline"
+              >
+                Dismiss
+              </button>
+            </p>
+          )}
           {(uiError || lecture.uiError || lecture.speech.error || !lecture.speech.supported) && (
             <p role="alert">
               {uiError ||

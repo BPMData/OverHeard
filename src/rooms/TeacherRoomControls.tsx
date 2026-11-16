@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useTeacherRoom } from './useTeacherRoom';
 import type { LectureState } from './protocol';
 
-export function TeacherRoomControls({ state, visible, onRestore }: {
+export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChange }: {
   state: LectureState;
   visible: boolean;
   onRestore?: (restored: Pick<LectureState, 'entries' | 'selectedLangs'>) => void;
+  onRoomCodeChange?: (code: string | null) => void;
 }) {
   const { room, status, busy, unavailable, create, rejoin, end } = useTeacherRoom(state, onRestore);
+  useEffect(() => {
+    onRoomCodeChange?.(room?.code ?? null);
+  }, [room?.code, onRoomCodeChange]);
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
