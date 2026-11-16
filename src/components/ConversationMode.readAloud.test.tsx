@@ -192,4 +192,17 @@ it('imports a conversation CSV into the conversation thread without reading impo
   expect(screen.getByText('Good morning')).toBeTruthy();
   expect(screen.getByText('Hello')).toBeTruthy();
   expect(speak).not.toHaveBeenCalled();
+
+  // Selecting Side A/B voices persists preferences and bubble ▶ button replays an imported bubble
+  fireEvent.change(screen.getByLabelText('Side B voice'), { target: { value: 'es_MX-ald-medium' } });
+  expect(JSON.parse(localStorage.getItem('overheard.voices')!).es).toBe('es_MX-ald-medium');
+
+  const countBeforeReplay = Recognition.instances.length;
+  fireEvent.click(screen.getByRole('button', { name: 'Read aloud: Good morning' }));
+  expect(speak).toHaveBeenCalledTimes(1);
+  expect(queue[0].text).toBe('Buenos días');
+  expect(Recognition.instances.at(-1)?.abort).toHaveBeenCalled();
+
+  await finishVoice();
+  expect(Recognition.instances).toHaveLength(countBeforeReplay + 1);
 });

@@ -4,6 +4,16 @@ import { LectureTranscript } from '../components/LectureTranscript';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { SUPPORTED_LANGUAGES } from '../constants';
 import { prepareOnDeviceTranslators } from '../onDevice';
+import { piperClient } from '../tts/piperClient';
+import { useLecturePlayback } from '../tts/useSpeechPlayback';
+import {
+  BROWSER_VOICE_ID,
+  loadVoicePreferences,
+  resolveVoiceId,
+  saveVoicePreferences,
+  type VoicePreferences,
+} from '../tts/voices';
+import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
 import type { LanguageCode } from '../types';
 import { LecturePip } from './LecturePip';
 import { useStudentRoom } from './useStudentRoom';
@@ -34,12 +44,20 @@ export function StudentRoom({ code }: { code: string }) {
   const [fontSize, setFontSize] = useState(prefs.fontSize);
   const [isDark, setIsDark] = useState(prefs.isDark);
   useEffect(() => saveStudentPrefs({ isDark, language, fontSize }), [isDark, language, fontSize]);
+  const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(loadVoicePreferences);
+  const [readAloud, setReadAloud] = useState(false);
   const translations = useStudentTranslations(snapshot, language);
   const state = { ...(snapshot || emptyLecture()), entries: translations.entries,
     selectedLangs: language === 'en' ? [] : [language],
     interim: connected ? snapshot?.interim || '' : '',
     liveTranslations: connected ? translations.liveTranslations : {},
     isListening: connected && !!snapshot?.teacherOnline && !!snapshot?.isListening && !snapshot?.ended };
+  const playback = useLecturePlayback({
+    entries: state.entries,
+    voicePrefs,
+    readAloud,
+    liveLang: language,
+  });
   const adjustFont = (delta: number) => setFontSize(value => Math.min(56, Math.max(20, value + delta)));
   return <main className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}>
     <div className="conversation-settings">
@@ -55,6 +73,45 @@ export function StudentRoom({ code }: { code: string }) {
           {SUPPORTED_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.name} · {lang.nativeName}</option>)}
         </select>
       </label>
+      <label>Voice
+        <VoiceSelect
+          lang={language}
+          ariaLabel="Voice"
+          value={resolveVoiceId(language, voicePrefs)}
+          onChange={(nextVoice) => {
+            const nextPrefs = { ...voicePrefs, [language]: nextVoice };
+            setVoicePrefs(nextPrefs);
+            saveVoicePreferences(nextPrefs);
+            if (nextVoice !== BROWSER_VOICE_ID) {
+              piperClient.preloadVoice(nextVoice);
+            }
+          }}
+        />
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          checked={readAloud}
+          onChange={(event) => {
+            const checked = event.target.checked;
+            setReadAloud(checked);
+            if (checked) {
+              piperClient.unlockAudio();
+              const activeVoice = resolveVoiceId(language, voicePrefs);
+              if (activeVoice !== BROWSER_VOICE_ID) {
+                piperClient.preloadVoice(activeVoice);
+              }
+            }
+          }}
+        />
+        Read aloud
+      </label>
+      <PlaybackToolbar
+        status={playback.status}
+        downloadProgress={playback.downloadProgress}
+        onTogglePause={playback.togglePause}
+        onStop={playback.stop}
+      />
       <LecturePip state={state} isDark={isDark} fontSize={fontSize} onAdjustFont={adjustFont}
         prefsPrefix="overheard.studentPip" />
       <button type="button" aria-label="Smaller text" onClick={() => adjustFont(-4)}>A−</button>
@@ -76,6 +133,8 @@ export function StudentRoom({ code }: { code: string }) {
     {error && !snapshot && <JoinRoomForm />}
     {translations.hasFailures && <button type="button" onClick={translations.retry}>Retry unavailable translations</button>}
     <LectureTranscript entries={state.entries} selectedLangs={state.selectedLangs} fontSize={fontSize} isDark={isDark}
-      isListening={state.isListening} speechLocal={null} interim={state.interim} liveTranslations={state.liveTranslations} />
+      isListening={state.isListening} speechLocal={null} interim={state.interim} liveTranslations={state.liveTranslations}
+      activePlayback={playback.activePlayback} onPlayFrom={playback.playFrom}
+      onTogglePause={playback.togglePause} onStopPlayback={playback.stop} />
   </main>;
 }

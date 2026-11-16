@@ -32,6 +32,16 @@ import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { LectureFiles } from '../rooms/LectureFiles';
 import { LecturePip } from '../rooms/LecturePip';
+import { piperClient } from '../tts/piperClient';
+import { useLecturePlayback, useTwoWayPlayback } from '../tts/useSpeechPlayback';
+import {
+  BROWSER_VOICE_ID,
+  loadVoicePreferences,
+  resolveVoiceId,
+  saveVoicePreferences,
+  type VoicePreferences,
+} from '../tts/voices';
+import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
 
 interface Props {
   active: boolean;
@@ -98,6 +108,11 @@ export function ConversationMode({
   const [newMessage, setNewMessage] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [uiError, setUiError] = useState('');
+  const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(loadVoicePreferences);
+  const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(
+    () => targetLangs[0] ?? 'en',
+  );
+  const [lectureReadAloud, setLectureReadAloud] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const thread = useRef<HTMLDivElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
@@ -105,6 +120,16 @@ export function ConversationMode({
   const following = useRef(true);
   const requests = useRef(new Set<string>());
   const spoken = useRef(new Set<string>());
+  const updateVoicePref = useCallback((lang: ConversationLanguage, voiceId: string) => {
+    setVoicePrefs((prev) => {
+      const next = { ...prev, [lang]: voiceId };
+      saveVoicePreferences(next);
+      return next;
+    });
+    if (voiceId !== BROWSER_VOICE_ID) {
+      piperClient.preloadVoice(voiceId);
+    }
+  }, []);
   const send = useCallback(
     (side: Side, value: string) => {
       if (value.trim())
@@ -131,6 +156,33 @@ export function ConversationMode({
     onPermissionDenied,
     onPackProgress,
   });
+  const lectureLangs: ConversationLanguage[] = ['en', ...targetLangs];
+  const effectiveLectureLang = lectureLangs.includes(lecturePlaybackLang)
+    ? lecturePlaybackLang
+    : (targetLangs[0] ?? 'en');
+  const lecturePlayback = useLecturePlayback({
+    entries: active && isLecture ? lecture.entries : [],
+    voicePrefs,
+    readAloud: active && isLecture && lectureReadAloud,
+    liveLang: effectiveLectureLang,
+    onBeforePlay: lecture.speech.suspend,
+  });
+  const twoWayPlayback = useTwoWayPlayback({
+    voicePrefs,
+    onSuspendSpeech: speech.suspend,
+    onResumeSpeech: speech.resume,
+  });
+  const wasLecturePlaying = useRef(false);
+  useEffect(() => {
+    const isPlaybackActive =
+      lecturePlayback.status === 'playing' || lecturePlayback.status === 'downloading';
+    if (isPlaybackActive) {
+      wasLecturePlaying.current = true;
+    } else if (wasLecturePlaying.current) {
+      wasLecturePlaying.current = false;
+      lecture.speech.resume();
+    }
+  }, [lecturePlayback.status, lecture.speech.resume]);
   const lectureState = { entries: lecture.entries, selectedLangs: targetLangs,
     interim: active && isLecture ? lecture.speech.interim : '',
     liveTranslations: lecture.liveTranslations,
@@ -144,9 +196,12 @@ export function ConversationMode({
   useEffect(() => {
     if (!active || isLecture) {
       speech.stop();
-      window.speechSynthesis?.cancel();
+      twoWayPlayback.cancelAll();
     }
-  }, [active, isLecture, speech.stop]);
+    if (!active || !isLecture) {
+      lecturePlayback.stop();
+    }
+  }, [active, isLecture, speech.stop, twoWayPlayback.cancelAll, lecturePlayback.stop]);
   useEffect(() => {
     if (!active || isLecture) return;
     const handler = (event: KeyboardEvent) => {
@@ -199,26 +254,26 @@ export function ConversationMode({
     }
   }, [messages, translate]);
   useEffect(() => {
-    if (!active || !settings.readAloud || !window.speechSynthesis) return;
+    if (!active || isLecture || !settings.readAloud) return;
     const pending = messages.filter(
       (m) => m.status === 'done' && !spoken.current.has(`${m.id}:${m.revision}`),
     );
     if (!pending.length) return;
-    speech.suspend();
-    pending.forEach((message) => {
-      spoken.current.add(`${message.id}:${message.revision}`);
-      const utterance = new SpeechSynthesisUtterance(message.translated || message.original);
-      utterance.lang = message.reader.lang;
-      utterance.voice =
-        window.speechSynthesis
-          .getVoices()
-          .find((v) => v.lang.toLowerCase().startsWith(message.reader.lang)) || null;
-      utterance.onend = utterance.onerror = () => {
-        if (!window.speechSynthesis.pending && !window.speechSynthesis.speaking) speech.resume();
-      };
-      window.speechSynthesis.speak(utterance);
-    });
-  }, [messages, active, settings.readAloud, speech.suspend, speech.resume]);
+    const speakable = pending.filter(
+      (m) =>
+        piperClient.shouldUsePiper(m.reader.lang, resolveVoiceId(m.reader.lang, voicePrefs)) ||
+        Boolean(window.speechSynthesis),
+    );
+    if (!speakable.length) return;
+    speakable.forEach((m) => spoken.current.add(`${m.id}:${m.revision}`));
+    twoWayPlayback.enqueueAuto(
+      speakable.map((m) => ({
+        id: m.id,
+        text: m.translated || m.original,
+        lang: m.reader.lang,
+      })),
+    );
+  }, [messages, active, isLecture, settings.readAloud, voicePrefs, twoWayPlayback.enqueueAuto]);
   useEffect(() => {
     if (!settings.readAloud) messages.forEach((m) => spoken.current.add(`${m.id}:${m.revision}`));
   }, [messages, settings.readAloud]);
@@ -234,7 +289,8 @@ export function ConversationMode({
   const exit = () => {
     speech.stop();
     lecture.stop();
-    window.speechSynthesis?.cancel();
+    twoWayPlayback.cancelAll();
+    lecturePlayback.stop();
     if (document.fullscreenElement === root.current) void document.exitFullscreen();
     onExit();
   };
@@ -242,7 +298,8 @@ export function ConversationMode({
     if (nextMode === settings.mode) return;
     speech.stop();
     lecture.stop();
-    window.speechSynthesis?.cancel();
+    twoWayPlayback.cancelAll();
+    lecturePlayback.stop();
     setUiError('');
     lecture.setUiError('');
     setSettings((s) => ({ ...s, mode: nextMode }));
@@ -294,6 +351,7 @@ export function ConversationMode({
   const renderMessage = (message: Message) => {
     const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
     const done = message.status === 'done';
+    const isSpeakingThisBubble = twoWayPlayback.playingMessageId === message.id;
     return (
       <article key={message.id} className={`conversation-bubble side-${placedSide}`}>
         <div className="conversation-meta">
@@ -305,13 +363,36 @@ export function ConversationMode({
               hour12: false,
             })}
           </span>
-          <button
-            aria-label={`Correct speaker for ${message.original}`}
-            title="Move to the other speaker"
-            onClick={() => dispatch({ type: 'correct', message: correctMessage(message) })}
-          >
-            ⇄
-          </button>
+          <span className="lecture-play-actions">
+            {done && (
+              <button
+                type="button"
+                className="conversation-play-btn"
+                aria-label={
+                  isSpeakingThisBubble
+                    ? `Stop reading ${message.original}`
+                    : `Read aloud: ${message.original}`
+                }
+                title={isSpeakingThisBubble ? 'Stop reading' : 'Read aloud'}
+                onClick={() =>
+                  twoWayPlayback.togglePlayMessage({
+                    id: message.id,
+                    text: message.translated || message.original,
+                    lang: message.reader.lang,
+                  })
+                }
+              >
+                {isSpeakingThisBubble ? '⏹' : '▶'}
+              </button>
+            )}
+            <button
+              aria-label={`Correct speaker for ${message.original}`}
+              title="Move to the other speaker"
+              onClick={() => dispatch({ type: 'correct', message: correctMessage(message) })}
+            >
+              ⇄
+            </button>
+          </span>
         </div>
         <div style={{ fontSize }} dir={direction(done ? message.reader.lang : message.sender.lang)}>
           <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
@@ -396,6 +477,12 @@ export function ConversationMode({
                     </option>
                   ))}
                 </select>
+                <VoiceSelect
+                  lang={settings[side].lang}
+                  ariaLabel={`Side ${side.toUpperCase()} voice`}
+                  value={resolveVoiceId(settings[side].lang, voicePrefs)}
+                  onChange={(voiceId) => updateVoicePref(settings[side].lang, voiceId)}
+                />
                 <button onClick={() => speech.setTurn(side)}>
                   {settings[side].name === 'Me'
                     ? 'My turn'
@@ -499,6 +586,53 @@ export function ConversationMode({
             }} />
             <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
               onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
+            <label>
+              Voice for
+              <select
+                aria-label="Playback language"
+                value={effectiveLectureLang}
+                onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
+              >
+                {lectureLangs.map((code) => (
+                  <option key={code} value={code}>
+                    {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Voice
+              <VoiceSelect
+                lang={effectiveLectureLang}
+                ariaLabel="Voice"
+                value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
+                onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={lectureReadAloud}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setLectureReadAloud(checked);
+                  if (checked) {
+                    piperClient.unlockAudio();
+                    const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
+                    if (activeVoice !== BROWSER_VOICE_ID) {
+                      piperClient.preloadVoice(activeVoice);
+                    }
+                  }
+                }}
+              />
+              Read aloud
+            </label>
+            <PlaybackToolbar
+              status={lecturePlayback.status}
+              downloadProgress={lecturePlayback.downloadProgress}
+              onTogglePause={lecturePlayback.togglePause}
+              onStop={lecturePlayback.stop}
+            />
           </>
         )}
         <button
@@ -528,9 +662,16 @@ export function ConversationMode({
               type="checkbox"
               checked={settings.readAloud}
               onChange={(e) => {
-                setSettings((s) => ({ ...s, readAloud: e.target.checked }));
-                if (!e.target.checked) {
-                  window.speechSynthesis?.cancel();
+                const checked = e.target.checked;
+                setSettings((s) => ({ ...s, readAloud: checked }));
+                if (checked) {
+                  piperClient.unlockAudio();
+                  const voiceA = resolveVoiceId(settings.a.lang, voicePrefs);
+                  const voiceB = resolveVoiceId(settings.b.lang, voicePrefs);
+                  if (voiceA !== BROWSER_VOICE_ID) piperClient.preloadVoice(voiceA);
+                  if (voiceB !== BROWSER_VOICE_ID) piperClient.preloadVoice(voiceB);
+                } else {
+                  twoWayPlayback.cancelAll();
                   speech.resume();
                 }
               }}
@@ -575,6 +716,10 @@ export function ConversationMode({
             interim={lecture.speech.interim}
             liveTranslations={lecture.liveTranslations}
             onAddLine={lecture.addLine}
+            activePlayback={lecturePlayback.activePlayback}
+            onPlayFrom={lecturePlayback.playFrom}
+            onTogglePause={lecturePlayback.togglePause}
+            onStopPlayback={lecturePlayback.stop}
           />
         </>
       ) : (

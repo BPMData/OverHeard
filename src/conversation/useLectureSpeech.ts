@@ -52,6 +52,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
 
   const session = useRef({
     active: false,
+    suspended: false,
     local: false,
     generation: 0,
     failures: 0,
@@ -84,6 +85,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
 
   function stop() {
     session.current.active = false;
+    session.current.suspended = false;
     session.current.generation++;
     session.current.interim = '';
     clearTimer();
@@ -92,10 +94,26 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     setListening(false);
   }
 
+  function suspend() {
+    if (!session.current.active || session.current.suspended) return;
+    session.current.suspended = true;
+    session.current.generation++;
+    session.current.interim = '';
+    clearTimer();
+    detach();
+    setInterim('');
+  }
+
+  function resume() {
+    if (!session.current.suspended) return;
+    session.current.suspended = false;
+    if (session.current.active) void begin();
+  }
+
   async function begin() {
     const current = session.current;
     const token = current.generation;
-    if (!current.active) return;
+    if (!current.active || current.suspended) return;
 
     const Constructor = recognitionConstructor();
     if (!Constructor) {
@@ -105,7 +123,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     }
 
     const local = current.local ? await prepareOnDeviceSpeech('en-US') : false;
-    if (token !== current.generation || !current.active) return;
+    if (token !== current.generation || !current.active || current.suspended) return;
     setLocal(local);
 
     const rec = new Constructor();
@@ -117,7 +135,10 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     deduperRef.current = createFinalDeduper();
 
     const valid = () =>
-      token === current.generation && current.active && recognizer.current === rec;
+      token === current.generation &&
+      current.active &&
+      !current.suspended &&
+      recognizer.current === rec;
 
     rec.onstart = () => {
       if (!valid()) return;
@@ -187,7 +208,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
         }
         restartTimer.current = setTimeout(() => {
           restartTimer.current = null;
-          if (token === current.generation && current.active) void begin();
+          if (token === current.generation && current.active && !current.suspended) void begin();
         }, delay);
       }
     };
@@ -216,12 +237,14 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
 
   useEffect(() => () => stop(), []);
 
-  const latest = useRef({ start, stop });
-  latest.current = { start, stop };
+  const latest = useRef({ start, stop, suspend, resume });
+  latest.current = { start, stop, suspend, resume };
   const controls = useMemo(
     () => ({
       start: (local = false) => latest.current.start(local),
       stop: () => latest.current.stop(),
+      suspend: () => latest.current.suspend(),
+      resume: () => latest.current.resume(),
     }),
     [],
   );

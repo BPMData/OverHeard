@@ -406,6 +406,11 @@
   background: rgba(88, 67, 165, 0.14);
 }
 .lecture-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 20px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
@@ -414,6 +419,44 @@
 }
 .conversation-dark .lecture-meta {
   color: #94a3b8;
+}
+.lecture-play-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.lecture-play-btn,
+.conversation-play-btn {
+  padding: 1px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+.lecture-play-btn:hover,
+.conversation-play-btn:hover,
+.lecture-cell-speaking .lecture-play-btn {
+  opacity: 1;
+  border-color: #5843a5;
+  color: #5843a5;
+}
+.conversation-dark .lecture-play-btn:hover,
+.conversation-dark .conversation-play-btn:hover,
+.conversation-dark .lecture-cell-speaking .lecture-play-btn {
+  border-color: #a78bfa;
+  color: #c4b5fd;
+}
+.lecture-cell-speaking {
+  background: rgba(88, 67, 165, 0.12);
+  box-shadow: inset 3px 0 0 #5843a5;
+}
+.conversation-dark .lecture-cell-speaking {
+  background: rgba(167, 139, 250, 0.16);
+  box-shadow: inset 3px 0 0 #a78bfa;
+}
+.tts-status-badge {
+  font-size: 11px;
+  opacity: 0.85;
 }
 .lecture-live-label {
   color: #5843a5;

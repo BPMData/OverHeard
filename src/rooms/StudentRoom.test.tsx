@@ -118,4 +118,101 @@ describe('student lecture view', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
     await waitFor(() => expect(pipDoc2.body.querySelector('[data-layout="columns"]')).toBeTruthy());
   });
+
+  it('reads sequentially from a clicked cell, stops at backlog end, supports pause/resume/stop, and handles live Read aloud', async () => {
+    class FakeUtterance {
+      lang = '';
+      voice: { lang: string } | null = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(public text: string) {}
+    }
+    const spokenQueue: FakeUtterance[] = [];
+    const speak = vi.fn((u: FakeUtterance) => spokenQueue.push(u));
+    const pause = vi.fn();
+    const resume = vi.fn();
+    const cancel = vi.fn(() => {
+      spokenQueue.length = 0;
+    });
+    vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+    vi.stubGlobal('speechSynthesis', {
+      speak,
+      pause,
+      resume,
+      cancel,
+      getVoices: () => [{ lang: 'es-MX' }, { lang: 'pt-BR' }],
+      get speaking() {
+        return spokenQueue.length > 0;
+      },
+      get pending() {
+        return spokenQueue.length > 1;
+      },
+    });
+
+    const entries: LectureEntry[] = [
+      { id: 'e1', timestamp: 1, english: 'First line', translations: { es: 'Primera línea' }, failedLangs: {} },
+      { id: 'e2', timestamp: 2, english: 'Second line', translations: { es: 'Segunda línea' }, failedLangs: {} },
+      { id: 'e3', timestamp: 3, english: 'Third line', translations: { es: 'Tercera línea' }, failedLangs: {} },
+    ];
+    render(<StudentRoom code="science-101" />);
+    await emit({ ...snapshot(), entries, selectedLangs: ['es'] });
+
+    fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });
+    fireEvent.change(screen.getByLabelText('Voice'), { target: { value: 'es_MX-ald-medium' } });
+    expect(JSON.parse(localStorage.getItem('overheard.voices')!).es).toBe('es_MX-ald-medium');
+
+    // Click play on row #2 in Spanish: reads #2 then #3 and stops at end of backlog
+    fireEvent.click(screen.getByRole('button', { name: 'Read from #2 in Spanish' }));
+    expect(speak).toHaveBeenCalledTimes(1);
+    expect(spokenQueue[0].text).toBe('Segunda línea');
+
+    // Pause and Resume
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+    expect(pause).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    expect(resume).toHaveBeenCalledTimes(1);
+
+    // Finish #2 -> advances to #3
+    await act(async () => {
+      spokenQueue.shift()?.onend?.();
+    });
+    expect(speak).toHaveBeenCalledTimes(2);
+    expect(spokenQueue[0].text).toBe('Tercera línea');
+
+    // Finish #3 -> stops cleanly because Read aloud is off
+    await act(async () => {
+      spokenQueue.shift()?.onend?.();
+    });
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+
+    // New entry arrives while Read aloud is off: does not auto-speak
+    const entry4: LectureEntry = {
+      id: 'e4',
+      timestamp: 4,
+      english: 'Fourth line',
+      translations: { es: 'Cuarta línea' },
+      failedLangs: {},
+    };
+    await emit({ ...snapshot(), entries: [...entries, entry4], selectedLangs: ['es'], revision: 2 });
+    expect(speak).toHaveBeenCalledTimes(2);
+
+    // Enable live Read aloud: does not replay #1-#4, only speaks newly arriving #5
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
+    expect(speak).toHaveBeenCalledTimes(2);
+
+    const entry5: LectureEntry = {
+      id: 'e5',
+      timestamp: 5,
+      english: 'Fifth line',
+      translations: { es: 'Quinta línea' },
+      failedLangs: {},
+    };
+    await emit({ ...snapshot(), entries: [...entries, entry4, entry5], selectedLangs: ['es'], revision: 3 });
+    expect(speak).toHaveBeenCalledTimes(3);
+    expect(spokenQueue[0].text).toBe('Quinta línea');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+    expect(cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+  });
 });
