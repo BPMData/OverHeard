@@ -4,6 +4,7 @@ dist/
 coverage/
 public/ort/
 public/piper/
+saves/
 .DS_Store
 *.log
 .env*
