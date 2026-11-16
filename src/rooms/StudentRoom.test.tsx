@@ -226,8 +226,8 @@ describe('student lecture view', () => {
     render(<StudentRoom code="piper-test-001" />);
     await emit();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Voice settings' }));
-    expect(screen.getByRole('dialog', { name: 'Voice Settings' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Default Spanish voice'), {
       target: { value: 'es_MX-ald-medium' },
     });

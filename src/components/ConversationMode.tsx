@@ -28,9 +28,9 @@ import {
 } from './conversationSettings';
 import { LectureTranscript } from './LectureTranscript';
 import { AboutModal } from './AboutModal';
-import { VoiceSettingsModal } from './VoiceSettingsModal';
+import { VoiceSettingsModal, type GeminiRefineSettings } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Volume2 } from 'lucide-react';
 import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import type { SaveLectureToDriveResult } from '../lib/googleDrive';
 import './ConversationMode.css';
@@ -74,6 +74,7 @@ interface Props {
   packPanel?: React.ReactNode;
   /** Lecture imported from the base web-page */
   importedLecture?: { seq: number; entries: LectureEntry[] } | null;
+  geminiRefine?: GeminiRefineSettings;
 }
 const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
 const color = (side: Side, lang: ConversationLanguage) =>
@@ -102,6 +103,7 @@ export function ConversationMode({
   onPackProgress,
   packPanel,
   importedLecture,
+  geminiRefine,
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
   const targetLangs: LanguageCode[] =
@@ -704,8 +706,14 @@ export function ConversationMode({
             />
           </>
         )}
-        <button type="button" onClick={() => setIsVoiceSettingsOpen(true)}>
-          Voice settings
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5"
+          onClick={() => setIsVoiceSettingsOpen(true)}
+          title="Open voice and translation refinement settings"
+        >
+          <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>Settings</span>
         </button>
         <button
           onClick={() => {
@@ -949,6 +957,7 @@ export function ConversationMode({
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
+        geminiRefine={geminiRefine}
       />
       <AboutModal
         isOpen={isGuideOpen}

@@ -50,7 +50,7 @@ import { formatLectureFilename } from './rooms/LectureFiles';
 import { MAX_ROOM_FILE_BYTES, parseRoomJson, roomJson } from './rooms/protocol';
 import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studentPrefs';
 import { LanguageModal } from './components/LanguageModal';
-import { VoiceSettingsModal } from './components/VoiceSettingsModal';
+import { VoiceSettingsModal, type ServerRefineStatus } from './components/VoiceSettingsModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { shouldSendImmediately } from './liveTranslation';
 import { getSessionId, SESSION_HEADER } from './session';
@@ -174,6 +174,7 @@ type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
 type TranslatorId = MtProviderId | 'on-device';
 type MtPreference = 'auto' | TranslatorId;
 const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
+const GEMINI_REFINE_STORAGE_KEY = 'overheard.geminiRefine';
 const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
 const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
 const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
@@ -291,6 +292,27 @@ export default function App() {
   // that was translated on this device
   const mtProviderRef = useRef<Map<string, TranslatorId>>(new Map());
   const refineEnabledRef = useRef<boolean>(false);
+  const [serverRefineAvailable, setServerRefineAvailable] = useState<boolean>(false);
+  const [serverRefineStatus, setServerRefineStatus] = useState<ServerRefineStatus>('loading');
+  const [geminiRefineEnabled, setGeminiRefineEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(GEMINI_REFINE_STORAGE_KEY);
+      if (saved === 'false') return false;
+      if (saved === 'true') return true;
+    } catch {
+      // Storage unavailable
+    }
+    return true;
+  });
+  const geminiRefineEnabledRef = useRef<boolean>(geminiRefineEnabled);
+  useEffect(() => {
+    geminiRefineEnabledRef.current = geminiRefineEnabled;
+    try {
+      localStorage.setItem(GEMINI_REFINE_STORAGE_KEY, String(geminiRefineEnabled));
+    } catch {
+      // Ignore storage failures; choice applies for this session
+    }
+  }, [geminiRefineEnabled]);
 
   // Translator picker: 'auto' uses the server's default order; anything else goes first
   const [mtPreference, setMtPreference] = useState<MtPreference>(() => {
@@ -356,17 +378,35 @@ export default function App() {
   const liveClearedAtSeqRef = useRef<number>(0);
   const liveAppliedSeqRef = useRef<Record<string, number>>({});
 
-  useEffect(() => {
-    fetch('/api/config')
-      .then((r) => r.json())
+  const refreshServerConfig = useCallback(() => {
+    return fetch('/api/config', { cache: 'no-store' })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((cfg: { refine?: boolean; providers?: MtProviderId[] }) => {
-        refineEnabledRef.current = Boolean(cfg.refine);
+        const avail = Boolean(cfg.refine);
+        refineEnabledRef.current = avail;
+        setServerRefineAvailable(avail);
+        setServerRefineStatus(avail ? 'available' : 'unavailable');
         setAvailableProviders(Array.isArray(cfg.providers) ? cfg.providers : []);
       })
       .catch(() => {
         refineEnabledRef.current = false;
+        setServerRefineAvailable(false);
+        setServerRefineStatus('unreachable');
       });
   }, []);
+
+  useEffect(() => {
+    void refreshServerConfig();
+  }, [refreshServerConfig]);
+
+  useEffect(() => {
+    if (isVoiceSettingsOpen && serverRefineStatus !== 'available') {
+      void refreshServerConfig();
+    }
+  }, [isVoiceSettingsOpen, serverRefineStatus, refreshServerConfig]);
 
   useEffect(() => {
     selectedLangsRef.current = selectedLangs;
@@ -688,7 +728,9 @@ export default function App() {
         // "On this device" mode skips it entirely.
         const preference = mtPreferenceRef.current;
         const refineLangs =
-          !refineEnabledRef.current || preference === 'on-device'
+          !refineEnabledRef.current ||
+          !geminiRefineEnabledRef.current ||
+          preference === 'on-device'
             ? []
             : langs.filter(
                 (code) =>
@@ -1615,15 +1657,15 @@ export default function App() {
               </span>
             </button>
 
-            {/* Voice Settings Button */}
+            {/* Settings Button */}
             <button
               type="button"
               onClick={() => setIsVoiceSettingsOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-              title="Choose default English, Spanish, and Portuguese reader voices"
+              title="Open voice and translation refinement settings"
             >
               <Volume2 className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
-              <span>Voice settings</span>
+              <span>Settings</span>
             </button>
 
             {/* Translator Picker (live caption provider) */}
@@ -2213,6 +2255,13 @@ export default function App() {
             setMicPermissionDenied(false);
             setDisplayMode('columns');
           }}
+          geminiRefine={{
+            enabled: geminiRefineEnabled,
+            onChange: setGeminiRefineEnabled,
+            serverAvailable: serverRefineAvailable,
+            serverStatus: serverRefineStatus,
+            mtPreference: effectiveMtPreference,
+          }}
         />
       )}
 
@@ -2228,6 +2277,13 @@ export default function App() {
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
+        geminiRefine={{
+          enabled: geminiRefineEnabled,
+          onChange: setGeminiRefineEnabled,
+          serverAvailable: serverRefineAvailable,
+          serverStatus: serverRefineStatus,
+          mtPreference: effectiveMtPreference,
+        }}
       />
 
       <AboutModal

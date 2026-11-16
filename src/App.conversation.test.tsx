@@ -143,11 +143,11 @@ describe('App conversation integration', () => {
     expect(mtCalls).toHaveLength(3);
   });
 
-  it('opens Voice settings from the home page and imports a lecture JSON file into Lecture mode', async () => {
+  it('opens Settings from the home page and imports a lecture JSON file into Lecture mode', async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Voice settings' }));
-    expect(screen.getByRole('dialog', { name: 'Voice Settings' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Default Portuguese voice'), {
       target: { value: 'pt_BR-cadu-medium' },
     });
@@ -250,5 +250,84 @@ describe('App conversation integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
     expect(screen.getByRole('button', { name: 'Columns' }).className).toContain('shadow-2xs');
     expect(screen.getByRole('button', { name: 'Subtitle' }).className).not.toContain('shadow-2xs');
+  });
+
+  it('toggles Gemini post-translation refinement in Settings and persists the preference', async () => {
+    let translateCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/mt') {
+          const body = JSON.parse(String(init?.body));
+          return new Response(
+            JSON.stringify({ translation: `${body.source}>${body.lang}`, provider: 'gtx' }),
+          );
+        }
+        if (url === '/api/translate') {
+          translateCalls += 1;
+          return new Response(JSON.stringify({ translations: { es: 'Polished by Gemini' } }));
+        }
+        return new Response(JSON.stringify({ refine: true, providers: ['gtx'] }));
+      }),
+    );
+
+    render(<App />);
+    // Wait for /api/config to resolve refine: true
+    await act(async () => {});
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
+    const input = screen.getByPlaceholderText(
+      'Type an English classroom sentence to test translation silently…',
+    );
+    fireEvent.change(input, { target: { value: 'First sentence' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
+    await waitFor(() => expect(screen.getByText('Polished by Gemini')).toBeTruthy());
+    expect(translateCalls).toBe(1);
+
+    // Disable Gemini refinement in Settings
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const refineCheckbox = screen.getByRole('checkbox', {
+      name: 'Refine statements with Gemini after speaking',
+    }) as HTMLInputElement;
+    expect(refineCheckbox.checked).toBe(true);
+    fireEvent.click(refineCheckbox);
+    expect(localStorage.getItem('overheard.geminiRefine')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    // Next statement stays on initial MT without calling /api/translate
+    fireEvent.change(input, { target: { value: 'Second sentence' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
+    await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
+    await act(async () => {});
+    expect(translateCalls).toBe(1);
+  });
+
+  it('retries /api/config when opening Settings if the initial config fetch failed', async () => {
+    let configCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/config') {
+          configCalls += 1;
+          if (configCalls === 1) {
+            return new Response('unavailable', { status: 503 });
+          }
+          return new Response(JSON.stringify({ refine: true, providers: ['gtx'] }));
+        }
+        return new Response('{}');
+      }),
+    );
+
+    render(<App />);
+    await act(async () => {});
+    expect(configCalls).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Current status: On — completed Columns\/Subtitle sentences/i),
+      ).toBeTruthy(),
+    );
+    expect(configCalls).toBe(2);
   });
 });

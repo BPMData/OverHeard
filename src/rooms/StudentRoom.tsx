@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Volume2 } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
@@ -95,8 +95,14 @@ export function StudentRoom({ code }: { code: string }) {
           }}
         />
       </label>
-      <button type="button" onClick={() => setIsVoiceSettingsOpen(true)}>
-        Voice settings
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5"
+        onClick={() => setIsVoiceSettingsOpen(true)}
+        title="Choose default reader voices"
+      >
+        <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>Settings</span>
       </button>
       <label>
         <input
