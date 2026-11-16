@@ -23,9 +23,12 @@ function renderPip(
     liveTranslations: Record<string, string>;
     currentSegment: CaptionSegment | null;
     onToggleLine: (line: PipLine) => void;
+    layout: 'stacked' | 'columns';
+    onToggleLayout: () => void;
   }> = {}
 ) {
   const onToggleLine = overrides.onToggleLine ?? vi.fn();
+  const onToggleLayout = overrides.onToggleLayout ?? vi.fn();
   render(
     <PipSubtitlePortal
       // The portal renders into this window's body, so the test document works as the pop-out
@@ -39,12 +42,14 @@ function renderPip(
       selectedLangs={overrides.selectedLangs ?? ['es', 'pt', 'ar']}
       visibleLines={overrides.visibleLines ?? ['en', 'es', 'pt']}
       onToggleLine={onToggleLine}
+      layout={overrides.layout}
+      onToggleLayout={onToggleLayout}
       currentSegment={overrides.currentSegment ?? segment}
       interimTranscript={overrides.interimTranscript ?? ''}
       liveTranslations={overrides.liveTranslations ?? {}}
     />
   );
-  return { onToggleLine };
+  return { onToggleLine, onToggleLayout };
 }
 
 const toggles = () => within(screen.getByRole('group', { name: 'Lines to show' }));
@@ -113,5 +118,26 @@ describe('PipSubtitlePortal', () => {
   it('renders right-to-left languages right to left', () => {
     renderPip({ visibleLines: ['ar'] });
     expect(screen.getByText('افتحوا كتبكم.').closest('[dir]')?.getAttribute('dir')).toBe('rtl');
+  });
+
+  it('toggles between stacked and side-by-side equal columns when multiple lines are visible', () => {
+    const { onToggleLayout } = renderPip({ visibleLines: ['en', 'es'], layout: 'stacked' });
+    const btn = screen.getByRole('button', { name: /Side by side columns/i });
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    expect(document.querySelector('[data-layout="stacked"]')).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onToggleLayout).toHaveBeenCalledTimes(1);
+
+    cleanup();
+    renderPip({ visibleLines: ['en', 'es', 'pt'], layout: 'columns' });
+    const activeBtn = screen.getByRole('button', { name: /Side by side columns/i });
+    expect(activeBtn.getAttribute('aria-pressed')).toBe('true');
+    const grid = document.querySelector('[data-layout="columns"]') as HTMLElement;
+    expect(grid).toBeTruthy();
+    expect(grid.style.gridTemplateColumns).toMatch(/^repeat\(3, minmax\(0(px)?, 1fr\)\)$/);
+
+    cleanup();
+    renderPip({ visibleLines: ['es'] });
+    expect(screen.queryByRole('button', { name: /Side by side/i })).toBeNull();
   });
 });

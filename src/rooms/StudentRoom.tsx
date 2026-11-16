@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { SUPPORTED_LANGUAGES } from '../constants';
@@ -8,6 +9,7 @@ import { LecturePip } from './LecturePip';
 import { useStudentRoom } from './useStudentRoom';
 import { useStudentTranslations } from './useStudentTranslations';
 import { emptyLecture, normalizeRoomCode, validRoomCode } from './protocol';
+import { loadStudentPrefs, saveStudentPrefs } from './studentPrefs';
 import '../components/ConversationMode.css';
 
 export function JoinRoomForm() {
@@ -27,9 +29,11 @@ export function JoinRoomForm() {
 
 export function StudentRoom({ code }: { code: string }) {
   const { snapshot, connected, error } = useStudentRoom(code);
-  const [language, setLanguage] = useState<LanguageCode | 'en'>('en');
-  const [fontSize, setFontSize] = useState(28);
-  const [isDark, setIsDark] = useState(false);
+  const [prefs] = useState(loadStudentPrefs);
+  const [language, setLanguage] = useState<LanguageCode | 'en'>(prefs.language);
+  const [fontSize, setFontSize] = useState(prefs.fontSize);
+  const [isDark, setIsDark] = useState(prefs.isDark);
+  useEffect(() => saveStudentPrefs({ isDark, language, fontSize }), [isDark, language, fontSize]);
   const translations = useStudentTranslations(snapshot, language);
   const state = { ...(snapshot || emptyLecture()), entries: translations.entries,
     selectedLangs: language === 'en' ? [] : [language],
@@ -51,10 +55,19 @@ export function StudentRoom({ code }: { code: string }) {
           {SUPPORTED_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.name} · {lang.nativeName}</option>)}
         </select>
       </label>
-      <LecturePip state={state} isDark={isDark} fontSize={fontSize} onAdjustFont={adjustFont} />
+      <LecturePip state={state} isDark={isDark} fontSize={fontSize} onAdjustFont={adjustFont}
+        prefsPrefix="overheard.studentPip" />
       <button type="button" aria-label="Smaller text" onClick={() => adjustFont(-4)}>A−</button>
       <button type="button" aria-label="Larger text" onClick={() => adjustFont(4)}>A+</button>
-      <button type="button" onClick={() => setIsDark(value => !value)}>{isDark ? 'Light theme' : 'Dark theme'}</button>
+      <button
+        type="button"
+        className="student-theme-btn"
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        onClick={() => setIsDark(value => !value)}
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
       <a href={window.location.pathname}>Leave room</a>
     </div>
     <p className="conversation-help">Follow your teacher’s captions in your language. Pop them out to keep reading while you work.</p>

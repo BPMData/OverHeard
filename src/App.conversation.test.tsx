@@ -95,7 +95,7 @@ afterEach(() => {
 });
 
 async function enterConversation() {
-  fireEvent.click(screen.getByRole('button', { name: 'Conversation mode' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Conversation/Lecture' }));
   await screen.findByRole('region', { name: 'Conversation test surface' });
 }
 

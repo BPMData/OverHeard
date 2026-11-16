@@ -35,3 +35,6 @@ export type DisplayMode = 'columns' | 'subtitle' | 'conversation';
 
 /** A line shown in the pop-out caption window: English or one of the selected languages. */
 export type PipLine = 'en' | LanguageCode;
+
+/** Pop-out caption arrangement: vertical stack or side-by-side equal columns. */
+export type PipLayout = 'stacked' | 'columns';

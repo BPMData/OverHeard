@@ -115,33 +115,3 @@ export function saveLectureEntries(entries: LectureEntry[]): void {
     /* Storage quota or private mode: keep in-memory session functional. */
   }
 }
-
-export function lectureCsv(entries: LectureEntry[], selectedLangs: LanguageCode[]): string {
-  const extraLangs: LanguageCode[] = [];
-  const seen = new Set<LanguageCode>(selectedLangs);
-  for (const entry of entries) {
-    for (const code of Object.keys(entry.translations)) {
-      if (VALID_CODES.has(code) && !seen.has(code as LanguageCode)) {
-        seen.add(code as LanguageCode);
-        extraLangs.push(code as LanguageCode);
-      }
-    }
-  }
-  const exportLangs = [...selectedLangs, ...extraLangs];
-  const header = ['timestamp', 'english', ...exportLangs];
-  const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-
-  return (
-    '\uFEFF' +
-    [
-      header,
-      ...entries.map((entry) => [
-        new Date(entry.timestamp).toISOString(),
-        entry.english,
-        ...exportLangs.map((code) => entry.translations[code] ?? ''),
-      ]),
-    ]
-      .map((row) => row.map(escape).join(','))
-      .join('\r\n')
-  );
-}

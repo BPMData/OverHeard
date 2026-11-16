@@ -29,7 +29,7 @@ const request = (path: string, method = 'GET', body?: unknown, token?: string) =
   method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   body: body === undefined ? undefined : JSON.stringify(body),
 });
-const create = async (code = 'science-101') => (await request('', 'POST', { code })).json();
+const create = async (code = 'science-101', pin = '1234') => (await request('', 'POST', { code, pin })).json();
 const patch = (text = 'Gravity pulls objects down.') => ({ ...emptyLecture(), selectedLangs: ['es'],
   entries: [{ id: 'one', timestamp: 1000, english: text, translations: { es: 'La gravedad atrae los objetos.' }, failedLangs: {} }], removedIds: [],
   isListening: true, interim: 'Our next topic', liveTranslations: { es: 'Nuestro siguiente tema' } });
@@ -58,10 +58,12 @@ async function stream(code: string) {
 }
 
 describe('live classroom rooms', () => {
-  it('issues private teacher credentials and rejects student publishing, ending and collisions', async () => {
+  it('requires a valid PIN, issues private teacher credentials, and rejects unauthorized writes or collisions', async () => {
+    expect((await request('', 'POST', { code: 'science-101' })).status).toBe(400);
+    expect((await request('', 'POST', { code: 'science-101', pin: '12' })).status).toBe(400);
     const { code, token } = await create();
     expect(token).toHaveLength(64);
-    expect((await request('', 'POST', { code })).status).toBe(409);
+    expect((await request('', 'POST', { code, pin: '1234' })).status).toBe(409);
     expect((await request(`/${code}`, 'PUT', patch())).status).toBe(403);
     expect((await request(`/${code}`, 'DELETE', undefined, 'wrong')).status).toBe(403);
     expect((await request(`/${code}`, 'PUT', patch(), token)).status).toBe(200);
@@ -106,5 +108,37 @@ describe('live classroom rooms', () => {
     clock += 9 * 60 * 60_000; service.sweep();
     expect((await next()).event).toBe('expired');
     expect((await request(`/${code}`)).status).toBe(404);
+  });
+  it('lets a teacher rejoin an active room with matching PIN, rotates token, and preserves student streams', async () => {
+    const { code, token: originalToken } = await create('bio-202', '9876');
+    await request(`/${code}`, 'PUT', patch('Cell division begins.'), originalToken);
+    clock += 36_000; service.sweep();
+    const student = await stream(code);
+    const initial = await student();
+    expect(initial.data.teacherOnline).toBe(false);
+    expect(initial.data.entries).toHaveLength(1);
+
+    expect((await request('/missing-room/rejoin', 'POST', { pin: '9876' })).status).toBe(404);
+    expect((await request(`/${code}/rejoin`, 'POST', { pin: '0000' })).status).toBe(403);
+
+    const rejoinRes = await request(`/${code}/rejoin`, 'POST', { pin: '9876' });
+    expect(rejoinRes.status).toBe(200);
+    const rejoined = await rejoinRes.json();
+    expect(rejoined.code).toBe(code);
+    expect(rejoined.token).toHaveLength(64);
+    expect(rejoined.token).not.toBe(originalToken);
+    expect(rejoined.snapshot.entries[0].english).toBe('Cell division begins.');
+    expect(rejoined.snapshot.teacherOnline).toBe(true);
+    expect(JSON.stringify(rejoined)).not.toContain('9876');
+
+    const updated = await student();
+    expect(updated.event).toBe('snapshot');
+    expect(updated.data.teacherOnline).toBe(true);
+
+    expect((await request(`/${code}`, 'PUT', patch('Old tab write'), originalToken)).status).toBe(403);
+    expect((await request(`/${code}`, 'PUT', patch('Resumed lesson'), rejoined.token)).status).toBe(200);
+
+    await request(`/${code}`, 'DELETE', undefined, rejoined.token);
+    expect((await request(`/${code}/rejoin`, 'POST', { pin: '9876' })).status).toBe(410);
   });
 });

@@ -6,6 +6,11 @@ export const MAX_ROOM_ENTRIES = 2000;
 export const MAX_ROOM_FILE_BYTES = 8 * 1024 * 1024;
 export const normalizeRoomCode = (value: string) => value.trim().toLowerCase();
 export const validRoomCode = (value: string) => /^[a-z0-9][a-z0-9-]{2,39}$/.test(value);
+export const normalizePin = (value: string) => value.trim();
+export const validPin = (value: string) => {
+  const pin = normalizePin(value);
+  return pin.length >= 4 && pin.length <= 20;
+};
 
 export interface LectureState {
   entries: LectureEntry[];
@@ -19,6 +24,12 @@ export interface RoomSnapshot extends LectureState {
   revision: number;
   teacherOnline: boolean;
   ended: boolean;
+}
+
+export interface RoomRejoinResponse {
+  code: string;
+  token: string;
+  snapshot: RoomSnapshot;
 }
 
 export interface RoomPatch extends Omit<LectureState, 'entries'> {

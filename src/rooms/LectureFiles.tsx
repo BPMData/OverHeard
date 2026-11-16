@@ -8,7 +8,7 @@ export function LectureFiles({ state, onImport }: {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   return <>
-    <button type="button" onClick={() => {
+    <button type="button" disabled={state.entries.length === 0} onClick={() => {
       const url = URL.createObjectURL(new Blob([roomJson(state)], { type: 'application/json' }));
       const link = document.createElement('a');
       link.href = url; link.download = `overheard-lecture-${new Date().toISOString().slice(0, 10)}.json`;

@@ -1,16 +1,20 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import express, { type Response } from 'express';
-import { applyPatch, emptyLecture, MAX_ROOM_FILE_BYTES, normalizeRoomCode, parsePatch, validRoomCode,
-  type RoomSnapshot } from '../src/rooms/protocol.ts';
+import { applyPatch, emptyLecture, MAX_ROOM_FILE_BYTES, normalizePin, normalizeRoomCode,
+  parsePatch, validPin, validRoomCode, type RoomSnapshot } from '../src/rooms/protocol.ts';
 import { createRateLimiter } from './rateLimit.ts';
 
 interface Room {
   token: string;
+  pinSalt: string;
+  pinHash: Buffer;
   snapshot: RoomSnapshot;
   touchedAt: number;
   publishedAt: number;
   clients: Set<Response>;
 }
+
+const hashPin = (pin: string, salt: string) => scryptSync(pin, salt, 32);
 
 // Live transport only. A restart discards rooms; local JSON exports are the durable copy.
 // Run one server instance until a shared room store/pub-sub is introduced.
@@ -18,6 +22,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
   const router = express.Router();
   const rooms = new Map<string, Room>();
   const creates = createRateLimiter(20, 60_000, now);
+  const rejoins = createRateLimiter(20, 60_000, now);
   const joins = createRateLimiter(600, 60_000, now);
   const publishes = createRateLimiter(600, 60_000, now);
   const send = (res: Response, event: string, value: unknown) => {
@@ -43,7 +48,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
         for (const client of room.clients) client.write(': heartbeat\n\n');
       }
     }
-    creates.prune(); joins.prune(); publishes.prune();
+    creates.prune(); rejoins.prune(); joins.prune(); publishes.prune();
   };
   const timer = setInterval(sweep, 10_000);
   timer.unref();
@@ -54,13 +59,48 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
     if (creates.isLimited(req.ip || 'unknown')) { res.status(429).json({ error: 'Too many rooms created. Try again in a minute.' }); return; }
     if (rooms.size >= maxRooms) { res.status(503).json({ error: 'Room capacity reached. Please try again later.' }); return; }
     if (req.body?.code !== undefined && typeof req.body.code !== 'string') { res.status(400).json({ error: 'Invalid room code.' }); return; }
+    if (typeof req.body?.pin !== 'string' || !validPin(req.body.pin)) {
+      res.status(400).json({ error: 'Enter a room PIN (4–20 characters) so you can rejoin if disconnected.' });
+      return;
+    }
     const code = normalizeRoomCode(req.body?.code || randomBytes(4).toString('hex'));
     if (!validRoomCode(code)) { res.status(400).json({ error: 'Use 3–40 letters, numbers, or hyphens for the room code.' }); return; }
-    if (rooms.has(code)) { res.status(409).json({ error: 'That room code is already in use. Choose another.' }); return; }
+    if (rooms.has(code)) {
+      res.status(409).json({ error: 'That room code is already in use. Enter its PIN and click Rejoin room, or choose another code.' });
+      return;
+    }
     const token = randomBytes(32).toString('hex');
-    rooms.set(code, { token, touchedAt: now(), publishedAt: now(), clients: new Set(),
+    const pinSalt = randomBytes(16).toString('hex');
+    const pinHash = hashPin(normalizePin(req.body.pin), pinSalt);
+    rooms.set(code, { token, pinSalt, pinHash, touchedAt: now(), publishedAt: now(), clients: new Set(),
       snapshot: { ...emptyLecture(), revision: 0, teacherOnline: true, ended: false } });
     res.status(201).json({ code, token });
+  });
+
+  router.post('/:code/rejoin', express.json({ limit: '1kb' }), (req, res) => {
+    sweep();
+    const code = normalizeRoomCode(req.params.code);
+    if (rejoins.isLimited(`${req.ip || 'unknown'}:${code}`)) {
+      res.status(429).json({ error: 'Too many rejoin attempts. Try again in a minute.' });
+      return;
+    }
+    const room = rooms.get(code);
+    if (!room) { res.status(404).json({ error: 'Room not found. Check the room code or create a new room.' }); return; }
+    if (room.snapshot.ended) { res.status(410).json({ error: 'This room has ended. Create a new room to continue.' }); return; }
+    if (typeof req.body?.pin !== 'string' || !validPin(req.body.pin)) {
+      res.status(400).json({ error: 'Enter the room PIN (4–20 characters).' });
+      return;
+    }
+    const attempt = hashPin(normalizePin(req.body.pin), room.pinSalt);
+    if (attempt.length !== room.pinHash.length || !timingSafeEqual(attempt, room.pinHash)) {
+      res.status(403).json({ error: 'Incorrect room PIN.' });
+      return;
+    }
+    room.token = randomBytes(32).toString('hex');
+    room.touchedAt = room.publishedAt = now();
+    room.snapshot = { ...room.snapshot, teacherOnline: true, revision: room.snapshot.revision + 1 };
+    broadcast(room, 'snapshot', room.snapshot);
+    res.json({ code, token: room.token, snapshot: room.snapshot });
   });
 
   router.get('/:code/events', (req, res) => {

@@ -37,10 +37,11 @@ import {
   SAMPLE_SENTENCES,
   VALID_LANGUAGE_CODES,
 } from './constants';
-import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLine } from './types';
+import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLayout, PipLine } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
 import { ConversationMode } from './components/ConversationMode';
 import { JoinRoomForm } from './rooms/StudentRoom';
+import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studentPrefs';
 import { LanguageModal } from './components/LanguageModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { shouldSendImmediately } from './liveTranslation';
@@ -228,6 +229,14 @@ export default function App() {
     return ['en', ...parseInitialLanguages().slice(0, MAX_PIP_LINES - 1)];
   });
 
+  const [pipLayout, setPipLayout] = useState<PipLayout>(() => {
+    try {
+      return parsePipLayout(localStorage.getItem(LISTENING_PIP_LAYOUT_STORAGE_KEY));
+    } catch {
+      return 'stacked';
+    }
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem(PIP_LINES_STORAGE_KEY, JSON.stringify(pipLines));
@@ -235,6 +244,14 @@ export default function App() {
       // Ignore storage failures; the choice still applies for this session
     }
   }, [pipLines]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LISTENING_PIP_LAYOUT_STORAGE_KEY, pipLayout);
+    } catch {
+      // Ignore storage failures
+    }
+  }, [pipLayout]);
 
   // Environment checks
   const [isSupportedBrowser, setIsSupportedBrowser] = useState<boolean>(true);
@@ -1453,8 +1470,8 @@ export default function App() {
                   setDisplayMode('conversation');
                 }}
               >
-                <span>Conversation</span>{' '}
-                <span className="text-[10px] font-medium opacity-85">mode</span>
+                <span>Conversation/</span>
+                <span className="text-[11px] font-semibold">Lecture</span>
               </button>
             </div>
 
@@ -2103,6 +2120,8 @@ export default function App() {
         selectedLangs={selectedLangs}
         visibleLines={visiblePipLines}
         onToggleLine={handleTogglePipLine}
+        layout={pipLayout}
+        onToggleLayout={() => setPipLayout((prev) => (prev === 'columns' ? 'stacked' : 'columns'))}
         currentSegment={currentSegment}
         interimTranscript={interimTranscript}
         liveTranslations={liveTranslations}

@@ -10,7 +10,6 @@ import type { ConversationLanguage, LanguageCode } from '../types';
 import type { LectureEntry } from './lectureState';
 import {
   createLectureEntry,
-  lectureCsv,
   lectureReducer,
   loadLectureEntries,
   saveLectureEntries,
@@ -213,25 +212,25 @@ export function useLectureMode({
     }
   }, [clearLiveTranslation]);
 
-  const replace = useCallback((entries: LectureEntry[]) => {
-    speech.stop();
-    generation.current++;
-    clearLiveTranslation();
-    inFlightRef.current.clear();
-    dispatch({ type: 'replace', entries: entries.map(entry => ({ ...entry,
-      id: crypto.randomUUID(), failedLangs: {} })) });
-  }, [speech.stop, clearLiveTranslation]);
-
-  const exportCsv = useCallback(() => {
-    const url = URL.createObjectURL(
-      new Blob([lectureCsv(entries, selectedLangs)], { type: 'text/csv;charset=utf-8;' }),
-    );
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `lecture-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [entries, selectedLangs]);
+  const replace = useCallback(
+    (nextEntries: LectureEntry[], options?: { preserveIds?: boolean }) => {
+      speech.stop();
+      generation.current++;
+      clearLiveTranslation();
+      inFlightRef.current.clear();
+      dispatch({
+        type: 'replace',
+        entries: options?.preserveIds
+          ? nextEntries
+          : nextEntries.map((entry) => ({
+              ...entry,
+              id: crypto.randomUUID(),
+              failedLangs: {},
+            })),
+      });
+    },
+    [speech.stop, clearLiveTranslation],
+  );
 
   return {
     entries,
@@ -244,6 +243,5 @@ export function useLectureMode({
     stop,
     clear,
     replace,
-    exportCsv,
   };
 }

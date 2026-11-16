@@ -38,19 +38,29 @@ node --input-type=module <<'NODE'
 import assert from 'node:assert/strict';
 const base = 'http://localhost:3000/api/rooms';
 const created = await fetch(base, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '1234' }),
 });
 assert.equal(created.status, 201);
-const { code, token } = await created.json();
+const { code, token: firstToken } = await created.json();
+assert.equal((await fetch(`${base}/${code}/rejoin`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '9999' }),
+})).status, 403);
+const rejoined = await fetch(`${base}/${code}/rejoin`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '1234' }),
+});
+assert.equal(rejoined.status, 200);
+const { token } = await rejoined.json();
+assert.notEqual(token, firstToken);
 const patch = { entries: [{ id: 'smoke', timestamp: 1, english: 'Hello classroom.',
   translations: { es: 'Hola clase.' }, failedLangs: {} }], removedIds: [],
   selectedLangs: ['es'], interim: '', liveTranslations: {}, isListening: false };
-const publish = async (authorized) => fetch(`${base}/${code}`, { method: 'PUT',
-  headers: { 'Content-Type': 'application/json', ...(authorized ? { Authorization: `Bearer ${token}` } : {}) },
+const publish = async (bearer) => fetch(`${base}/${code}`, { method: 'PUT',
+  headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
   body: JSON.stringify(patch),
 });
-assert.equal((await publish(false)).status, 403);
-assert.equal((await publish(true)).status, 200);
+assert.equal((await publish('')).status, 403);
+assert.equal((await publish(firstToken)).status, 403);
+assert.equal((await publish(token)).status, 200);
 const stream = await fetch(`${base}/${code}/events`, { signal: AbortSignal.timeout(5000) });
 assert.equal(stream.status, 200);
 assert.match(stream.headers.get('content-type'), /text\/event-stream/);
@@ -67,7 +77,7 @@ await reader.cancel();
 assert.equal((await fetch(`${base}/${code}`, {
   method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
 })).status, 200);
-console.log('Room publish and student event stream passed.');
+console.log('Room publish, PIN rejoin, and student event stream passed.');
 NODE
 
 echo "smoke test passed"

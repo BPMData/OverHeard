@@ -5,10 +5,10 @@ import {
   languageCaptionColor,
 } from '../captionColors';
 import { createPortal } from 'react-dom';
-import { Mic, MicOff, Minus, Plus, X } from 'lucide-react';
+import { Columns2, Mic, MicOff, Minus, Plus, X } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import { LANGUAGE_MAP, MAX_FONT_SIZE, MIN_FONT_SIZE } from '../constants';
-import { CaptionSegment, LanguageCode, PipLine } from '../types';
+import { CaptionSegment, LanguageCode, PipLayout, PipLine } from '../types';
 
 /** Most caption lines the pop-out shows at once (e.g. English + 2 languages). */
 export const MAX_PIP_LINES = 3;
@@ -32,6 +32,8 @@ interface PipSubtitlePortalProps {
   /** Lines currently shown, in display order. */
   visibleLines: PipLine[];
   onToggleLine: (line: PipLine) => void;
+  layout?: PipLayout;
+  onToggleLayout?: () => void;
   currentSegment: CaptionSegment | null;
   interimTranscript: string;
   liveTranslations: Record<string, string>;
@@ -48,6 +50,8 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
   selectedLangs,
   visibleLines,
   onToggleLine,
+  layout = 'stacked',
+  onToggleLayout,
   currentSegment,
   interimTranscript,
   liveTranslations,
@@ -68,10 +72,11 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
     );
   };
 
-  // Shrink text a little when three lines share the window
+  const isSideBySide = layout === 'columns' && visibleLines.length > 1;
+  // Shrink text a little when three lines share height or columns share width
   const baseFontSize = Math.max(20, Math.min(44, Math.round(fontSize * 0.85)));
   const pipFontSize =
-    visibleLines.length >= 3 ? Math.round(baseFontSize * 0.8) : baseFontSize;
+    visibleLines.length >= 3 ? Math.round(baseFontSize * (isSideBySide ? 0.72 : 0.8)) : baseFontSize;
   const translationCount = visibleLines.filter((l) => l !== 'en').length;
   const atMax = visibleLines.length >= MAX_PIP_LINES;
 
@@ -156,6 +161,31 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
+          {onToggleLayout && visibleLines.length > 1 && (
+            <button
+              type="button"
+              onClick={onToggleLayout}
+              aria-pressed={layout === 'columns'}
+              aria-label={
+                layout === 'columns'
+                  ? 'Side by side columns (switch to stacked)'
+                  : 'Side by side columns'
+              }
+              title={
+                layout === 'columns'
+                  ? 'Stack caption lines vertically'
+                  : 'Arrange caption lines side by side'
+              }
+              className={`inline-flex items-center gap-1 px-2 py-0.5 mr-1 rounded text-xs font-semibold transition-colors whitespace-nowrap ${
+                layout === 'columns'
+                  ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
+                  : 'hover:bg-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+              <span>Side by side</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onAdjustFont(-4)}
@@ -185,17 +215,31 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
         </div>
       </div>
 
-      {/* Caption lines fill the whole window at any shape (wide strip or tall column).
-          Each line gets an equal share of the height, bottom-aligned like subtitles; if a
-          sentence doesn't fit its share, the oldest words scroll off the top so the newest stay visible. */}
-      <div className="flex-1 min-h-0 flex flex-col px-4 py-2 gap-2">
-        {visibleLines.map((line) => {
+      {/* Caption lines fill the whole window at any shape (wide strip, side-by-side columns, or tall column).
+          Each line gets an equal share, bottom-aligned like subtitles; if a sentence doesn't fit its share,
+          the oldest words scroll off the top so the newest stay visible. */}
+      <div
+        data-layout={isSideBySide ? 'columns' : 'stacked'}
+        style={
+          isSideBySide
+            ? { gridTemplateColumns: `repeat(${visibleLines.length}, minmax(0, 1fr))` }
+            : undefined
+        }
+        className={`flex-1 min-h-0 px-4 py-2 ${
+          isSideBySide ? 'grid gap-3 items-stretch' : 'flex flex-col gap-2'
+        }`}
+      >
+        {visibleLines.map((line, index) => {
+          const columnDivider =
+            isSideBySide && index > 0
+              ? 'border-l border-slate-200 dark:border-slate-800 pl-3'
+              : '';
           if (line === 'en') {
             return (
               <div
                 key="en"
                 style={{ fontSize: `${Math.round(pipFontSize * 0.82)}px` }}
-                className={`flex-1 min-h-0 flex flex-col justify-end overflow-hidden font-medium leading-snug ${
+                className={`flex-1 min-h-0 min-w-0 flex flex-col justify-end overflow-hidden font-medium leading-snug ${columnDivider} ${
                   isSpeaking ? 'italic opacity-70' : ''
                 }`}
               >
@@ -225,7 +269,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             <div
               key={line}
               dir={cfg.dir}
-              className="flex-1 min-h-0 flex items-end gap-2.5 overflow-hidden"
+              className={`flex-1 min-h-0 min-w-0 flex items-end gap-2.5 overflow-hidden ${columnDivider}`}
             >
               {/* Language tag only when several translations share the window */}
               {translationCount > 1 && (

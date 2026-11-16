@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { PipSubtitlePortal, MAX_PIP_LINES, pipHeightFor } from '../components/PipSubtitlePortal';
 import { togglePipLine, visiblePipLines } from '../pipLines';
-import type { PipLine } from '../types';
+import type { PipLayout, PipLine } from '../types';
 import type { LectureState } from './protocol';
+import { loadPipPrefs, savePipPrefs } from './studentPrefs';
 
-export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = true }: {
-  state: LectureState; isDark: boolean; fontSize: number; onAdjustFont: (delta: number) => void; active?: boolean;
+export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = true, prefsPrefix = 'overheard.lecturePip' }: {
+  state: LectureState; isDark: boolean; fontSize: number; onAdjustFont: (delta: number) => void; active?: boolean; prefsPrefix?: string;
 }) {
   const [pip, setPip] = useState<Window | null>(null);
   const windowRef = useRef<Window | null>(null);
   const [notice, setNotice] = useState('');
-  const [lines, setLines] = useState<PipLine[]>([]);
+  const [lines, setLines] = useState<PipLine[]>(() => loadPipPrefs(prefsPrefix).lines);
+  const [layout, setLayout] = useState<PipLayout>(() => loadPipPrefs(prefsPrefix).layout);
   const visible = visiblePipLines(lines, state.selectedLangs, MAX_PIP_LINES);
+  useEffect(() => savePipPrefs(prefsPrefix, { lines, layout }), [prefsPrefix, lines, layout]);
   useEffect(() => () => { windowRef.current?.close(); }, []);
   useEffect(() => { if (!active) windowRef.current?.close(); }, [active]);
   useEffect(() => { pip?.document.documentElement.classList.toggle('dark', isDark); }, [pip, isDark]);
@@ -29,7 +32,8 @@ export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = tru
       setNotice('Floating captions are unavailable in this browser. Keep this lecture tab open beside your schoolwork.'); return;
     }
     try {
-      const win = await window.documentPictureInPicture.requestWindow({ width: 820, height: pipHeightFor(visible.length) });
+      const initialHeight = layout === 'columns' && visible.length > 1 ? pipHeightFor(1) : pipHeightFor(visible.length);
+      const win = await window.documentPictureInPicture.requestWindow({ width: 820, height: initialHeight });
       for (const sheet of Array.from(document.styleSheets)) {
         if (sheet.href) {
           const link = win.document.createElement('link'); link.rel = 'stylesheet'; link.href = sheet.href; win.document.head.appendChild(link);
@@ -52,6 +56,7 @@ export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = tru
       isListening={state.isListening} fontSize={fontSize} onAdjustFont={onAdjustFont}
       selectedLangs={state.selectedLangs} visibleLines={visible}
       onToggleLine={line => { const next = togglePipLine(visible, line, state.selectedLangs, MAX_PIP_LINES); if (next) setLines(next); }}
+      layout={layout} onToggleLayout={() => setLayout(prev => (prev === 'columns' ? 'stacked' : 'columns'))}
       currentSegment={currentSegment} interimTranscript={state.interim} liveTranslations={state.liveTranslations} />
   </>;
 }

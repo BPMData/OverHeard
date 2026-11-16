@@ -493,13 +493,6 @@ export function ConversationMode({
             >
               Clear lecture
             </button>
-            <button
-              type="button"
-              onClick={lecture.exportCsv}
-              disabled={lecture.entries.length === 0}
-            >
-              Export CSV
-            </button>
             <LectureFiles state={lectureState} onImport={value => {
               lecture.replace(value.entries);
               onSetLanguages?.(value.selectedLangs);
@@ -549,7 +542,14 @@ export function ConversationMode({
           <span aria-hidden="true">← </span>Back to Listening Mode
         </button>
       </div>
-      <TeacherRoomControls state={lectureState} visible={isLecture} />
+      <TeacherRoomControls
+        state={lectureState}
+        visible={isLecture}
+        onRestore={restored => {
+          lecture.replace(restored.entries, { preserveIds: true });
+          if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
+        }}
+      />
       {isLecture ? (
         <>
           <p className="conversation-help">

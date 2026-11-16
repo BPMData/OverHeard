@@ -19,6 +19,33 @@
 .room-controls { padding: 10px; border: 1px solid #64748b; border-radius: 8px; }
 .room-controls input[readonly] { flex: 1; min-width: 180px; }
 .room-controls small { opacity: .75; }
+.room-pin-field {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #64748b;
+  border-radius: 6px;
+  padding-right: 2px;
+}
+.room-pin-field input {
+  border: none !important;
+  width: 132px !important;
+  outline: none;
+}
+.room-pin-toggle {
+  border: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 5px !important;
+  opacity: 0.8;
+}
+.room-pin-toggle:hover { opacity: 1; }
+.student-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 7px !important;
+}
 .room-join input, .room-join button { border: 1px solid #64748b; border-radius: 6px; padding: 6px 9px; }
 .room-join input { width: 160px; background: transparent; }
 .room-join button:disabled { opacity: .5; }

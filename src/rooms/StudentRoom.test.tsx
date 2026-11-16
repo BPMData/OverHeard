@@ -19,6 +19,7 @@ class FakeEvents extends EventTarget {
 const entry: LectureEntry = { id: 'one', timestamp: 100, english: 'Welcome to science', translations: { es: 'Bienvenidos a ciencias' }, failedLangs: {} };
 const snapshot = (): RoomSnapshot => ({ ...emptyLecture(), entries: [entry], selectedLangs: ['es'], revision: 1, teacherOnline: true, ended: false, isListening: true });
 beforeEach(() => {
+  localStorage.clear();
   FakeEvents.instances = []; translate.mockReset(); prepare.mockReset();
   translate.mockImplementation(async (text: string, language: string) => `${language}:${text}`);
   vi.stubGlobal('EventSource', FakeEvents);
@@ -77,5 +78,44 @@ describe('student lecture view', () => {
     await emit({ ...snapshot(), interim: 'A new sentence', liveTranslations: { es: 'Una nueva frase' } });
     expect(within(pipDocument.body).getByText('Una nueva frase')).toBeTruthy();
     cleanup(); expect(win.close).toHaveBeenCalled();
+  });
+
+  it('defaults to dark mode, toggles with Sun/Moon button, and restores saved student + pop-out preferences across rooms', async () => {
+    const pipDocument = document.implementation.createHTMLDocument('PiP');
+    Object.defineProperty(pipDocument, 'defaultView', { value: window, configurable: true });
+    const win = { document: pipDocument, addEventListener: vi.fn(), close: vi.fn(), closed: false };
+    vi.stubGlobal('documentPictureInPicture', { requestWindow: vi.fn(async () => win) });
+
+    render(<StudentRoom code="room-one" />);
+    await emit();
+    const main = screen.getByRole('main');
+    expect(main.className).toContain('conversation-dark');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    expect(main.className).not.toContain('conversation-dark');
+    expect(screen.getByRole('button', { name: 'Switch to dark mode' })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Larger text' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
+    await waitFor(() =>
+      expect(within(pipDocument.body).getByRole('button', { name: /Side by side columns/i })).toBeTruthy(),
+    );
+    fireEvent.click(within(pipDocument.body).getByRole('button', { name: /Side by side columns/i }));
+    expect(pipDocument.body.querySelector('[data-layout="columns"]')).toBeTruthy();
+
+    // Opening another room on the same device restores light mode, Spanish, font size, and side-by-side pop-out
+    cleanup();
+    const pipDoc2 = document.implementation.createHTMLDocument('PiP2');
+    Object.defineProperty(pipDoc2, 'defaultView', { value: window, configurable: true });
+    const win2 = { document: pipDoc2, addEventListener: vi.fn(), close: vi.fn(), closed: false };
+    vi.stubGlobal('documentPictureInPicture', { requestWindow: vi.fn(async () => win2) });
+
+    render(<StudentRoom code="room-two" />);
+    await emit();
+    expect(screen.getByRole('main').className).not.toContain('conversation-dark');
+    expect((screen.getByLabelText('My language') as HTMLSelectElement).value).toBe('es');
+    fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
+    await waitFor(() => expect(pipDoc2.body.querySelector('[data-layout="columns"]')).toBeTruthy());
   });
 });

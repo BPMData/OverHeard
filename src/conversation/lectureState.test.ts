@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   LECTURE_STORAGE_KEY,
   createLectureEntry,
-  lectureCsv,
   lectureReducer,
   loadLectureEntries,
   saveLectureEntries,
@@ -72,20 +71,5 @@ describe('lectureState', () => {
     );
     expect(loadLectureEntries()).toHaveLength(1);
     expect(loadLectureEntries()[0].english).toBe('Valid line');
-  });
-
-  it('exports a UTF-8 BOM multi-column CSV including extra recorded languages', () => {
-    const entry = {
-      ...createLectureEntry('Open "page 5"', 1_700_000_000_000),
-      translations: { es: 'Abran la "página 5"', fr: 'Ouvrez la page 5' },
-    };
-    const csv = lectureCsv([entry], ['es', 'pt']);
-    expect(csv.startsWith('\uFEFF')).toBe(true);
-    const lines = csv.slice(1).split('\r\n');
-    expect(lines[0]).toBe('"timestamp","english","es","pt","fr"');
-    expect(lines[1]).toContain('"Open ""page 5"""');
-    expect(lines[1]).toContain('"Abran la ""página 5"""');
-    expect(lines[1]).toContain('""');
-    expect(lines[1]).toContain('"Ouvrez la page 5"');
   });
 });
