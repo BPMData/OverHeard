@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CaptionSwatch, CaptionText, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
 import { LANGUAGE_MAP } from '../constants';
 import type { LectureEntry } from '../conversation/lectureState';
-import type { LanguageCode } from '../types';
+import type { ActivePlayback } from '../tts/useSpeechPlayback';
+import type { ConversationLanguage, LanguageCode } from '../types';
 
 interface LectureTranscriptProps {
   entries: LectureEntry[];
@@ -14,6 +15,10 @@ interface LectureTranscriptProps {
   interim: string;
   liveTranslations: Partial<Record<LanguageCode, string>>;
   onAddLine?: (text: string) => void;
+  activePlayback?: ActivePlayback | null;
+  onPlayFrom?: (entryId: string, lang: ConversationLanguage) => void;
+  onTogglePause?: () => void;
+  onStopPlayback?: () => void;
 }
 
 function formatLectureTime(timestamp: number): string {
@@ -35,11 +40,61 @@ export function LectureTranscript({
   interim,
   liveTranslations,
   onAddLine,
+  activePlayback,
+  onPlayFrom,
+  onTogglePause,
+  onStopPlayback,
 }: LectureTranscriptProps) {
   const [typedLine, setTypedLine] = useState('');
   const [hasNewContent, setHasNewContent] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const followingRef = useRef(true);
+
+  const renderCellActions = (entryId: string, rowNum: number, langCode: ConversationLanguage, langName: string) => {
+    if (!onPlayFrom) return null;
+    const isActive = activePlayback?.entryId === entryId && activePlayback.lang === langCode;
+    const isPaused = isActive && activePlayback?.status === 'paused';
+    const isDownloading = isActive && activePlayback?.status === 'downloading';
+    const isPlaying = isActive && !isPaused;
+    return (
+      <span className="lecture-play-actions" dir="ltr">
+        {isActive && (
+          <span className="lecture-live-label">
+            {isPaused ? 'Paused' : isDownloading ? 'Loading…' : 'Reading'}
+          </span>
+        )}
+        <button
+          type="button"
+          className="lecture-play-btn"
+          aria-label={
+            isPlaying
+              ? `Pause reading #${rowNum} in ${langName}`
+              : isPaused
+                ? `Resume reading #${rowNum} in ${langName}`
+                : `Read from #${rowNum} in ${langName}`
+          }
+          title={isPlaying ? 'Pause reading' : isPaused ? 'Resume reading' : 'Read aloud from here'}
+          onClick={() => {
+            if (isActive && onTogglePause) onTogglePause();
+            else onPlayFrom(entryId, langCode);
+          }}
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
+        {isActive && onStopPlayback && (
+          <button
+            type="button"
+            className="lecture-play-btn"
+            aria-label={`Stop reading #${rowNum} in ${langName}`}
+            title="Stop reading"
+            onClick={onStopPlayback}
+          >
+            ⏹
+          </button>
+        )}
+      </span>
+    );
+  };
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -108,51 +163,68 @@ export function LectureTranscript({
           )}
 
           {/* Finalized Chronological Rows */}
-          {entries.map((entry, idx) => (
-            <React.Fragment key={entry.id}>
-              <div className="lecture-cell lecture-cell-en">
-                <div className="lecture-meta">
-                  #{idx + 1} · {formatLectureTime(entry.timestamp)}
-                </div>
-                <div style={{ fontSize }} className="caption-text-ltr font-semibold">
-                  <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
-                    {entry.english}
-                  </CaptionText>
-                </div>
-              </div>
-
-              {selectedLangs.map((code, langIndex) => {
-                const lang = LANGUAGE_MAP[code];
-                const color = languageCaptionColor(langIndex);
-                const translated = entry.translations[code];
-                const failed = entry.failedLangs[code];
-                return (
-                  <div key={`${entry.id}-${code}`} className="lecture-cell" dir={lang.dir}>
-                    {translated ? (
-                      <div
-                        style={{ fontSize }}
-                        className={`font-semibold ${
-                          lang.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
-                        }`}
-                      >
-                        <CaptionText color={color} isDark={isDark}>
-                          {translated}
-                        </CaptionText>
-                      </div>
-                    ) : failed ? (
-                      <small dir="ltr" className="conversation-error">
-                        translation unavailable
-                      </small>
-                    ) : (
-                      <small dir="ltr" className="conversation-pulse">
-                        Translating…
-                      </small>
-                    )}
+          {entries.map((entry, idx) => {
+            const isEnActive = activePlayback?.entryId === entry.id && activePlayback.lang === 'en';
+            return (
+              <React.Fragment key={entry.id}>
+                <div className={`lecture-cell lecture-cell-en ${isEnActive ? 'lecture-cell-speaking' : ''}`}>
+                  <div className="lecture-meta">
+                    <span>#{idx + 1} · {formatLectureTime(entry.timestamp)}</span>
+                    {renderCellActions(entry.id, idx + 1, 'en', 'English')}
                   </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+                  <div style={{ fontSize }} className="caption-text-ltr font-semibold">
+                    <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
+                      {entry.english}
+                    </CaptionText>
+                  </div>
+                </div>
+
+                {selectedLangs.map((code, langIndex) => {
+                  const lang = LANGUAGE_MAP[code];
+                  const color = languageCaptionColor(langIndex);
+                  const translated = entry.translations[code];
+                  const failed = entry.failedLangs[code];
+                  const isCellActive = activePlayback?.entryId === entry.id && activePlayback.lang === code;
+                  return (
+                    <div
+                      key={`${entry.id}-${code}`}
+                      className={`lecture-cell ${isCellActive ? 'lecture-cell-speaking' : ''}`}
+                      dir={lang.dir}
+                    >
+                      {translated ? (
+                        <>
+                          {onPlayFrom && (
+                            <div className="lecture-meta" dir="ltr">
+                              <span />
+                              {renderCellActions(entry.id, idx + 1, code, lang.name)}
+                            </div>
+                          )}
+                          <div
+                            style={{ fontSize }}
+                            className={`font-semibold ${
+                              lang.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
+                            }`}
+                          >
+                            <CaptionText color={color} isDark={isDark}>
+                              {translated}
+                            </CaptionText>
+                          </div>
+                        </>
+                      ) : failed ? (
+                        <small dir="ltr" className="conversation-error">
+                          translation unavailable
+                        </small>
+                      ) : (
+                        <small dir="ltr" className="conversation-pulse">
+                          Translating…
+                        </small>
+                      )}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
 
           {/* Live Streaming Row */}
           {hasInterim && (

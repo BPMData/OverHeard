@@ -213,3 +213,71 @@ it('does not pair a late interim translation with newer English speech', async (
   expect(screen.getByText('A new sentence')).toBeTruthy();
   expect(screen.queryByText('Late translation of old English')).toBeNull();
 });
+
+it('suspends teacher lecture speech recognition while reading a cell aloud and resumes when done', async () => {
+  class FakeUtterance {
+    lang = '';
+    voice: { lang: string } | null = null;
+    onend: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    constructor(public text: string) {}
+  }
+  const spokenQueue: FakeUtterance[] = [];
+  vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+  vi.stubGlobal('speechSynthesis', {
+    speak: vi.fn((u: FakeUtterance) => spokenQueue.push(u)),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    cancel: vi.fn(() => {
+      spokenQueue.length = 0;
+    }),
+    getVoices: () => [{ lang: 'pt-BR' }, { lang: 'es-MX' }],
+    get speaking() {
+      return spokenQueue.length > 0;
+    },
+    get pending() {
+      return spokenQueue.length > 1;
+    },
+  });
+
+  const translate = vi.fn(async (text: string, target: string) => `${target}:${text}`);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={translate}
+      selectedLangs={['es', 'pt']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />,
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.change(screen.getByLabelText('Playback language'), { target: { value: 'pt' } });
+  fireEvent.change(screen.getByLabelText('Voice'), { target: { value: 'pt_BR-cadu-medium' } });
+  expect(JSON.parse(localStorage.getItem('overheard.voices')!).pt).toBe('pt_BR-cadu-medium');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  expect(FakeRecognition.instances).toHaveLength(1);
+  const firstRec = FakeRecognition.instances[0];
+
+  fireEvent.change(screen.getByLabelText('Lecture line text'), {
+    target: { value: 'Open your books' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await act(async () => {});
+
+  // Click read-from-here on Portuguese cell: suspends lecture mic while speaking
+  fireEvent.click(screen.getByRole('button', { name: 'Read from #1 in Portuguese' }));
+  expect(firstRec.abort).toHaveBeenCalled();
+  expect(spokenQueue).toHaveLength(1);
+  expect(spokenQueue[0].text).toBe('pt:Open your books');
+
+  // Finishing playback resumes lecture speech recognition automatically
+  await act(async () => {
+    spokenQueue.shift()?.onend?.();
+  });
+  expect(FakeRecognition.instances).toHaveLength(2);
+});

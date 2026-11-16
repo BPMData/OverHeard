@@ -202,6 +202,11 @@ async function startServer() {
   const app = express();
   // Trust only the proxy hops we expect in front of us (Cloud Run's front end is one)
   app.set('trust proxy', TRUST_PROXY_HOPS);
+  app.use((_req: Request, res: Response, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+    next();
+  });
   app.use('/api/rooms', createRoomRouter().router);
   app.use(express.json({ limit: '16kb' }));
 
@@ -392,7 +397,8 @@ async function startServer() {
   const distPath = path.join(__dirname, 'dist');
   const isProd =
     process.env.NODE_ENV === 'production' ||
-    process.env.npm_lifecycle_event === 'start';
+    process.env.npm_lifecycle_event === 'start' ||
+    (process.env.NODE_ENV !== 'development' && Boolean(process.env.K_SERVICE));
 
   if (isProd && fs.existsSync(path.join(distPath, 'index.html'))) {
     app.use(
@@ -416,6 +422,20 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    const ortNodeModules = path.join(__dirname, 'node_modules/onnxruntime-web/dist');
+    const piperNodeModules = path.join(__dirname, 'node_modules/@diffusionstudio/piper-wasm/build');
+    app.get('/ort/ort-wasm-simd-threaded.jsep.mjs', (_req: Request, res: Response) =>
+      res.sendFile(path.join(ortNodeModules, 'ort-wasm-simd-threaded.jsep.mjs'))
+    );
+    app.get('/ort/ort-wasm-simd-threaded.jsep.wasm', (_req: Request, res: Response) =>
+      res.sendFile(path.join(ortNodeModules, 'ort-wasm-simd-threaded.jsep.wasm'))
+    );
+    app.get('/piper/piper_phonemize.wasm', (_req: Request, res: Response) =>
+      res.sendFile(path.join(piperNodeModules, 'piper_phonemize.wasm'))
+    );
+    app.get('/piper/piper_phonemize.data', (_req: Request, res: Response) =>
+      res.sendFile(path.join(piperNodeModules, 'piper_phonemize.data'))
+    );
     app.use(vite.middlewares);
   }
 
