@@ -43,6 +43,7 @@ import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLay
 import { translateConversationMessage } from './conversation/translateMessage';
 import { loadLectureEntries, saveLectureEntries, type LectureEntry } from './conversation/lectureState';
 import { ConversationMode } from './components/ConversationMode';
+import { OpenFromDriveButton } from './components/DriveLectureActions';
 import { loadConversationSettings, saveConversationSettings } from './components/conversationSettings';
 import { JoinRoomForm } from './rooms/StudentRoom';
 import { MAX_ROOM_FILE_BYTES, parseRoomJson } from './rooms/protocol';
@@ -1170,6 +1171,32 @@ export default function App() {
     [fetchMT]
   );
 
+  const applyImportedLecture = useCallback(
+    (imported: { entries: LectureEntry[]; selectedLangs: LanguageCode[] }) => {
+      setImportError('');
+      saveLectureEntries(imported.entries);
+      saveConversationSettings({
+        ...loadConversationSettings(selectedLangs[0] ?? 'es'),
+        mode: 'lecture',
+      });
+      if (imported.selectedLangs.length > 0) {
+        setSelectedLangs(imported.selectedLangs.slice(0, MAX_LANGUAGES));
+      }
+      if (displayMode !== 'conversation') {
+        previousMode.current = displayMode;
+      }
+      stopListening();
+      pipWindow?.close();
+      setPipWindow(null);
+      setPipNotice(null);
+      setMicPermissionDenied(false);
+      setImportedLecture({ seq: ++importSeqRef.current, entries: imported.entries });
+      setConversationVisited(true);
+      setDisplayMode('conversation');
+    },
+    [displayMode, pipWindow, selectedLangs, stopListening],
+  );
+
   const permissionBanner = micPermissionDenied && (
     <div className="bg-red-500/15 border-b border-red-500/30 px-4 py-3 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-start sm:items-center gap-2.5 text-red-800 dark:text-red-200">
@@ -1530,28 +1557,18 @@ export default function App() {
                   ) {
                     return;
                   }
-                  setImportError('');
-                  saveLectureEntries(imported.entries);
-                  saveConversationSettings({
-                    ...loadConversationSettings(selectedLangs[0] ?? 'es'),
-                    mode: 'lecture',
-                  });
-                  if (imported.selectedLangs.length > 0) {
-                    setSelectedLangs(imported.selectedLangs.slice(0, MAX_LANGUAGES));
-                  }
-                  previousMode.current = displayMode;
-                  stopListening();
-                  pipWindow?.close();
-                  setPipWindow(null);
-                  setPipNotice(null);
-                  setMicPermissionDenied(false);
-                  setImportedLecture({ seq: ++importSeqRef.current, entries: imported.entries });
-                  setConversationVisited(true);
-                  setDisplayMode('conversation');
+                  applyImportedLecture(imported);
                 } catch (err) {
                   setImportError(err instanceof Error ? err.message : 'Could not read room file.');
                 }
               }}
+            />
+            <OpenFromDriveButton
+              hasExistingEntries={() => loadLectureEntries().length > 0}
+              onImport={(imported) => applyImportedLecture(imported)}
+              onError={(msg) => setImportError(msg)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+              iconClassName="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]"
             />
             {/* Pop Out Captions (Document Picture-in-Picture) */}
             {hasPipApi && (
