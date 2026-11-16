@@ -54,117 +54,112 @@ export function saveConversationSettings(settings: ConversationSettings) {
     /* Keep the session usable. */
   }
 }
-const CSV_HEADER = [
-  'timestamp',
-  'sender name',
-  'original language',
-  'original text',
-  'translated language',
-  'translated text',
-];
-export function conversationCsv(messages: Message[]) {
-  const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-  return (
-    '\uFEFF' +
-    [
-      CSV_HEADER,
-      ...messages.map((m) => [
-        new Date(m.timestamp).toISOString(),
-        m.sender.name,
-        m.sender.lang,
-        m.original,
-        m.reader.lang,
-        m.translated,
-      ]),
-    ]
-      .map((row) => row.map(escape).join(','))
-      .join('\r\n')
+export function conversationJson(messages: Message[], participants?: Participants): string {
+  return JSON.stringify(
+    {
+      format: 'overheard-conversation',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      ...(participants ? { participants } : {}),
+      messages: messages.map((m) => ({
+        timestamp: m.timestamp,
+        side: m.side,
+        sender: m.sender,
+        reader: m.reader,
+        original: m.original,
+        translated: m.translated,
+        status: m.status,
+      })),
+    },
+    null,
+    2,
   );
 }
-function parseCsvRows(input: string): string[][] {
-  const text = input.replace(/^\uFEFF/, '');
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = '';
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          cell += '"';
-          i += 1;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cell += ch;
-      }
-    } else if (ch === '"' && cell === '') {
-      inQuotes = true;
-    } else if (ch === ',') {
-      row.push(cell);
-      cell = '';
-    } else if (ch === '\r' || ch === '\n') {
-      if (ch === '\r' && text[i + 1] === '\n') i += 1;
-      row.push(cell);
-      cell = '';
-      if (row.length > 1 || row[0] !== '') rows.push(row);
-      row = [];
-    } else {
-      cell += ch;
-    }
+
+export function parseConversationJson(text: string, participants: Participants): Message[] {
+  if (!text.trim()) throw new Error('JSON file is empty.');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON file.');
   }
-  if (inQuotes) throw new Error('Invalid CSV file: unclosed quoted field.');
-  if (cell !== '' || row.length > 0) {
-    row.push(cell);
-    if (row.length > 1 || row[0] !== '') rows.push(row);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Choose an OverHeard conversation JSON file (version 1).');
   }
-  return rows;
-}
-export function parseConversationCsv(csv: string, participants: Participants): Message[] {
-  const rows = parseCsvRows(csv);
-  if (!rows.length) throw new Error('CSV file is empty.');
-  const header = rows[0].map((c) => c.trim().toLowerCase());
-  if (header.length < CSV_HEADER.length || CSV_HEADER.some((col, i) => header[i] !== col)) {
-    throw new Error('Invalid conversation CSV header.');
+  const input = parsed as Record<string, unknown>;
+  if (
+    input.format !== 'overheard-conversation' ||
+    input.version !== 1 ||
+    !Array.isArray(input.messages)
+  ) {
+    throw new Error('Choose an OverHeard conversation JSON file (version 1).');
   }
+
   const messages: Message[] = [];
-  for (const row of rows.slice(1)) {
-    const [
-      rawTimestamp = '',
-      rawSenderName = '',
-      rawOrigLang = '',
-      rawOrigText = '',
-      rawTransLang = '',
-      rawTransText = '',
-    ] = row;
-    const original = rawOrigText.trim();
+  for (const raw of input.messages) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const item = raw as Record<string, unknown>;
+    const original = typeof item.original === 'string' ? item.original.trim() : '';
     if (!original) continue;
-    const senderName = rawSenderName.trim();
-    const senderLang = validLanguage(rawOrigLang.trim())
-      ? (rawOrigLang.trim() as ConversationLanguage)
+
+    const rawSender =
+      item.sender && typeof item.sender === 'object' && !Array.isArray(item.sender)
+        ? (item.sender as Record<string, unknown>)
+        : {};
+    const rawReader =
+      item.reader && typeof item.reader === 'object' && !Array.isArray(item.reader)
+        ? (item.reader as Record<string, unknown>)
+        : {};
+
+    const senderName = typeof rawSender.name === 'string' ? rawSender.name.trim() : '';
+    const senderLang = validLanguage(rawSender.lang)
+      ? rawSender.lang
       : participants.a.lang;
-    const readerLang = validLanguage(rawTransLang.trim())
-      ? (rawTransLang.trim() as ConversationLanguage)
+    const readerLang = validLanguage(rawReader.lang)
+      ? rawReader.lang
       : participants.b.lang;
+
+    const explicitSide: Side | null = item.side === 'a' || item.side === 'b' ? item.side : null;
     const side: Side =
-      senderName && senderName === participants.b.name && senderName !== participants.a.name
+      explicitSide ??
+      (senderName && senderName === participants.b.name && senderName !== participants.a.name
         ? 'b'
         : senderName && senderName === participants.a.name && senderName !== participants.b.name
           ? 'a'
           : senderLang === participants.b.lang && senderLang !== participants.a.lang
             ? 'b'
-            : 'a';
-    const parsedTime = Date.parse(rawTimestamp.trim());
-    const timestamp = Number.isFinite(parsedTime) ? parsedTime : Date.now();
+            : 'a');
+
+    const readerName =
+      typeof rawReader.name === 'string' && rawReader.name.trim()
+        ? rawReader.name.trim()
+        : participants[otherSide(side)].name;
+
+    const rawTimestamp = item.timestamp;
+    const parsedTime =
+      typeof rawTimestamp === 'number'
+        ? rawTimestamp
+        : typeof rawTimestamp === 'string'
+          ? Date.parse(rawTimestamp)
+          : NaN;
+    const timestamp =
+      Number.isFinite(parsedTime) && Math.abs(parsedTime) <= 8.64e15 ? parsedTime : Date.now();
+
+    const translated = typeof item.translated === 'string' ? item.translated.trim() : '';
+    const status =
+      item.status === 'done' || item.status === 'translating' || item.status === 'error'
+        ? item.status
+        : undefined;
+
     messages.push(
       createImportedMessage({
         side,
         sender: { name: senderName || participants[side].name, lang: senderLang },
-        reader: { name: participants[otherSide(side)].name, lang: readerLang },
+        reader: { name: readerName, lang: readerLang },
         original,
-        translated: rawTransText.trim(),
+        translated,
+        status,
         timestamp,
       }),
     );

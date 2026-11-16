@@ -3,6 +3,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConversationLanguage } from './types';
+import { parseRoomJson } from './rooms/protocol';
 
 // Isolate the App integration boundary: the real conversation turn loop has its own tests.
 vi.mock('./components/ConversationMode', () => ({
@@ -175,5 +176,58 @@ describe('App conversation integration', () => {
     await screen.findByRole('region', { name: 'Conversation test surface' });
     expect(JSON.parse(localStorage.getItem('overheard.lecture')!)).toHaveLength(1);
     expect(JSON.parse(localStorage.getItem('overheard.conversation')!).mode).toBe('lecture');
+  });
+
+  it('exports Columns captions as valid OverHeard JSON instead of CSV', async () => {
+    let exportedBlob: Blob | null = null;
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn((blob: Blob | MediaSource) => {
+      exportedBlob = blob as Blob;
+      return 'blob:columns-export';
+    });
+    URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    try {
+      render(<App />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
+      fireEvent.change(
+        screen.getByPlaceholderText('Type an English classroom sentence to test translation silently…'),
+        { target: { value: 'Hello class' } },
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
+
+      await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
+
+      const exportBtn = screen.getByRole('button', { name: 'Export JSON' });
+      expect(screen.queryByRole('button', { name: /CSV/i })).toBeNull();
+      fireEvent.click(exportBtn);
+
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      const anchor = clickSpy.mock.instances[0] as HTMLAnchorElement;
+      expect(anchor.download).toMatch(/^Lecture on .+\.json$/);
+      expect(exportedBlob).not.toBeNull();
+      expect(exportedBlob!.type).toBe('application/json');
+
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ''));
+        reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
+        reader.readAsText(exportedBlob!);
+      });
+      const parsed = parseRoomJson(text);
+      expect(parsed.selectedLangs).toEqual(['es']);
+      expect(parsed.entries).toHaveLength(1);
+      expect(parsed.entries[0]).toMatchObject({
+        english: 'Hello class',
+        translations: { es: 'en>es' },
+      });
+    } finally {
+      clickSpy.mockRestore();
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 });

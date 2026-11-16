@@ -176,15 +176,35 @@ it('holds a live draft in manual mode and passes it once by Space or button', as
   expect(translate).toHaveBeenLastCalledWith('Ready', 'es', 'en');
 });
 
-it('imports a conversation CSV into the conversation thread without reading imported messages aloud', async () => {
+it('imports a conversation JSON into the conversation thread without reading imported messages aloud', async () => {
   mount(true);
-  const csv = [
-    '"timestamp","sender name","original language","original text","translated language","translated text"',
-    '"2026-11-13T16:00:00.000Z","Me","en","Good morning","es","Buenos días"',
-    '"2026-11-13T16:01:00.000Z","Student","es","Hola","en","Hello"',
-  ].join('\r\n');
-  const file = new File([csv], 'conversation.csv', { type: 'text/csv' });
-  const input = screen.getByLabelText('Import CSV file');
+  const payload = JSON.stringify({
+    format: 'overheard-conversation',
+    version: 1,
+    exportedAt: '2026-11-13T16:02:00.000Z',
+    messages: [
+      {
+        timestamp: '2026-11-13T16:00:00.000Z',
+        side: 'a',
+        sender: { name: 'Me', lang: 'en' },
+        reader: { name: 'Student', lang: 'es' },
+        original: 'Good morning',
+        translated: 'Buenos días',
+        status: 'done',
+      },
+      {
+        timestamp: '2026-11-13T16:01:00.000Z',
+        side: 'b',
+        sender: { name: 'Student', lang: 'es' },
+        reader: { name: 'Me', lang: 'en' },
+        original: 'Hola',
+        translated: 'Hello',
+        status: 'done',
+      },
+    ],
+  });
+  const file = new File([payload], 'conversation.json', { type: 'application/json' });
+  const input = screen.getByLabelText('Import JSON file');
   await act(async () => {
     fireEvent.change(input, { target: { files: [file] } });
   });

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  conversationCsv,
+  conversationJson,
   loadConversationSettings,
-  parseConversationCsv,
+  parseConversationJson,
   saveConversationSettings,
 } from './conversationSettings';
 import { createMessage } from '../conversation/state';
@@ -38,7 +38,7 @@ describe('conversation settings', () => {
     });
     expect(() => saveConversationSettings(loadConversationSettings())).not.toThrow();
   });
-  it('exports and imports BOM, quoted names, commas, quotes and embedded newlines', () => {
+  it('exports and imports conversation JSON with names, quotes, newlines, and sides preserved', () => {
     const participants = {
       a: { name: 'Me, "teacher"', lang: 'en' as const },
       b: { name: 'Student', lang: 'es' as const },
@@ -49,13 +49,14 @@ describe('conversation settings', () => {
     const reply = createMessage('b', '¡Hola!', participants);
     reply.translated = 'Hi!';
     reply.status = 'done';
-    const csv = conversationCsv([message, reply]);
-    expect(csv.startsWith('\uFEFF')).toBe(true);
-    expect(csv).toContain('"Me, ""teacher"""');
-    expect(csv).toContain('"Hello\n""friend"""');
-    expect(csv).toContain('"Hola, amigo"');
 
-    const imported = parseConversationCsv(csv, participants);
+    const json = conversationJson([message, reply], participants);
+    const parsed = JSON.parse(json);
+    expect(parsed.format).toBe('overheard-conversation');
+    expect(parsed.version).toBe(1);
+    expect(parsed.messages).toHaveLength(2);
+
+    const imported = parseConversationJson(json, participants);
     expect(imported).toHaveLength(2);
     expect(imported[0]).toMatchObject({
       side: 'a',
@@ -75,8 +76,8 @@ describe('conversation settings', () => {
       status: 'done',
       timestamp: reply.timestamp,
     });
-    expect(() => parseConversationCsv('wrong,header', participants)).toThrow(
-      'Invalid conversation CSV header.',
+    expect(() => parseConversationJson('{"wrong":true}', participants)).toThrow(
+      'Choose an OverHeard conversation JSON file (version 1).',
     );
   });
 });

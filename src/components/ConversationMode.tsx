@@ -20,9 +20,9 @@ import {
   type PackProgress,
 } from '../onDevice';
 import {
-  conversationCsv,
+  conversationJson,
   loadConversationSettings,
-  parseConversationCsv,
+  parseConversationJson,
   saveConversationSettings,
   type ConversationSubMode,
 } from './conversationSettings';
@@ -335,31 +335,31 @@ export function ConversationMode({
       (reason) => onPermissionDenied(reason),
     );
   };
-  const exportCsv = () => {
+  const exportJson = () => {
     const url = URL.createObjectURL(
-      new Blob([conversationCsv(messages)], { type: 'text/csv;charset=utf-8;' }),
+      new Blob([conversationJson(messages, settings)], { type: 'application/json' }),
     );
     const link = document.createElement('a');
     link.href = url;
-    link.download = `conversation-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `conversation-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const importCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importJson = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     try {
       const content =
         typeof file.text === 'function' ? await file.text() : await new Response(file).text();
-      const imported = parseConversationCsv(content, settings);
+      const imported = parseConversationJson(content, settings);
       setUiError('');
       imported.forEach((m) => {
         if (m.status === 'done') spoken.current.add(`${m.id}:${m.revision}`);
       });
       dispatch({ type: 'import', messages: imported });
     } catch (err) {
-      setUiError(err instanceof Error ? err.message : 'Could not import CSV.');
+      setUiError(err instanceof Error ? err.message : 'Could not import JSON.');
     }
   };
   const renderMessage = (message: Message) => {
@@ -560,15 +560,15 @@ export function ConversationMode({
             >
               Clear conversation
             </button>
-            <button onClick={exportCsv}>Export CSV</button>
-            <button onClick={() => fileInput.current?.click()}>Import CSV</button>
+            <button type="button" onClick={exportJson}>Export JSON</button>
+            <button type="button" onClick={() => fileInput.current?.click()}>Import JSON</button>
             <input
               ref={fileInput}
               type="file"
-              accept=".csv,text/csv"
-              aria-label="Import CSV file"
+              accept=".json,application/json"
+              aria-label="Import JSON file"
               hidden
-              onChange={importCsv}
+              onChange={importJson}
             />
           </>
         ) : (
@@ -594,10 +594,14 @@ export function ConversationMode({
             >
               Clear lecture
             </button>
-            <LectureFiles state={lectureState} onImport={value => {
-              lecture.replace(value.entries);
-              onSetLanguages?.(value.selectedLangs);
-            }} />
+            <LectureFiles
+              state={lectureState}
+              roomCode={activeRoomCode}
+              onImport={value => {
+                lecture.replace(value.entries);
+                onSetLanguages?.(value.selectedLangs);
+              }}
+            />
             <SaveLectureToDriveControl
               state={lectureState}
               roomCode={activeRoomCode}

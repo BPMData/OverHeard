@@ -46,7 +46,8 @@ import { ConversationMode } from './components/ConversationMode';
 import { OpenFromDriveButton } from './components/DriveLectureActions';
 import { loadConversationSettings, saveConversationSettings } from './components/conversationSettings';
 import { JoinRoomForm } from './rooms/StudentRoom';
-import { MAX_ROOM_FILE_BYTES, parseRoomJson } from './rooms/protocol';
+import { formatLectureFilename } from './rooms/LectureFiles';
+import { MAX_ROOM_FILE_BYTES, parseRoomJson, roomJson } from './rooms/protocol';
 import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studentPrefs';
 import { LanguageModal } from './components/LanguageModal';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal';
@@ -1051,45 +1052,53 @@ export default function App() {
     }
   };
 
-  // UTF-8 BOM CSV Transcript Download
-  const handleDownloadCsv = () => {
+  // Lecture-compatible JSON Transcript Export
+  const handleExportJson = () => {
     if (segments.length === 0) return;
 
-    const escapeCsvCell = (val: string): string => {
-      const escaped = val.replace(/"/g, '""');
-      return `"${escaped}"`;
+    const toEpochMs = (hhmmss: string): number => {
+      const match = /^(\d{2}):(\d{2}):(\d{2})$/.exec(hhmmss.trim());
+      if (!match) return Date.now();
+      const d = new Date();
+      d.setHours(Number(match[1]), Number(match[2]), Number(match[3]), 0);
+      return d.getTime();
     };
 
-    const headers = [
-      'Timestamp',
-      'English',
-      ...selectedLangs.map((code) => `${LANGUAGE_MAP[code].name} (${code})`),
-    ];
+    const entries: LectureEntry[] = [];
+    for (const seg of segments) {
+      const english = seg.english.trim();
+      if (!english) continue;
+      const translations: Partial<Record<LanguageCode, string>> = {};
+      const failedLangs: Partial<Record<LanguageCode, boolean>> = {};
+      for (const code of selectedLangs) {
+        const translated = seg.translations[code]?.trim();
+        if (translated) {
+          translations[code] = translated;
+        } else if (seg.status === 'error') {
+          failedLangs[code] = true;
+        }
+      }
+      entries.push({
+        id: `seg-${seg.id}`,
+        timestamp: toEpochMs(seg.timestamp),
+        english,
+        translations,
+        failedLangs,
+      });
+    }
 
-    const rows = segments.map((seg) => [
-      escapeCsvCell(seg.timestamp),
-      escapeCsvCell(seg.english),
-      ...selectedLangs.map((code) =>
-        escapeCsvCell(seg.translations[code] || '')
-      ),
-    ]);
+    if (entries.length === 0) return;
 
-    const csvContent =
-      '\uFEFF' +
-      [headers.map(escapeCsvCell).join(','), ...rows.map((r) => r.join(','))].join(
-        '\r\n'
-      );
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const jsonContent = roomJson({ selectedLangs, entries });
+    const blob = new Blob([jsonContent], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const today = new Date().toISOString().slice(0, 10);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `overheard-transcript-${today}.csv`;
+    link.download = formatLectureFilename();
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   // Clear transcript history
@@ -1640,16 +1649,16 @@ export default function App() {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {/* Download Transcript CSV */}
+            {/* Export Transcript JSON */}
             <button
               type="button"
-              onClick={handleDownloadCsv}
+              onClick={handleExportJson}
               disabled={segments.length === 0}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-              title="Download CSV transcript with UTF-8 BOM"
+              title="Export transcript as OverHeard JSON"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download CSV</span>
+              <span>Export JSON</span>
             </button>
 
             {/* Clear Transcript with inline confirmation */}
