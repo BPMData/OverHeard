@@ -137,8 +137,22 @@ describe('live classroom rooms', () => {
 
     expect((await request(`/${code}`, 'PUT', patch('Old tab write'), originalToken)).status).toBe(403);
     expect((await request(`/${code}`, 'PUT', patch('Resumed lesson'), rejoined.token)).status).toBe(200);
+    expect((await student()).event).toBe('patch');
 
     await request(`/${code}`, 'DELETE', undefined, rejoined.token);
-    expect((await request(`/${code}/rejoin`, 'POST', { pin: '9876' })).status).toBe(410);
+    expect((await student()).data.ended).toBe(true);
+    expect((await request(`/${code}/rejoin`, 'POST', { pin: '0000' })).status).toBe(403);
+
+    const restartedRes = await request(`/${code}/rejoin`, 'POST', { pin: '9876' });
+    expect(restartedRes.status).toBe(200);
+    const restarted = await restartedRes.json();
+    expect(restarted.snapshot.ended).toBe(false);
+    expect(restarted.snapshot.teacherOnline).toBe(true);
+    const wakeUp = await student();
+    expect(wakeUp.event).toBe('snapshot');
+    expect(wakeUp.data.ended).toBe(false);
+    expect(wakeUp.data.teacherOnline).toBe(true);
+    expect((await request(`/${code}`, 'PUT', patch('After restart'), rejoined.token)).status).toBe(403);
+    expect((await request(`/${code}`, 'PUT', patch('After restart'), restarted.token)).status).toBe(200);
   });
 });

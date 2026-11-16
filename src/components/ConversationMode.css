@@ -31,6 +31,9 @@
   width: 132px !important;
   outline: none;
 }
+.room-pin-masked {
+  -webkit-text-security: disc;
+}
 .room-pin-toggle {
   border: none !important;
   display: inline-flex;

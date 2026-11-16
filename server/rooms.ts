@@ -65,8 +65,13 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
     }
     const code = normalizeRoomCode(req.body?.code || randomBytes(4).toString('hex'));
     if (!validRoomCode(code)) { res.status(400).json({ error: 'Use 3–40 letters, numbers, or hyphens for the room code.' }); return; }
-    if (rooms.has(code)) {
-      res.status(409).json({ error: 'That room code is already in use. Enter its PIN and click Rejoin room, or choose another code.' });
+    const existing = rooms.get(code);
+    if (existing) {
+      res.status(409).json({
+        error: existing.snapshot.ended
+          ? 'That room recently ended. Enter its PIN and click Rejoin room to restart it, or choose another code.'
+          : 'That room code is already in use. Enter its PIN and click Rejoin room, or choose another code.',
+      });
       return;
     }
     const token = randomBytes(32).toString('hex');
@@ -86,7 +91,6 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
     }
     const room = rooms.get(code);
     if (!room) { res.status(404).json({ error: 'Room not found. Check the room code or create a new room.' }); return; }
-    if (room.snapshot.ended) { res.status(410).json({ error: 'This room has ended. Create a new room to continue.' }); return; }
     if (typeof req.body?.pin !== 'string' || !validPin(req.body.pin)) {
       res.status(400).json({ error: 'Enter the room PIN (4–20 characters).' });
       return;
@@ -98,7 +102,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
     }
     room.token = randomBytes(32).toString('hex');
     room.touchedAt = room.publishedAt = now();
-    room.snapshot = { ...room.snapshot, teacherOnline: true, revision: room.snapshot.revision + 1 };
+    room.snapshot = { ...room.snapshot, ended: false, teacherOnline: true, revision: room.snapshot.revision + 1 };
     broadcast(room, 'snapshot', room.snapshot);
     res.json({ code, token: room.token, snapshot: room.snapshot });
   });

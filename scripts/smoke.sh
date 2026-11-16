@@ -77,7 +77,16 @@ await reader.cancel();
 assert.equal((await fetch(`${base}/${code}`, {
   method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
 })).status, 200);
-console.log('Room publish, PIN rejoin, and student event stream passed.');
+const restarted = await fetch(`${base}/${code}/rejoin`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '1234' }),
+});
+assert.equal(restarted.status, 200);
+const { token: restartToken, snapshot: restartSnapshot } = await restarted.json();
+assert.equal(restartSnapshot.ended, false);
+assert.equal((await fetch(`${base}/${code}`, {
+  method: 'DELETE', headers: { Authorization: `Bearer ${restartToken}` },
+})).status, 200);
+console.log('Room publish, PIN rejoin, ended restart, and student event stream passed.');
 NODE
 
 echo "smoke test passed"

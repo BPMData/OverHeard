@@ -24,17 +24,23 @@ export function TeacherRoomControls({ state, visible, onRestore }: {
         catch { setCopied(false); }
       }}>{copied ? 'Link copied' : 'Copy student link'}</button>
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
-    </> : <form onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
+    </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
       <input aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
-        maxLength={40} onChange={event => setCode(event.target.value)} />
+        autoComplete="off" maxLength={40} onChange={event => setCode(event.target.value)} />
       <span className="room-pin-field">
         <input
-          type={showPin ? 'text' : 'password'}
+          type="text"
+          className={showPin ? undefined : 'room-pin-masked'}
           aria-label="Room PIN"
           placeholder="Room PIN (4+ chars)"
           value={pin}
           maxLength={20}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
           onChange={event => setPin(event.target.value)}
         />
         <button
