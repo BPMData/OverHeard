@@ -195,3 +195,21 @@ describe('ConversationMode Lecture mode', () => {
     expect(screen.getByLabelText('Side A name')).toBeTruthy();
   });
 });
+
+it('does not pair a late interim translation with newer English speech', async () => {
+  let finishOld!: (value: string) => void;
+  const translate = vi.fn(() => new Promise<string>(resolve => { finishOld = resolve; }));
+  render(<ConversationMode active fontSize={32} isDark translate={translate}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  const rec = FakeRecognition.instances[0];
+  await act(async () => rec.onresult?.({ resultIndex: 0,
+    results: [{ isFinal: false, 0: { transcript: 'The old sentence has six words' } }] }));
+  expect(translate).toHaveBeenCalledTimes(1);
+  await act(async () => rec.onresult?.({ resultIndex: 0,
+    results: [{ isFinal: false, 0: { transcript: 'A new sentence' } }] }));
+  await act(async () => finishOld('Late translation of old English'));
+  expect(screen.getByText('A new sentence')).toBeTruthy();
+  expect(screen.queryByText('Late translation of old English')).toBeNull();
+});

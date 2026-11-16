@@ -25,7 +25,7 @@ interface PipSubtitlePortalProps {
   onClosePip: () => void;
   isDark: boolean;
   isListening: boolean;
-  onToggleListening: () => void;
+  onToggleListening?: () => void;
   fontSize: number;
   onAdjustFont: (delta: number) => void;
   selectedLangs: LanguageCode[];
@@ -60,7 +60,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
     : currentSegment?.english || '';
 
   const translationFor = (code: LanguageCode): string => {
-    if (isSpeaking && liveTranslations[code]) return liveTranslations[code];
+    if (isSpeaking) return liveTranslations[code] || 'Translating…';
     if (!currentSegment) return '';
     return (
       currentSegment.translations[code] ||
@@ -99,7 +99,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             <WhiteboatIcon app="overheard" size={18} />
             <span>OverHeard</span>
           </span>
-          <button
+          {onToggleListening && <button
             type="button"
             onClick={onToggleListening}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
@@ -119,7 +119,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                 <span>Start Mic</span>
               </>
             )}
-          </button>
+          </button>}
         </div>
 
         {/* Line toggles: pick which lines (English and/or languages) to show, up to MAX_PIP_LINES */}
@@ -208,7 +208,8 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                     <span className="text-slate-400 dark:text-slate-600 text-base">
                       {isListening
                         ? 'Listening for teacher speech…'
-                        : 'Press Start Mic to caption over your slides. Hover for controls.'}
+                        : onToggleListening ? 'Press Start Mic to caption over your slides. Hover for controls.'
+                          : 'Waiting for lecture captions…'}
                     </span>
                   )}
                 </div>

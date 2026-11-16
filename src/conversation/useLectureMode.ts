@@ -7,6 +7,7 @@ import {
   type PackProgress,
 } from '../onDevice';
 import type { ConversationLanguage, LanguageCode } from '../types';
+import type { LectureEntry } from './lectureState';
 import {
   createLectureEntry,
   lectureCsv,
@@ -18,6 +19,7 @@ import { useLectureSpeech } from './useLectureSpeech';
 
 const LIVE_DEBOUNCE_MS = 450;
 const LIVE_WORD_STEP = 6;
+const NO_LIVE_TRANSLATIONS: Partial<Record<LanguageCode, string>> = {};
 
 export interface UseLectureModeOptions {
   active: boolean;
@@ -43,7 +45,9 @@ export function useLectureMode({
   onPackProgress,
 }: UseLectureModeOptions) {
   const [entries, dispatch] = useReducer(lectureReducer, undefined, loadLectureEntries);
-  const [liveTranslations, setLiveTranslations] = useState<Partial<Record<LanguageCode, string>>>({});
+  const [liveResult, setLiveResult] = useState<{ english: string; translations: Partial<Record<LanguageCode, string>> }>({
+    english: '', translations: NO_LIVE_TRANSLATIONS,
+  });
   const [uiError, setUiError] = useState('');
 
   const selectedLangsRef = useRef(selectedLangs);
@@ -55,6 +59,7 @@ export function useLectureMode({
   const liveClearedAtSeqRef = useRef(0);
   const liveAppliedSeqRef = useRef<Record<string, number>>({});
   const inFlightRef = useRef<Set<string>>(new Set());
+  const generation = useRef(0);
 
   const clearLiveTranslation = useCallback(() => {
     if (liveTimerRef.current !== null) {
@@ -63,7 +68,7 @@ export function useLectureMode({
     }
     liveClearedAtSeqRef.current = liveSeqRef.current;
     liveSentTextRef.current = '';
-    setLiveTranslations({});
+    setLiveResult({ english: '', translations: NO_LIVE_TRANSLATIONS });
   }, []);
 
   const addLine = useCallback(
@@ -80,6 +85,10 @@ export function useLectureMode({
     onFinal: addLine,
     onPermissionDenied,
   });
+  const currentEnglish = useRef('');
+  currentEnglish.current = speech.interim.trim();
+  const liveTranslations = liveResult.english === currentEnglish.current
+    ? liveResult.translations : NO_LIVE_TRANSLATIONS;
 
   // Persist finalized lecture entries locally in the browser until explicitly cleared
   useEffect(() => {
@@ -110,10 +119,12 @@ export function useLectureMode({
       for (const code of selectedLangsRef.current) {
         void translate(text, code, 'en').then(
           (translation) => {
+            if (currentEnglish.current !== text) return;
             if (seq <= liveClearedAtSeqRef.current) return;
             if (seq < (liveAppliedSeqRef.current[code] ?? 0)) return;
             liveAppliedSeqRef.current[code] = seq;
-            setLiveTranslations((prev) => ({ ...prev, [code]: translation }));
+            setLiveResult((prev) => ({ english: text,
+              translations: { ...(prev.english === text ? prev.translations : {}), [code]: translation } }));
           },
           () => {
             // Interim streaming is best-effort; finalized rows record unavailable state
@@ -159,12 +170,15 @@ export function useLectureMode({
         const key = `${entry.id}:${code}`;
         if (inFlightRef.current.has(key)) continue;
         inFlightRef.current.add(key);
+        const startedGeneration = generation.current;
         void translate(entry.english, code, 'en').then(
           (translation) => {
+            if (generation.current !== startedGeneration) return;
             inFlightRef.current.delete(key);
             dispatch({ type: 'resolve', id: entry.id, lang: code, translation });
           },
           () => {
+            if (generation.current !== startedGeneration) return;
             inFlightRef.current.delete(key);
             dispatch({ type: 'resolve', id: entry.id, lang: code, translation: null });
           },
@@ -192,11 +206,21 @@ export function useLectureMode({
 
   const clear = useCallback(() => {
     if (window.confirm('Clear the entire lecture transcript?')) {
+      generation.current++;
       inFlightRef.current.clear();
       clearLiveTranslation();
       dispatch({ type: 'clear' });
     }
   }, [clearLiveTranslation]);
+
+  const replace = useCallback((entries: LectureEntry[]) => {
+    speech.stop();
+    generation.current++;
+    clearLiveTranslation();
+    inFlightRef.current.clear();
+    dispatch({ type: 'replace', entries: entries.map(entry => ({ ...entry,
+      id: crypto.randomUUID(), failedLangs: {} })) });
+  }, [speech.stop, clearLiveTranslation]);
 
   const exportCsv = useCallback(() => {
     const url = URL.createObjectURL(
@@ -219,6 +243,7 @@ export function useLectureMode({
     start,
     stop,
     clear,
+    replace,
     exportCsv,
   };
 }

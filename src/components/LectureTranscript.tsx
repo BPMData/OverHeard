@@ -13,7 +13,7 @@ interface LectureTranscriptProps {
   speechLocal: boolean | null;
   interim: string;
   liveTranslations: Partial<Record<LanguageCode, string>>;
-  onAddLine: (text: string) => void;
+  onAddLine?: (text: string) => void;
 }
 
 function formatLectureTime(timestamp: number): string {
@@ -101,8 +101,8 @@ export function LectureTranscript({
           {entries.length === 0 && !hasInterim && (
             <div className="lecture-empty-cell">
               <p className="conversation-empty">
-                Start lecture or type a line below. Spoken English and live translations stay saved
-                here in side-by-side columns until you clear them.
+                {onAddLine ? 'Start lecture or type a line below. Spoken English and live translations stay saved here in side-by-side columns until you clear them.'
+                  : 'Waiting for your teacher. Captions will appear here as the lecture begins.'}
               </p>
             </div>
           )}
@@ -222,10 +222,11 @@ export function LectureTranscript({
           className={`conversation-listening ${isListening ? 'conversation-pulse' : ''}`}
           style={{ color: isListening ? (isDark ? ENGLISH_CAPTION_COLOR : '#0F172A') : undefined }}
         >
-          {isListening ? 'Listening continuously in English…' : 'Lecture stopped'}{' '}
-          {isListening && <small>🎙 {speechLocal ? 'local' : 'cloud'}</small>}
+          {onAddLine ? (isListening ? 'Listening continuously in English…' : 'Lecture stopped')
+            : (isListening ? 'Teacher is speaking · Live captions' : 'Waiting for teacher to resume')}{' '}
+          {isListening && onAddLine && <small>🎙 {speechLocal ? 'local' : 'cloud'}</small>}
         </div>
-        <details>
+        {onAddLine && <details>
           <summary>Type a line</summary>
           <form
             onSubmit={(e) => {
@@ -245,7 +246,7 @@ export function LectureTranscript({
               Send
             </button>
           </form>
-        </details>
+        </details>}
       </footer>
     </>
   );

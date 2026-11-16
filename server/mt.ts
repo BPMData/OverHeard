@@ -175,6 +175,7 @@ export function createMachineTranslator({
   // LRU-ish cache: interim chunks repeat a lot, and the final sentence
   // usually equals the last interim chunk.
   const cache = new Map<string, string>();
+  const inFlight = new Map<string, Promise<{ translation: string; provider: MtProvider }>>();
   const cacheGet = (key: string) => {
     const hit = cache.get(key);
     if (hit !== undefined) {
@@ -203,50 +204,57 @@ export function createMachineTranslator({
       const key = `${chain[0]}\u0000${source}\u0000${code}\u0000${text}`;
       const cached = cacheGet(key);
       if (cached !== undefined) return { translation: cached, provider: 'cache' };
+      const pending = inFlight.get(key);
+      if (pending) return pending;
 
-      const start = now();
-      const ready = chain.filter((p) => (cooldownUntil.get(p) ?? 0) <= start);
-      // If everything is cooling down, try them all anyway rather than fail outright.
-      const order = ready.length > 0 ? ready : chain;
+      const work = (async () => {
+        const start = now();
+        const ready = chain.filter((p) => (cooldownUntil.get(p) ?? 0) <= start);
+        // If everything is cooling down, try them all anyway rather than fail outright.
+        const order = ready.length > 0 ? ready : chain;
 
-      let lastError: unknown;
-      for (const [index, provider] of order.entries()) {
-        try {
-          const call = callProvider(provider, text, code, source);
-          const isLast = index === order.length - 1;
-          const translation = await (isLast ? call : withTimeout(call, timeoutMs, provider));
-          if (cooldownUntil.has(provider)) {
-            cooldownUntil.delete(provider);
-            log.log(`[translate] ${provider} is working again`);
-          }
-          cacheSet(key, translation);
-          return { translation, provider };
-        } catch (error) {
-          lastError = error;
-          if (isBenchingError(error)) {
-            if ((cooldownUntil.get(provider) ?? 0) <= start) {
-              const reason =
-                error instanceof ProviderTimeoutError
-                  ? 'was too slow'
-                  : error instanceof ProviderBudgetError
-                    ? 'hit its daily budget'
-                    : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
+        let lastError: unknown;
+        for (const [index, provider] of order.entries()) {
+          try {
+            const call = callProvider(provider, text, code, source);
+            const isLast = index === order.length - 1;
+            const translation = await (isLast ? call : withTimeout(call, timeoutMs, provider));
+            if (cooldownUntil.has(provider)) {
+              cooldownUntil.delete(provider);
+              log.log(`[translate] ${provider} is working again`);
+            }
+            cacheSet(key, translation);
+            return { translation, provider };
+          } catch (error) {
+            lastError = error;
+            if (isBenchingError(error)) {
+              if ((cooldownUntil.get(provider) ?? 0) <= start) {
+                const reason =
+                  error instanceof ProviderTimeoutError
+                    ? 'was too slow'
+                    : error instanceof ProviderBudgetError
+                      ? 'hit its daily budget'
+                      : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
+                log.warn(
+                  `[translate] ${provider} ${reason}; skipping it for ${
+                    cooldownMs / 60_000
+                  } min`
+                );
+              }
+              cooldownUntil.set(provider, now() + cooldownMs);
+            } else {
               log.warn(
-                `[translate] ${provider} ${reason}; skipping it for ${
-                  cooldownMs / 60_000
-                } min`
+                `[translate] ${provider} failed, trying next:`,
+                error instanceof Error ? error.message : error
               );
             }
-            cooldownUntil.set(provider, now() + cooldownMs);
-          } else {
-            log.warn(
-              `[translate] ${provider} failed, trying next:`,
-              error instanceof Error ? error.message : error
-            );
           }
         }
-      }
-      throw lastError instanceof Error ? lastError : new Error('All MT providers failed');
+        throw lastError instanceof Error ? lastError : new Error('All MT providers failed');
+      })();
+      inFlight.set(key, work);
+      try { return await work; }
+      finally { inFlight.delete(key); }
     },
   };
 }

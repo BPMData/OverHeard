@@ -26,12 +26,15 @@ export function createLectureEntry(english: string, timestamp = Date.now()): Lec
 }
 
 export type LectureAction =
+  | { type: 'replace'; entries: LectureEntry[] }
   | { type: 'add'; entry: LectureEntry }
   | { type: 'resolve'; id: string; lang: LanguageCode; translation: string | null }
   | { type: 'clear' };
 
 export function lectureReducer(entries: LectureEntry[], action: LectureAction): LectureEntry[] {
   switch (action.type) {
+    case 'replace':
+      return action.entries;
     case 'clear':
       return [];
     case 'add':

@@ -29,6 +29,9 @@ import {
 import { LectureTranscript } from './LectureTranscript';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import './ConversationMode.css';
+import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
+import { LectureFiles } from '../rooms/LectureFiles';
+import { LecturePip } from '../rooms/LecturePip';
 
 interface Props {
   active: boolean;
@@ -45,6 +48,7 @@ interface Props {
   initialLanguage?: ConversationLanguage;
   selectedLangs?: LanguageCode[];
   onOpenLanguages?: () => void;
+  onSetLanguages?: (languages: LanguageCode[]) => void;
   mtPreference: string;
   translatorPicker?: React.ReactNode;
   onAdjustFont?: (delta: number) => void;
@@ -72,6 +76,7 @@ export function ConversationMode({
   initialLanguage,
   selectedLangs,
   onOpenLanguages,
+  onSetLanguages,
   mtPreference,
   translatorPicker,
   onAdjustFont,
@@ -81,7 +86,7 @@ export function ConversationMode({
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
   const targetLangs: LanguageCode[] =
-    selectedLangs && selectedLangs.length > 0
+    selectedLangs
       ? selectedLangs
       : initialLanguage && initialLanguage !== 'en'
         ? [initialLanguage]
@@ -126,6 +131,10 @@ export function ConversationMode({
     onPermissionDenied,
     onPackProgress,
   });
+  const lectureState = { entries: lecture.entries, selectedLangs: targetLangs,
+    interim: active && isLecture ? lecture.speech.interim : '',
+    liveTranslations: lecture.liveTranslations,
+    isListening: active && isLecture && lecture.speech.isListening };
   useEffect(() => {
     if (active && !isLecture && settings.manualTurns && speech.isListening)
       nextButton.current?.focus();
@@ -491,6 +500,12 @@ export function ConversationMode({
             >
               Export CSV
             </button>
+            <LectureFiles state={lectureState} onImport={value => {
+              lecture.replace(value.entries);
+              onSetLanguages?.(value.selectedLangs);
+            }} />
+            <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
+              onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
           </>
         )}
         <button
@@ -534,6 +549,7 @@ export function ConversationMode({
           <span aria-hidden="true">← </span>Back to Listening Mode
         </button>
       </div>
+      <TeacherRoomControls state={lectureState} visible={isLecture} />
       {isLecture ? (
         <>
           <p className="conversation-help">

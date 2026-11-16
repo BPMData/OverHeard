@@ -13,6 +13,36 @@
 
 ## Open
 
+### Google Drive lecture saves (pinned — after shared rooms)
+
+Deferred intentionally. First ship and try the shared lecture rooms and local JSON
+import/export documented in [`ROOMS.md`](ROOMS.md). Revisit the Google Cloud setup in the
+earlier AllAboard Drive chat, where the configuration history and school-account hurdles
+are already documented. Use AllAboard as a reference; make changes only in OverHeard.
+
+- [ ] Add teacher-only **Save to Google Drive** and **Open from Google Drive** using the
+      same versioned lecture JSON format as local import/export.
+- [ ] Let the teacher choose an existing folder or create one, with **OverHeard_Saves**
+      as the suggested name (editable, e.g. `saved_translations`). Remember the selected
+      folder and saved file per Google account; offer updating the existing file or
+      saving a separate copy.
+- [ ] Review AllAboard's `src/lib/googleDrive.ts` and its save/open/folder dialogs as the
+      implementation reference. Preserve its `drive.file` scope approach; do not request
+      broad Drive access. Teacher credentials and live room ownership must never be
+      included in saved files. Import restores lesson content into the current/new room.
+- [ ] Walk through the Google Cloud Console prerequisites before implementation: project
+      and enabled APIs, consent/branding and audience, OAuth web client, authorized
+      OverHeard origins, Picker/API key configuration and restrictions, development and
+      deployed URLs, and school-domain access. Verify what can be reused from AllAboard
+      versus what needs OverHeard-specific configuration; do not copy secrets into Git.
+- [ ] Test sign-in, cancellation/expired authorization, folder creation, save/update/save
+      as, selecting and importing a saved lecture, and switching accounts. Keep local JSON
+      import/export usable without Google sign-in.
+
+Durable saves to OverHeard's own server are a separate future item. Live room state is
+currently temporary and is discarded on a server restart; Google Drive saves would not
+by themselves provide multi-instance room synchronization.
+
 ### Test a dedicated Android tablet for Grandpa (Fully Kiosk Browser)
 
 Goal: a tablet that only runs OverHeard Conversation mode, survives reboots, and needs no
@@ -76,6 +106,8 @@ sooner rather than later, but carefully:
   teachers, since the server mostly waits on other services. If you raise it, each instance
   keeps its own rate limits, translation cache, daily spending guards and "benched translator"
   list, so the guards become *per instance*. Divide the daily caps accordingly.
+  Shared lecture rooms additionally require a shared room store and pub/sub before raising
+  this limit; otherwise teachers and students can land on different instances.
 - Watch the `[usage]` lines in the Cloud Run logs: active tabs, requests per translator,
   throttling, and how much of today's spending guards are used.
 - If the link spreads beyond people you trust, add an access code. Anyone with the URL can
