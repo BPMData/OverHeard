@@ -2051,6 +2051,8 @@ export default function App() {
           isDark={isDark}
           translate={translateConversation}
           initialLanguage={selectedLangs[0] ?? 'es'}
+          selectedLangs={selectedLangs}
+          onOpenLanguages={() => setIsLangModalOpen(true)}
           mtPreference={effectiveMtPreference}
           translatorPicker={translatorPicker}
           permissionBanner={permissionBanner}

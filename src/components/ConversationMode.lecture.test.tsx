@@ -1,0 +1,197 @@
+// @vitest-environment jsdom
+import React from 'react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ConversationMode } from './ConversationMode';
+
+type ResultEvent = {
+  resultIndex: number;
+  results: Array<{ isFinal: boolean; 0: { transcript: string } }>;
+};
+
+class FakeRecognition {
+  static instances: FakeRecognition[] = [];
+  lang = '';
+  continuous = false;
+  interimResults = false;
+  processLocally?: boolean;
+  onstart: (() => void) | null = null;
+  onresult: ((event: ResultEvent) => void) | null = null;
+  onerror: ((event: { error: string }) => void) | null = null;
+  onend: (() => void) | null = null;
+  start = vi.fn(() => this.onstart?.());
+  stop = vi.fn();
+  abort = vi.fn();
+  constructor() {
+    FakeRecognition.instances.push(this);
+  }
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  localStorage.clear();
+  FakeRecognition.instances = [];
+  vi.stubGlobal('SpeechRecognition', FakeRecognition);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+describe('ConversationMode Lecture mode', () => {
+  it('switches into Lecture mode, streams live English -> multi-language columns, keeps full history, and persists locally', async () => {
+    const translate = vi.fn(async (text: string, target: string, source: string) => {
+      return `${source}>${target}:${text}`;
+    });
+    const onOpenLanguages = vi.fn();
+    const onExit = vi.fn();
+
+    const { rerender } = render(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={translate}
+        selectedLangs={['es', 'pt']}
+        onOpenLanguages={onOpenLanguages}
+        mtPreference="auto"
+        onExit={onExit}
+        onPermissionDenied={vi.fn()}
+      />,
+    );
+
+    // Switch to Lecture sub-mode
+    fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+    expect(screen.queryByLabelText('Side A name')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Languages (es, pt)' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Languages (es, pt)' }));
+    expect(onOpenLanguages).toHaveBeenCalledTimes(1);
+
+    // Start continuous English lecture
+    fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+    expect(FakeRecognition.instances).toHaveLength(1);
+    const rec = FakeRecognition.instances[0];
+    expect(rec.lang).toBe('en-US');
+    expect(rec.continuous).toBe(true);
+    expect(rec.interimResults).toBe(true);
+    expect(screen.getByRole('status').textContent).toContain('Listening continuously in English');
+
+    // Interim speech streams live Spanish and Portuguese columns before sentence finishes
+    await act(async () => {
+      rec.onresult?.({
+        resultIndex: 0,
+        results: [{ isFinal: false, 0: { transcript: 'Today we will study gravity' } }],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(screen.getByText('Speaking live…')).toBeTruthy();
+    expect(screen.getByText('en>es:Today we will study gravity')).toBeTruthy();
+    expect(screen.getByText('en>pt:Today we will study gravity')).toBeTruthy();
+
+    // Finalize first sentence, then speak and finalize a second sentence: both remain permanently visible
+    await act(async () => {
+      rec.onresult?.({
+        resultIndex: 0,
+        results: [{ isFinal: true, 0: { transcript: 'First lecture sentence' } }],
+      });
+    });
+    await act(async () => {
+      rec.onresult?.({
+        resultIndex: 0,
+        results: [{ isFinal: true, 0: { transcript: 'Second lecture sentence' } }],
+      });
+    });
+
+    await act(async () => {});
+    expect(screen.getByText('First lecture sentence')).toBeTruthy();
+    expect(screen.getByText('en>es:First lecture sentence')).toBeTruthy();
+    expect(screen.getByText('en>pt:First lecture sentence')).toBeTruthy();
+    expect(screen.getByText('Second lecture sentence')).toBeTruthy();
+    expect(screen.getByText('en>es:Second lecture sentence')).toBeTruthy();
+    expect(screen.getByText('en>pt:Second lecture sentence')).toBeTruthy();
+
+    // Adding a third language mid-lecture automatically populates the new column for stored lines
+    rerender(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={translate}
+        selectedLangs={['es', 'pt', 'fr']}
+        onOpenLanguages={onOpenLanguages}
+        mtPreference="auto"
+        onExit={onExit}
+        onPermissionDenied={vi.fn()}
+      />,
+    );
+    await act(async () => {});
+    expect(screen.getByText('en>fr:First lecture sentence')).toBeTruthy();
+    expect(screen.getByText('en>fr:Second lecture sentence')).toBeTruthy();
+
+    // Unmount and remount: stored lecture entries and sub-mode choice persist in localStorage
+    cleanup();
+    render(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={translate}
+        selectedLangs={['es', 'pt']}
+        mtPreference="auto"
+        onExit={onExit}
+        onPermissionDenied={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('First lecture sentence')).toBeTruthy();
+    expect(screen.getByText('Second lecture sentence')).toBeTruthy();
+
+    // Exit stops lecture cleanly and calls onExit
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Listening Mode' }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+
+    // Confirm Clear lecture removes rows
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear lecture' }));
+    expect(screen.queryByText('First lecture sentence')).toBeNull();
+  });
+
+  it('allows typing a line directly into the permanent lecture log and stops mic when switching to Two-way', async () => {
+    const translate = vi.fn(async (text: string, target: string) => `${target}:${text}`);
+    render(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={translate}
+        selectedLangs={['es', 'pt']}
+        mtPreference="auto"
+        onExit={vi.fn()}
+        onPermissionDenied={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+    const rec = FakeRecognition.instances[0];
+
+    fireEvent.change(screen.getByLabelText('Lecture line text'), {
+      target: { value: 'Quiz starts at noon' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await act(async () => {});
+
+    expect(screen.getByText('Quiz starts at noon')).toBeTruthy();
+    expect(screen.getByText('es:Quiz starts at noon')).toBeTruthy();
+    expect(screen.getByText('pt:Quiz starts at noon')).toBeTruthy();
+
+    // Switching back to Two-way stops continuous lecture speech
+    fireEvent.click(screen.getByRole('button', { name: 'Two-way' }));
+    expect(rec.abort).toHaveBeenCalled();
+    expect(screen.getByLabelText('Side A name')).toBeTruthy();
+  });
+});

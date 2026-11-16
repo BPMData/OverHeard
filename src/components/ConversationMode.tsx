@@ -1,9 +1,9 @@
 import { useWakeLock } from '../wakeLock';
 import { withMicAccess, type MicBlock } from '../micPermission';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
+import { DEFAULT_LANGUAGES, LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
-import type { ConversationLanguage } from '../types';
+import type { ConversationLanguage, LanguageCode } from '../types';
 import {
   createMessage,
   correctMessage,
@@ -13,6 +13,7 @@ import {
   type Side,
 } from '../conversation/state';
 import { useConversationSpeech } from '../conversation/useConversationSpeech';
+import { useLectureMode } from '../conversation/useLectureMode';
 import {
   isOnDeviceTranslationSupported,
   prepareOnDeviceConversation,
@@ -23,7 +24,9 @@ import {
   loadConversationSettings,
   parseConversationCsv,
   saveConversationSettings,
+  type ConversationSubMode,
 } from './conversationSettings';
+import { LectureTranscript } from './LectureTranscript';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import './ConversationMode.css';
 
@@ -40,6 +43,8 @@ interface Props {
   onStartAttempt?: () => void;
   onPermissionDenied: (reason?: MicBlock) => void;
   initialLanguage?: ConversationLanguage;
+  selectedLangs?: LanguageCode[];
+  onOpenLanguages?: () => void;
   mtPreference: string;
   translatorPicker?: React.ReactNode;
   onAdjustFont?: (delta: number) => void;
@@ -65,6 +70,8 @@ export function ConversationMode({
   onStartAttempt,
   onPermissionDenied,
   initialLanguage,
+  selectedLangs,
+  onOpenLanguages,
   mtPreference,
   translatorPicker,
   onAdjustFont,
@@ -73,6 +80,13 @@ export function ConversationMode({
   packPanel,
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
+  const targetLangs: LanguageCode[] =
+    selectedLangs && selectedLangs.length > 0
+      ? selectedLangs
+      : initialLanguage && initialLanguage !== 'en'
+        ? [initialLanguage]
+        : DEFAULT_LANGUAGES;
+  const isLecture = settings.mode === 'lecture';
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const [sender, setSender] = useState<Side>('a');
   const [text, setText] = useState('');
@@ -103,19 +117,29 @@ export function ConversationMode({
         `Speech recognition doesn't support ${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name ?? 'English'} in this browser. You can type a message below.`,
       ),
   });
+  const lecture = useLectureMode({
+    active: active && isLecture,
+    selectedLangs: targetLangs,
+    mtPreference,
+    translate,
+    onStartAttempt,
+    onPermissionDenied,
+    onPackProgress,
+  });
   useEffect(() => {
-    if (active && settings.manualTurns && speech.isListening) nextButton.current?.focus();
-  }, [active, settings.manualTurns, speech.isListening]);
+    if (active && !isLecture && settings.manualTurns && speech.isListening)
+      nextButton.current?.focus();
+  }, [active, isLecture, settings.manualTurns, speech.isListening]);
   useWakeLock(active);
   useEffect(() => saveConversationSettings(settings), [settings]);
   useEffect(() => {
-    if (!active) {
+    if (!active || isLecture) {
       speech.stop();
       window.speechSynthesis?.cancel();
     }
-  }, [active, speech.stop]);
+  }, [active, isLecture, speech.stop]);
   useEffect(() => {
-    if (!active) return;
+    if (!active || isLecture) return;
     const handler = (event: KeyboardEvent) => {
       if (event.code === 'Space' && settings.manualTurns && speech.isListening) {
         const target = event.target;
@@ -200,9 +224,19 @@ export function ConversationMode({
   }, []);
   const exit = () => {
     speech.stop();
+    lecture.stop();
     window.speechSynthesis?.cancel();
     if (document.fullscreenElement === root.current) void document.exitFullscreen();
     onExit();
+  };
+  const switchSubMode = (nextMode: ConversationSubMode) => {
+    if (nextMode === settings.mode) return;
+    speech.stop();
+    lecture.stop();
+    window.speechSynthesis?.cancel();
+    setUiError('');
+    lecture.setUiError('');
+    setSettings((s) => ({ ...s, mode: nextMode }));
   };
   const start = () => {
     onStartAttempt?.();
@@ -305,107 +339,160 @@ export function ConversationMode({
           <WhiteboatIcon app="overheard" size={22} />
           <span>OverHeard</span>
         </span>
-        {(['a', 'b'] as const).map((side) => (
-          <fieldset key={side}>
-            <legend>Side {side.toUpperCase()}</legend>
-            <input
-              aria-label={`Side ${side.toUpperCase()} name`}
-              value={settings[side].name}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, [side]: { ...s[side], name: e.target.value } }))
-              }
-            />
-            <select
-              aria-label={`Side ${side.toUpperCase()} language`}
-              value={settings[side].lang}
-              disabled={speech.isListening}
-              onChange={(e) =>
-                setSettings((s) => ({
-                  ...s,
-                  [side]: { ...s[side], lang: e.target.value as ConversationLanguage },
-                }))
-              }
+        <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
+          <button
+            type="button"
+            aria-pressed={!isLecture}
+            className={!isLecture ? 'is-active' : ''}
+            onClick={() => switchSubMode('two-way')}
+          >
+            Two-way
+          </button>
+          <button
+            type="button"
+            aria-pressed={isLecture}
+            className={isLecture ? 'is-active' : ''}
+            onClick={() => switchSubMode('lecture')}
+          >
+            Lecture
+          </button>
+        </div>
+        {!isLecture ? (
+          <>
+            {(['a', 'b'] as const).map((side) => (
+              <fieldset key={side}>
+                <legend>Side {side.toUpperCase()}</legend>
+                <input
+                  aria-label={`Side ${side.toUpperCase()} name`}
+                  value={settings[side].name}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, [side]: { ...s[side], name: e.target.value } }))
+                  }
+                />
+                <select
+                  aria-label={`Side ${side.toUpperCase()} language`}
+                  value={settings[side].lang}
+                  disabled={speech.isListening}
+                  onChange={(e) =>
+                    setSettings((s) => ({
+                      ...s,
+                      [side]: { ...s[side], lang: e.target.value as ConversationLanguage },
+                    }))
+                  }
+                >
+                  <option value="en">English</option>
+                  {SUPPORTED_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                <button onClick={() => speech.setTurn(side)}>
+                  {settings[side].name === 'Me'
+                    ? 'My turn'
+                    : `${settings[side].name || side.toUpperCase()}'s turn`}
+                </button>
+              </fieldset>
+            ))}
+            <label>
+              Turn-taking
+              <select
+                value={settings.manualTurns ? 'manual' : 'auto'}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, manualTurns: e.target.value === 'manual' }))
+                }
+              >
+                <option value="auto">Hands-free</option>
+                <option value="manual">Manual · Spacebar</option>
+              </select>
+            </label>
+            {!settings.manualTurns && (
+              <label>
+                Switch after{' '}
+                <select
+                  value={settings.switchAfterMs}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))
+                  }
+                >
+                  {[1000, 1500, 2500, 3500, 5000].map((ms) => (
+                    <option key={ms} value={ms}>
+                      {ms / 1000} s
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label>
+              Bubbles on{' '}
+              <select
+                value={settings.placement}
+                onChange={(e) =>
+                  setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
+                }
+              >
+                <option value="speaker">Speaker's side</option>
+                <option value="reader">Reader's side</option>
+              </select>
+            </label>
+            {translatorPicker}
+            <button
+              className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
+              onClick={speech.isListening ? speech.stop : start}
+              disabled={!speech.supported}
             >
-              <option value="en">English</option>
-              {SUPPORTED_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-            <button onClick={() => speech.setTurn(side)}>
-              {settings[side].name === 'Me'
-                ? 'My turn'
-                : `${settings[side].name || side.toUpperCase()}'s turn`}
+              {speech.isListening ? 'Pause conversation' : 'Start conversation'}
             </button>
-          </fieldset>
-        ))}
-        <label>
-          Turn-taking
-          <select
-            value={settings.manualTurns ? 'manual' : 'auto'}
-            onChange={(e) =>
-              setSettings((s) => ({ ...s, manualTurns: e.target.value === 'manual' }))
-            }
-          >
-            <option value="auto">Hands-free</option>
-            <option value="manual">Manual · Spacebar</option>
-          </select>
-        </label>
-        {!settings.manualTurns && (
-          <label>
-            Switch after{' '}
-            <select
-              value={settings.switchAfterMs}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))
-              }
+            <button
+              onClick={() => {
+                if (window.confirm('Clear the whole conversation?')) dispatch({ type: 'clear' });
+              }}
             >
-              {[1000, 1500, 2500, 3500, 5000].map((ms) => (
-                <option key={ms} value={ms}>
-                  {ms / 1000} s
-                </option>
-              ))}
-            </select>
-          </label>
+              Clear conversation
+            </button>
+            <button onClick={exportCsv}>Export CSV</button>
+            <button onClick={() => fileInput.current?.click()}>Import CSV</button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".csv,text/csv"
+              aria-label="Import CSV file"
+              hidden
+              onChange={importCsv}
+            />
+          </>
+        ) : (
+          <>
+            {onOpenLanguages && (
+              <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
+                Languages ({targetLangs.join(', ')})
+              </button>
+            )}
+            {translatorPicker}
+            <button
+              type="button"
+              className={`conversation-start ${lecture.speech.isListening ? 'is-listening' : ''}`}
+              onClick={lecture.speech.isListening ? lecture.stop : lecture.start}
+              disabled={!lecture.speech.supported}
+            >
+              {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
+            </button>
+            <button
+              type="button"
+              onClick={lecture.clear}
+              disabled={lecture.entries.length === 0 && !lecture.speech.interim}
+            >
+              Clear lecture
+            </button>
+            <button
+              type="button"
+              onClick={lecture.exportCsv}
+              disabled={lecture.entries.length === 0}
+            >
+              Export CSV
+            </button>
+          </>
         )}
-        <label>
-          Bubbles on{' '}
-          <select
-            value={settings.placement}
-            onChange={(e) =>
-              setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
-            }
-          >
-            <option value="speaker">Speaker's side</option>
-            <option value="reader">Reader's side</option>
-          </select>
-        </label>
-        {translatorPicker}
-        <button
-          className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
-          onClick={speech.isListening ? speech.stop : start}
-          disabled={!speech.supported}
-        >
-          {speech.isListening ? 'Pause conversation' : 'Start conversation'}
-        </button>
-        <button
-          onClick={() => {
-            if (window.confirm('Clear the whole conversation?')) dispatch({ type: 'clear' });
-          }}
-        >
-          Clear conversation
-        </button>
-        <button onClick={exportCsv}>Export CSV</button>
-        <button onClick={() => fileInput.current?.click()}>Import CSV</button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".csv,text/csv"
-          aria-label="Import CSV file"
-          hidden
-          onChange={importCsv}
-        />
         <button
           onClick={() => {
             if (fullscreen) void document.exitFullscreen();
@@ -427,136 +514,169 @@ export function ConversationMode({
             </button>
           </>
         )}
-        <label>
-          <input
-            type="checkbox"
-            checked={settings.readAloud}
-            onChange={(e) => {
-              setSettings((s) => ({ ...s, readAloud: e.target.checked }));
-              if (!e.target.checked) {
-                window.speechSynthesis?.cancel();
-                speech.resume();
-              }
-            }}
-          />
-          Read aloud
-        </label>
+        {!isLecture && (
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.readAloud}
+              onChange={(e) => {
+                setSettings((s) => ({ ...s, readAloud: e.target.checked }));
+                if (!e.target.checked) {
+                  window.speechSynthesis?.cancel();
+                  speech.resume();
+                }
+              }}
+            />
+            Read aloud
+          </label>
+        )}
         <button type="button" className="conversation-exit" onClick={exit}>
           <span aria-hidden="true">← </span>Back to Listening Mode
         </button>
       </div>
-      <p className="conversation-help">
-        Each message uses the current speaker’s name.{' '}
-        {settings.manualTurns
-          ? 'Press Space or click Next speaker to pass the turn.'
-          : 'Pause to send and pass the turn.'}{' '}
-        Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
-      </p>
-      {packPanel}
-      {(uiError || speech.error || !speech.supported) && (
-        <p role="alert">
-          {uiError ||
-            speech.error ||
-            'Speech recognition is unavailable. You can type messages below.'}
-        </p>
-      )}
-      <div
-        className="conversation-thread"
-        ref={thread}
-        role="log"
-        aria-label="Conversation messages"
-        onScroll={() => {
-          const el = thread.current!;
-          following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-          if (following.current) setNewMessage(false);
-        }}
-      >
-        {!messages.length && (
-          <p className="conversation-empty">
-            Start a conversation or type a message. Messages stay here until you clear them.
+      {isLecture ? (
+        <>
+          <p className="conversation-help">
+            Continuous single-speaker English lecture mode. Live translations stream across columns
+            as you speak and stay saved locally until cleared.
           </p>
-        )}
-        {messages.map(renderMessage)}
-        {(speech.draft || speech.interim) && (
-          <article className={`conversation-bubble side-${speech.turn}`}>
-            <small>{settings[speech.turn].name} · speaking…</small>
-            <div
-              dir={direction(settings[speech.turn].lang)}
-              style={{
-                fontSize,
-                ...captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark),
-              }}
-            >
-              {[speech.draft, speech.interim].filter(Boolean).join(' ')}
-            </div>
-          </article>
-        )}
-      </div>
-      {newMessage && (
-        <button
-          className="conversation-new"
-          onClick={() => {
-            following.current = true;
-            if (thread.current) thread.current.scrollTop = thread.current.scrollHeight;
-            setNewMessage(false);
-          }}
-        >
-          ↓ New message
-        </button>
-      )}
-      <footer>
-        <div
-          role="status"
-          className={`conversation-listening ${speech.isListening ? 'conversation-pulse' : ''}`}
-          style={
-            speech.isListening
-              ? captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)
-              : undefined
-          }
-        >
-          {speech.isListening
-            ? `Listening for ${settings[speech.turn].name}…`
-            : 'Conversation stopped'}{' '}
-          {speech.isListening && <small>🎙 {speech.speechLocal ? 'local' : 'cloud'}</small>}
-        </div>
-        {settings.manualTurns && speech.isListening && (
-          <button
-            type="button"
-            ref={nextButton}
-            className="conversation-next-speaker conversation-start"
-            aria-keyshortcuts="Space"
-            onClick={() => speech.setTurn(otherSide(speech.turn))}
-          >
-            Next speaker · {settings[otherSide(speech.turn)].name} <kbd>Space</kbd>
-          </button>
-        )}
-        <details>
-          <summary>Type a message</summary>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(sender, text);
-              setText('');
+          {packPanel}
+          {(uiError || lecture.uiError || lecture.speech.error || !lecture.speech.supported) && (
+            <p role="alert">
+              {uiError ||
+                lecture.uiError ||
+                lecture.speech.error ||
+                'Speech recognition is unavailable. You can type a line below.'}
+            </p>
+          )}
+          <LectureTranscript
+            entries={lecture.entries}
+            selectedLangs={targetLangs}
+            fontSize={fontSize}
+            isDark={isDark}
+            isListening={lecture.speech.isListening}
+            speechLocal={lecture.speech.speechLocal}
+            interim={lecture.speech.interim}
+            liveTranslations={lecture.liveTranslations}
+            onAddLine={lecture.addLine}
+          />
+        </>
+      ) : (
+        <>
+          <p className="conversation-help">
+            Each message uses the current speaker’s name.{' '}
+            {settings.manualTurns
+              ? 'Press Space or click Next speaker to pass the turn.'
+              : 'Pause to send and pass the turn.'}{' '}
+            Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
+          </p>
+          {packPanel}
+          {(uiError || speech.error || !speech.supported) && (
+            <p role="alert">
+              {uiError ||
+                speech.error ||
+                'Speech recognition is unavailable. You can type messages below.'}
+            </p>
+          )}
+          <div
+            className="conversation-thread"
+            ref={thread}
+            role="log"
+            aria-label="Conversation messages"
+            onScroll={() => {
+              const el = thread.current!;
+              following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+              if (following.current) setNewMessage(false);
             }}
           >
-            <select
-              aria-label="Message sender"
-              value={sender}
-              onChange={(e) => setSender(e.target.value as Side)}
+            {!messages.length && (
+              <p className="conversation-empty">
+                Start a conversation or type a message. Messages stay here until you clear them.
+              </p>
+            )}
+            {messages.map(renderMessage)}
+            {(speech.draft || speech.interim) && (
+              <article className={`conversation-bubble side-${speech.turn}`}>
+                <small>{settings[speech.turn].name} · speaking…</small>
+                <div
+                  dir={direction(settings[speech.turn].lang)}
+                  style={{
+                    fontSize,
+                    ...captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark),
+                  }}
+                >
+                  {[speech.draft, speech.interim].filter(Boolean).join(' ')}
+                </div>
+              </article>
+            )}
+          </div>
+          {newMessage && (
+            <button
+              className="conversation-new"
+              onClick={() => {
+                following.current = true;
+                if (thread.current) thread.current.scrollTop = thread.current.scrollHeight;
+                setNewMessage(false);
+              }}
             >
-              <option value="a">{settings.a.name}</option>
-              <option value="b">{settings.b.name}</option>
-            </select>
-            <input
-              aria-label="Message text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type and press Enter"
-            />
-            <button disabled={!text.trim()}>Send</button>
-          </form>
-        </details>
-      </footer>
+              ↓ New message
+            </button>
+          )}
+          <footer>
+            <div
+              role="status"
+              className={`conversation-listening ${speech.isListening ? 'conversation-pulse' : ''}`}
+              style={
+                speech.isListening
+                  ? captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)
+                  : undefined
+              }
+            >
+              {speech.isListening
+                ? `Listening for ${settings[speech.turn].name}…`
+                : 'Conversation stopped'}{' '}
+              {speech.isListening && <small>🎙 {speech.speechLocal ? 'local' : 'cloud'}</small>}
+            </div>
+            {settings.manualTurns && speech.isListening && (
+              <button
+                type="button"
+                ref={nextButton}
+                className="conversation-next-speaker conversation-start"
+                aria-keyshortcuts="Space"
+                onClick={() => speech.setTurn(otherSide(speech.turn))}
+              >
+                Next speaker · {settings[otherSide(speech.turn)].name} <kbd>Space</kbd>
+              </button>
+            )}
+            <details>
+              <summary>Type a message</summary>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  send(sender, text);
+                  setText('');
+                }}
+              >
+                <select
+                  aria-label="Message sender"
+                  value={sender}
+                  onChange={(e) => setSender(e.target.value as Side)}
+                >
+                  <option value="a">{settings.a.name}</option>
+                  <option value="b">{settings.b.name}</option>
+                </select>
+                <input
+                  aria-label="Message text"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Type and press Enter"
+                />
+                <button disabled={!text.trim()}>Send</button>
+              </form>
+            </details>
+          </footer>
+        </>
+      )}
     </div>
   );
 }

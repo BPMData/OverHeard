@@ -7,7 +7,9 @@ import {
   type Participants,
   type Side,
 } from '../conversation/state';
+export type ConversationSubMode = 'two-way' | 'lecture';
 export interface ConversationSettings extends Participants {
+  mode: ConversationSubMode;
   manualTurns: boolean;
   switchAfterMs: number;
   readAloud: boolean;
@@ -19,6 +21,7 @@ export function loadConversationSettings(
   initialLanguage: ConversationLanguage = 'es',
 ): ConversationSettings {
   const defaults: ConversationSettings = {
+    mode: 'two-way',
     a: { name: 'Me', lang: 'en' },
     b: { name: 'Student', lang: initialLanguage },
     manualTurns: false,
@@ -29,6 +32,7 @@ export function loadConversationSettings(
   try {
     const saved = JSON.parse(localStorage.getItem('overheard.conversation') || 'null');
     if (!saved) return defaults;
+    defaults.mode = saved.mode === 'lecture' ? 'lecture' : 'two-way';
     for (const side of ['a', 'b'] as const) {
       if (typeof saved[side]?.name === 'string') defaults[side].name = saved[side].name;
       if (validLanguage(saved[side]?.lang)) defaults[side].lang = saved[side].lang;
