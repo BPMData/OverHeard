@@ -1695,15 +1695,16 @@ export default function App() {
               </div>
             )}
 
-            {/* About / Privacy Modal Button */}
+            {/* How to Use OverHeard / Guide & FAQ Modal Button */}
             <button
               type="button"
               onClick={() => setIsAboutModalOpen(true)}
-              className="p-2 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="About OverHeard and Privacy Statement"
-              title="About OverHeard & Privacy Notice"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+              aria-label="How to use OverHeard: Guide, FAQ, and Privacy"
+              title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
             >
-              <HelpCircle className="w-4 h-4" />
+              <HelpCircle className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+              <span>Guide &amp; FAQ</span>
             </button>
           </div>
         </div>

@@ -27,8 +27,10 @@ import {
   type ConversationSubMode,
 } from './conversationSettings';
 import { LectureTranscript } from './LectureTranscript';
+import { AboutModal } from './AboutModal';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
+import { HelpCircle } from 'lucide-react';
 import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import type { SaveLectureToDriveResult } from '../lib/googleDrive';
 import './ConversationMode.css';
@@ -117,6 +119,7 @@ export function ConversationMode({
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [voicePrefs, persistVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(
     () => targetLangs[0] ?? 'en',
   );
@@ -732,9 +735,21 @@ export function ConversationMode({
             Read aloud
           </label>
         )}
-        <button type="button" className="conversation-exit" onClick={exit}>
-          <span aria-hidden="true">← </span>Back to Listening Mode
-        </button>
+        <span className="inline-flex items-center gap-2" style={{ marginLeft: 'auto' }}>
+          <button type="button" className="conversation-exit" onClick={exit}>
+            <span aria-hidden="true">← </span>Back to Listening Mode
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5"
+            onClick={() => setIsGuideOpen(true)}
+            aria-label="How to use OverHeard: Guide, FAQ, and Privacy"
+            title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Guide &amp; FAQ</span>
+          </button>
+        </span>
       </div>
       <TeacherRoomControls
         state={lectureState}
@@ -918,6 +933,10 @@ export function ConversationMode({
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
+      />
+      <AboutModal
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
       />
     </div>
   );
