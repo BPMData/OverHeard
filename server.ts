@@ -19,6 +19,7 @@ import { intFromEnv } from './server/config.ts';
 import { createUsageTracker, forwardedCount } from './server/usage.ts';
 import { createRateLimiter, type RateLimiter } from './server/rateLimit.ts';
 import { SESSION_HEADER, sessionKey } from './server/clientKeys.ts';
+import { createRoomRouter } from './server/rooms.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -201,6 +202,7 @@ async function startServer() {
   const app = express();
   // Trust only the proxy hops we expect in front of us (Cloud Run's front end is one)
   app.set('trust proxy', TRUST_PROXY_HOPS);
+  app.use('/api/rooms', createRoomRouter().router);
   app.use(express.json({ limit: '16kb' }));
 
   app.get('/api/config', (_req: Request, res: Response) => {

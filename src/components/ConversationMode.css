@@ -9,6 +9,19 @@
   padding: 12px;
   gap: 8px;
 }
+.room-controls, .room-controls form, .room-join {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+.room-controls { padding: 10px; border: 1px solid #64748b; border-radius: 8px; }
+.room-controls input[readonly] { flex: 1; min-width: 180px; }
+.room-controls small { opacity: .75; }
+.room-join input, .room-join button { border: 1px solid #64748b; border-radius: 6px; padding: 6px 9px; }
+.room-join input { width: 160px; background: transparent; }
+.room-join button:disabled { opacity: .5; }
 .conversation-mode[hidden],
 .conversation-mode [hidden] {
   display: none;

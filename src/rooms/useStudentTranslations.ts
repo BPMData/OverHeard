@@ -1,0 +1,62 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { LanguageCode } from '../types';
+import { createStudentTranslator } from './translateStudent';
+import type { RoomSnapshot } from './protocol';
+
+export function useStudentTranslations(snapshot: RoomSnapshot | null, language: LanguageCode | 'en') {
+  const translate = useMemo(createStudentTranslator, []);
+  const results = useRef(new Map<string, string | null>());
+  const pending = useRef(new Set<string>());
+  const [version, refresh] = useState(0);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const keyFor = (text: string) => `${language}\0${text}`;
+
+  // Translate recent lines first, with a bounded queue for late joins and language changes.
+  // A missing teacher translation is pending, not a reason to duplicate its request.
+  useEffect(() => {
+    if (!snapshot || language === 'en') return;
+    for (const entry of [...snapshot.entries].reverse()) {
+      if (pending.current.size >= 3) break;
+      if (entry.translations[language] || (snapshot.teacherOnline && !snapshot.ended &&
+          snapshot.selectedLangs.includes(language) && !entry.failedLangs[language])) continue;
+      const key = keyFor(entry.english);
+      if (results.current.has(key) || pending.current.has(key)) continue;
+      pending.current.add(key);
+      void translate(entry.english, language).then(
+        value => results.current.set(key, value), () => results.current.set(key, null),
+      ).finally(() => {
+        pending.current.delete(key);
+        if (results.current.size > 3000) results.current.delete(results.current.keys().next().value!);
+        if (mounted.current) refresh(value => value + 1);
+      });
+    }
+  }, [snapshot, language, translate, version]);
+
+  const [live, setLive] = useState<{ key: string; text: string } | null>(null);
+  const interim = snapshot?.interim || '';
+  const teacherSupplies = language !== 'en' && !!snapshot?.selectedLangs.includes(language);
+  useEffect(() => {
+    if (!interim || language === 'en' || teacherSupplies) return;
+    let canceled = false;
+    const timer = window.setTimeout(() => {
+      // Same 500-character request bound as the teacher's finalized lecture lines.
+      void translate(interim.slice(0, 500), language).then(text => {
+        if (!canceled) setLive({ key: `${language}\0${interim}`, text });
+      }, () => { /* Interim translation is best effort. Final lines report failures. */ });
+    }, 450);
+    return () => { canceled = true; window.clearTimeout(timer); };
+  }, [interim, language, teacherSupplies, translate]);
+
+  const entries = useMemo(() => snapshot?.entries.map(entry => {
+    if (language === 'en' || entry.translations[language]) return entry;
+    const local = results.current.get(`${language}\0${entry.english}`);
+    return { ...entry, translations: { ...entry.translations, ...(local ? { [language]: local } : {}) },
+      failedLangs: { ...entry.failedLangs, [language]: local === null } };
+  }) || [], [snapshot?.entries, language, version]);
+  const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] ||
+    (live?.key === keyFor(interim) ? live.text : '');
+  return { entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
+    hasFailures: language !== 'en' && entries.some(entry => !entry.translations[language] && entry.failedLangs[language]),
+    retry: () => { for (const [key, result] of results.current) if (result === null) results.current.delete(key); refresh(value => value + 1); } };
+}

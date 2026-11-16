@@ -40,6 +40,7 @@ import {
 import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLine } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
 import { ConversationMode } from './components/ConversationMode';
+import { JoinRoomForm } from './rooms/StudentRoom';
 import { LanguageModal } from './components/LanguageModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { shouldSendImmediately } from './liveTranslation';
@@ -1457,6 +1458,7 @@ export default function App() {
               </button>
             </div>
 
+            <JoinRoomForm />
             {/* Pop Out Captions (Document Picture-in-Picture) */}
             {hasPipApi && (
               <button
@@ -2053,6 +2055,7 @@ export default function App() {
           initialLanguage={selectedLangs[0] ?? 'es'}
           selectedLangs={selectedLangs}
           onOpenLanguages={() => setIsLangModalOpen(true)}
+          onSetLanguages={setSelectedLangs}
           mtPreference={effectiveMtPreference}
           translatorPicker={translatorPicker}
           permissionBanner={permissionBanner}

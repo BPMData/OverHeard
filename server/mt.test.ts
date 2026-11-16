@@ -350,3 +350,30 @@ describe('bidirectional translation', () => {
     expect(callProvider).toHaveBeenCalledWith('gemini', 'same', 'en', 'es');
   });
 });
+
+describe('simultaneous classroom translations', () => {
+  it('shares the complete provider chain and caches its result for later students', async () => {
+    let resolve!: (value: string) => void;
+    const callProvider = vi.fn((provider: MtProvider) => provider === 'gtx'
+      ? Promise.reject(new Error('unavailable'))
+      : new Promise<string>(done => { resolve = done; }));
+    const translator = createMachineTranslator({ chain: ['gtx', 'google-cloud'], callProvider, log: quietLog });
+    const first = translator.translate('Hello', 'es');
+    const second = translator.translate('Hello', 'es');
+    await vi.waitFor(() => expect(resolve).toBeTypeOf('function'));
+    resolve('Hola');
+    expect(await first).toEqual(await second);
+    expect(callProvider).toHaveBeenCalledTimes(2);
+    expect(await translator.translate('Hello', 'es')).toEqual({ translation: 'Hola', provider: 'cache' });
+    expect(callProvider).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes failed shared work so a subsequent request can retry', async () => {
+    const callProvider = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue('Bonjour');
+    const translator = createMachineTranslator({ chain: ['gtx'], callProvider, log: quietLog });
+    const outcomes = await Promise.allSettled([translator.translate('Hello', 'fr'), translator.translate('Hello', 'fr')]);
+    expect(outcomes.map(value => value.status)).toEqual(['rejected', 'rejected']);
+    expect(callProvider).toHaveBeenCalledTimes(1);
+    expect((await translator.translate('Hello', 'fr')).translation).toBe('Bonjour');
+  });
+});
