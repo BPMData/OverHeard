@@ -3,9 +3,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TeacherRoomControls } from './TeacherRoomControls';
 import { emptyLecture, type LectureState } from './protocol';
+import { recordRoomHistory } from './roomHistory';
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
 });
 
 afterEach(() => {
@@ -158,5 +160,87 @@ describe('TeacherRoomControls', () => {
     await waitFor(() =>
       expect(fetchMock.mock.calls.some(([u, init]) => u === '/api/rooms/room-9' && init?.method === 'PUT')).toBe(true),
     );
+  });
+
+  it('shows room history with live statuses, filters live rooms, populates room code on click, and clears history', async () => {
+    const now = Date.now();
+    recordRoomHistory('old-expired', now - 120_000);
+    recordRoomHistory('live-bio', now - 60_000);
+    recordRoomHistory('ended-chem', now - 30_000);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/rooms/live-bio') {
+          return { ok: true, status: 200, json: async () => ({ ended: false }) };
+        }
+        if (url === '/api/rooms/ended-chem') {
+          return { ok: true, status: 200, json: async () => ({ ended: true }) };
+        }
+        if (url === '/api/rooms/old-expired') {
+          return { ok: false, status: 404, json: async () => ({ error: 'Not found' }) };
+        }
+        return { ok: true, status: 200, json: async () => ({ revision: 1 }) };
+      }),
+    );
+
+    render(<TeacherRoomControls state={emptyLecture()} visible />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    expect(screen.getByRole('region', { name: 'Recent room history' })).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByText('Live')).toBeTruthy();
+      expect(screen.getByText('Ended · rejoinable')).toBeTruthy();
+      expect(screen.getByText('Expired')).toBeTruthy();
+    });
+
+    // Live only filter hides ended and expired rooms
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Live only' }));
+    expect(screen.getByText('live-bio')).toBeTruthy();
+    expect(screen.queryByText('ended-chem')).toBeNull();
+    expect(screen.queryByText('old-expired')).toBeNull();
+
+    // Clicking a room fills the code input, closes the menu, and focuses PIN
+    fireEvent.click(screen.getByRole('button', { name: /live-bio/ }));
+    expect(screen.queryByRole('region', { name: 'Recent room history' })).toBeNull();
+    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('live-bio');
+    expect(document.activeElement).toBe(screen.getByLabelText('Room PIN'));
+
+    // Clear removes all saved history
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('No rooms created on this browser yet.')).toBeTruthy();
+  });
+
+  it('retries transient room creation errors automatically and offers a manual Retry button if all attempts fail', async () => {
+    let createAttempts = 0;
+    let shouldFail = true;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === '/api/rooms' && init?.method === 'POST') {
+          createAttempts += 1;
+          if (shouldFail) {
+            return new Response('Gateway timeout', { status: 503 });
+          }
+          return new Response(JSON.stringify({ code: 'retry-ok', token: 'tok-ok' }), { status: 201 });
+        }
+        return new Response(JSON.stringify({ revision: 1 }), { status: 200 });
+      }),
+    );
+
+    render(<TeacherRoomControls state={emptyLecture()} visible />);
+    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy(), { timeout: 4000 });
+    expect(createAttempts).toBe(3); // 1 initial + 2 retries
+    expect(screen.getByText(/temporarily busy or restarting/i)).toBeTruthy();
+
+    shouldFail = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.getByText('Room: retry-ok')).toBeTruthy());
+    expect(createAttempts).toBe(4);
   });
 });

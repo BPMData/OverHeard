@@ -34,9 +34,11 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
   const broadcast = (room: Room, event: string, value: unknown) => {
     for (const client of room.clients) send(client, event, value);
   };
+  const isExpired = (room: Room) =>
+    now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000);
   const sweep = () => {
     for (const [code, room] of rooms) {
-      if (now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000)) {
+      if (isExpired(room)) {
         for (const client of room.clients) { send(client, 'expired', {}); client.end(); }
         rooms.delete(code);
       } else {
@@ -109,7 +111,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
 
   router.get('/:code/events', (req, res) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
-    if (!room) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
+    if (!room || isExpired(room)) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
     if (room.clients.size >= 200 || joins.isLimited(req.ip || 'unknown')) { res.status(429).json({ error: 'Room connection limit reached.' }); return; }
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -122,7 +124,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
 
   router.get('/:code', (req, res) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
-    if (!room) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
+    if (!room || isExpired(room)) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
     res.json({ ended: room.snapshot.ended });
   });
 

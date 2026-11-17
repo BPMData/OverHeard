@@ -1,7 +1,38 @@
-import { useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Eye, EyeOff, History, RefreshCw } from 'lucide-react';
 import { useTeacherRoom } from './useTeacherRoom';
+import {
+  checkRoomLiveStatus,
+  clearRoomHistory,
+  formatRoomAge,
+  loadRoomHistory,
+  type RoomHistoryEntry,
+  type RoomLiveStatus,
+} from './roomHistory';
 import type { LectureState } from './protocol';
+
+const STATUS_RANK: Record<RoomLiveStatus, number> = {
+  live: 0,
+  ended: 1,
+  checking: 2,
+  unknown: 3,
+  expired: 4,
+};
+
+function statusLabel(status: RoomLiveStatus | undefined): string {
+  switch (status) {
+    case 'live':
+      return 'Live';
+    case 'ended':
+      return 'Ended · rejoinable';
+    case 'expired':
+      return 'Expired';
+    case 'unknown':
+      return 'Status unknown';
+    default:
+      return 'Checking…';
+  }
+}
 
 export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChange }: {
   state: LectureState;
@@ -9,7 +40,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   onRestore?: (restored: Pick<LectureState, 'entries' | 'selectedLangs'>) => void;
   onRoomCodeChange?: (code: string | null) => void;
 }) {
-  const { room, status, busy, unavailable, create, rejoin, end } = useTeacherRoom(state, onRestore);
+  const { room, status, busy, unavailable, canRetry, create, rejoin, end, retryLast, clearRetry } = useTeacherRoom(state, onRestore);
   useEffect(() => {
     onRoomCodeChange?.(room?.code ?? null);
   }, [room?.code, onRoomCodeChange]);
@@ -17,6 +48,90 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [liveOnly, setLiveOnly] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<RoomHistoryEntry[]>(() => loadRoomHistory());
+  const [liveStatuses, setLiveStatuses] = useState<Record<string, RoomLiveStatus>>({});
+  const historyRef = useRef<HTMLDivElement>(null);
+  const pinInputRef = useRef<HTMLInputElement>(null);
+  const checkSeqRef = useRef(0);
+
+  const refreshStatuses = useCallback((entries: RoomHistoryEntry[]) => {
+    const seq = ++checkSeqRef.current;
+    if (entries.length === 0) {
+      setLiveStatuses({});
+      return;
+    }
+    setLiveStatuses(() => {
+      const next: Record<string, RoomLiveStatus> = {};
+      for (const entry of entries) {
+        next[entry.code] = 'checking';
+      }
+      return next;
+    });
+    entries.forEach((entry) => {
+      void checkRoomLiveStatus(entry.code).then((liveState) => {
+        if (seq !== checkSeqRef.current) return;
+        setLiveStatuses((prev) => ({ ...prev, [entry.code]: liveState }));
+      });
+    });
+  }, []);
+
+  // Keep local history list in sync whenever a room is created, rejoined, or ended
+  useEffect(() => {
+    setHistoryEntries(loadRoomHistory());
+    if (room) setHistoryOpen(false);
+  }, [room]);
+
+  useEffect(() => {
+    if (!visible) setHistoryOpen(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (historyRef.current && !historyRef.current.contains(event.target as Node)) {
+        setHistoryOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setHistoryOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [historyOpen]);
+
+  const toggleHistory = () => {
+    if (historyOpen) {
+      setHistoryOpen(false);
+      return;
+    }
+    const entries = loadRoomHistory();
+    setHistoryEntries(entries);
+    setHistoryOpen(true);
+    refreshStatuses(entries);
+  };
+
+  const displayedEntries = useMemo(() => {
+    const sorted = [...historyEntries].sort((a, b) => {
+      const rankA = STATUS_RANK[liveStatuses[a.code] ?? 'checking'];
+      const rankB = STATUS_RANK[liveStatuses[b.code] ?? 'checking'];
+      if (rankA !== rankB) return rankA - rankB;
+      return b.lastUsedAt - a.lastUsedAt;
+    });
+    if (!liveOnly) return sorted;
+    return sorted.filter((entry) => {
+      const st = liveStatuses[entry.code] ?? 'checking';
+      return st === 'live' || st === 'checking';
+    });
+  }, [historyEntries, liveOnly, liveStatuses]);
+
   const link = new URL(window.location.pathname, window.location.origin);
   if (room) link.searchParams.set('room', room.code);
   return <div className="room-controls" hidden={!visible}>
@@ -30,9 +145,10 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
     </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
       <input aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
-        autoComplete="off" maxLength={40} onChange={event => setCode(event.target.value)} />
+        autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
       <span className="room-pin-field">
         <input
+          ref={pinInputRef}
           type="text"
           className={showPin ? undefined : 'room-pin-masked'}
           aria-label="Room PIN"
@@ -45,7 +161,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
           spellCheck={false}
           data-lpignore="true"
           data-1p-ignore="true"
-          onChange={event => setPin(event.target.value)}
+          onChange={event => { setPin(event.target.value); clearRetry(); }}
         />
         <button
           type="button"
@@ -59,8 +175,106 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
       </span>
       <button type="submit" className="conversation-start" disabled={busy}>{busy ? 'Connecting…' : 'Create room'}</button>
       <button type="button" disabled={busy} onClick={() => { setCopied(false); void rejoin(code, pin); }}>Rejoin room</button>
+      <div className="room-history-wrap" ref={historyRef}>
+        <button
+          type="button"
+          className={`room-history-btn${historyOpen ? ' is-open' : ''}`}
+          aria-expanded={historyOpen}
+          aria-haspopup="true"
+          onClick={toggleHistory}
+        >
+          <History size={14} />
+          <span>History</span>
+        </button>
+        {historyOpen && (
+          <div className="room-history-menu" role="region" aria-label="Recent room history">
+            <div className="room-history-header">
+              <strong>Recent rooms</strong>
+              <div className="room-history-actions">
+                <label className="room-history-filter">
+                  <input
+                    type="checkbox"
+                    checked={liveOnly}
+                    onChange={(event) => setLiveOnly(event.target.checked)}
+                  />
+                  <span>Live only</span>
+                </label>
+                {historyEntries.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      className="room-history-icon-btn"
+                      aria-label="Refresh room status"
+                      title="Refresh status"
+                      onClick={() => refreshStatuses(historyEntries)}
+                    >
+                      <RefreshCw size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="room-history-clear"
+                      onClick={() => {
+                        clearRoomHistory();
+                        setHistoryEntries([]);
+                        setLiveStatuses({});
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            <p className="room-history-hint">
+              Click a room name, enter your PIN, and click Rejoin room. PINs are never saved.
+            </p>
+            {historyEntries.length === 0 ? (
+              <div className="room-history-empty">No rooms created on this browser yet.</div>
+            ) : displayedEntries.length === 0 ? (
+              <div className="room-history-empty">
+                No live rooms right now. Uncheck Live only to see ended or expired rooms.
+              </div>
+            ) : (
+              <ul className="room-history-list">
+                {displayedEntries.map((entry) => {
+                  const st = liveStatuses[entry.code] ?? 'checking';
+                  return (
+                    <li key={entry.code}>
+                      <button
+                        type="button"
+                        className={`room-history-item is-${st}`}
+                        onClick={() => {
+                          setCode(entry.code);
+                          setCopied(false);
+                          clearRetry();
+                          setHistoryOpen(false);
+                          pinInputRef.current?.focus();
+                        }}
+                      >
+                        <span className="room-history-dot" aria-hidden="true" />
+                        <span className="room-history-code">{entry.code}</span>
+                        <span className="room-history-age">{formatRoomAge(entry.lastUsedAt)}</span>
+                        <span className="room-history-status">{statusLabel(st)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
     </form>}
-    {status && <span aria-live="polite">{status}</span>}
+    {(status || canRetry) && (
+      <span className="room-status" aria-live="polite">
+        <span>{status}</span>
+        {canRetry && !busy && (
+          <button type="button" className="room-retry-btn" onClick={() => void retryLast()}>
+            Retry
+          </button>
+        )}
+      </span>
+    )}
     {!room && <small>Choose a PIN to create a room, or enter an existing code and PIN to rejoin. Export JSON to keep a copy.</small>}
   </div>;
 }
