@@ -50,6 +50,10 @@ describe('live read-aloud', () => {
 
     hook.rerender(props('today we will look at the water cycle and', []));
     await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    // The next piece's audio is prepared while the first one is still playing
+    expect(client.prefetch).toHaveBeenCalledWith('es(at the water cycle and)', expect.any(String));
+    // The reading voice was loaded as soon as reading was on
+    expect(client.preloadVoice).toHaveBeenCalled();
     await finish();
     expect(spoken.map((s) => s.text)).toEqual(['es(today we will look)', 'es(at the water cycle and)']);
 
