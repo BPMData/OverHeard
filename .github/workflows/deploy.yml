@@ -12,12 +12,12 @@ concurrency:
 jobs:
   deploy:
     name: Verify and deploy over-heard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
 
@@ -40,7 +40,7 @@ jobs:
         run: bash scripts/smoke.sh
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
@@ -50,7 +50,8 @@ jobs:
           if [ "$(yq '.metadata.labels["managed-by"] // ""' /tmp/service.yaml)" != "github-actions" ]; then
             echo "Inspecting pre-migration annotations and containers:"
             yq '.spec.template.metadata.annotations' /tmp/service.yaml
-            yq '.spec.template.spec.containers[] | {name, image}' /tmp/service.yaml
+            yq '.spec.template.spec.containers[].name' /tmp/service.yaml
+            yq '.spec.template.spec.containers[].image' /tmp/service.yaml
             CURRENT_IMAGE="$(yq '.spec.template.spec.containers[0].image // ""' /tmp/service.yaml)"
             HAS_SOURCES=false
             if yq -e '.spec.template.metadata.annotations["run.googleapis.com/sources"] != null or .spec.template.metadata.annotations["run.googleapis.com/base-images"] != null' /tmp/service.yaml >/dev/null 2>&1; then
@@ -69,13 +70,16 @@ jobs:
                 yq -i ".spec.template.spec.containers[0].image = \"$IMAGE\"" /tmp/service.yaml
               fi
               yq -i 'del(.spec.template.metadata.annotations["run.googleapis.com/sources"], .spec.template.metadata.annotations["run.googleapis.com/base-images"], .spec.template.metadata.name)' /tmp/service.yaml
-              yq -i 'if (.spec.template.spec.containers | length) == 1 then .spec.template.spec.containers[0].name = "over-heard" else . end' /tmp/service.yaml
+              CONTAINER_COUNT="$(yq '.spec.template.spec.containers | length' /tmp/service.yaml)"
+              if [ "$CONTAINER_COUNT" = "1" ]; then
+                yq -i '.spec.template.spec.containers[0].name = "over-heard"' /tmp/service.yaml
+              fi
               gcloud run services replace /tmp/service.yaml --region us-east1 --project loyal-rookery-403218
             fi
           fi
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: over-heard
           region: us-east1
