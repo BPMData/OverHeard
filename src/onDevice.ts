@@ -62,6 +62,9 @@ export function progressFraction(event: { loaded: number; total?: number }): num
   return Math.min(Math.max(fraction, 0), 1);
 }
 
+const AVAILABILITY_POLL_MS = 2000;
+const STALLED_PROGRESS_MS = 4000;
+
 /**
  * Get (and, if needed, download) the on-device translator for `source` → `code`.
  * Resolves to null when the language isn't supported on this device.
@@ -84,13 +87,63 @@ export function getOnDeviceTranslator(
     const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
     const availability = await api.availability(langs);
     if (availability === 'unavailable') return null;
-    if (availability !== 'available') onProgress?.(code, 0);
-    return api.create({
+    if (availability === 'available') return api.create(langs);
+
+    onProgress?.(code, 0);
+    let sawProgress = false;
+    let settled = false;
+    const startedAt = Date.now();
+
+    const createPromise = api.create({
       ...langs,
       monitor: (m) =>
-        m.addEventListener('downloadprogress', (e) =>
-          onProgress?.(code, progressFraction(e as unknown as { loaded: number; total?: number }))
-        ),
+        m.addEventListener('downloadprogress', (e) => {
+          if (settled) return;
+          const fraction = progressFraction(e as unknown as { loaded: number; total?: number });
+          if (fraction > 0) sawProgress = true;
+          onProgress?.(code, fraction);
+        }),
+    });
+
+    return await new Promise<TranslatorInstance | null>((resolve, reject) => {
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(pollTimer);
+        fn();
+      };
+
+      const pollTimer = setInterval(() => {
+        if (settled) return;
+        void api.availability(langs).then(
+          (status) => {
+            if (settled) return;
+            if (status === 'available') {
+              // Chrome can finish downloading the pack in the background without resolving
+              // the original create()/downloadprogress call; create a ready instance now.
+              void api.create(langs).then(
+                (instance) => finish(() => resolve(instance)),
+                () => {
+                  /* Wait for the original createPromise or next poll tick. */
+                }
+              );
+            } else if (status === 'unavailable') {
+              finish(() => resolve(null));
+            } else if (!sawProgress && Date.now() - startedAt >= STALLED_PROGRESS_MS) {
+              sawProgress = true;
+              onProgress?.(code, -1);
+            }
+          },
+          () => {
+            /* Ignore transient availability errors while create() is pending. */
+          }
+        );
+      }, AVAILABILITY_POLL_MS);
+
+      createPromise.then(
+        (instance) => finish(() => resolve(instance)),
+        (err) => finish(() => reject(err))
+      );
     });
   })();
 

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConversationLanguage } from './types';
 import { parseRoomJson } from './rooms/protocol';
+import { piperClient } from './tts/piperClient';
 
 // Isolate the App integration boundary: the real conversation turn loop has its own tests.
 vi.mock('./components/ConversationMode', () => ({
@@ -329,5 +330,56 @@ describe('App conversation integration', () => {
       ).toBeTruthy(),
     );
     expect(configCalls).toBe(2);
+  });
+
+  it('reads aloud and stops translated speech in Columns view using the selected voice', async () => {
+    const stopMock = vi.fn();
+    let callbacks: { onStart?: () => void; onEnd?: () => void } | undefined;
+    const speakSpy = vi
+      .spyOn(piperClient, 'speak')
+      .mockImplementation((_text, opts) => {
+        callbacks = opts;
+        opts.onStart?.();
+        return { pause: vi.fn(), resume: vi.fn(), stop: stopMock };
+      });
+    const unlockSpy = vi.spyOn(piperClient, 'unlockAudio').mockImplementation(() => {});
+
+    try {
+      localStorage.setItem('overheard.voices', JSON.stringify({ es: 'es_MX-ald-medium' }));
+      render(<App />);
+
+      const playButton = screen.getByRole('button', { name: 'Read Spanish translation aloud' }) as HTMLButtonElement;
+      expect(playButton.disabled).toBe(true);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
+      fireEvent.change(
+        screen.getByPlaceholderText('Type an English classroom sentence to test translation silently…'),
+        { target: { value: 'Hello class' } },
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
+      await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
+
+      expect(playButton.disabled).toBe(false);
+      fireEvent.click(playButton);
+
+      expect(unlockSpy).toHaveBeenCalledTimes(1);
+      expect(speakSpy).toHaveBeenCalledWith(
+        'en>es',
+        expect.objectContaining({ lang: 'es', voiceId: 'es_MX-ald-medium' }),
+      );
+
+      const stopButton = screen.getByRole('button', { name: 'Stop reading Spanish translation' });
+      fireEvent.click(stopButton);
+      expect(stopMock).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Read Spanish translation aloud' })).toBeTruthy();
+
+      // Natural completion also clears active playback state
+      fireEvent.click(screen.getByRole('button', { name: 'Read Spanish translation aloud' }));
+      act(() => callbacks?.onEnd?.());
+      expect(screen.getByRole('button', { name: 'Read Spanish translation aloud' })).toBeTruthy();
+    } finally {
+      speakSpy.mockRestore();
+      unlockSpy.mockRestore();
+    }
   });
 });

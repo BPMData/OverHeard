@@ -97,6 +97,35 @@ describe('download progress', () => {
     await vi.waitFor(() => expect(onProgress).toHaveBeenCalled());
     expect(onProgress.mock.calls).toEqual([['es', 1]]);
   });
+
+  it('switches a stalled 0% download to indeterminate and finishes when availability becomes available', async () => {
+    vi.useFakeTimers();
+    try {
+      let status: 'downloading' | 'available' = 'downloading';
+      let calls = 0;
+      g.Translator = {
+        availability: async () => status,
+        create: async () => {
+          calls += 1;
+          if (calls === 1) return new Promise(() => {});
+          return { translate: async (t: string) => `es:${t}` };
+        },
+      };
+      const m = await load();
+      const onProgress = vi.fn();
+      m.prepareOnDeviceTranslators(['es'], onProgress);
+
+      await vi.advanceTimersByTimeAsync(4100);
+      expect(onProgress.mock.calls.map((c) => c[1])).toEqual([0, -1]);
+
+      status = 'available';
+      await vi.advanceTimersByTimeAsync(2100);
+      expect(onProgress).toHaveBeenLastCalledWith('es', 1);
+      await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('on-device speech', () => {

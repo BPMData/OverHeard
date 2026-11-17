@@ -30,7 +30,7 @@ import { LectureTranscript } from './LectureTranscript';
 import { AboutModal } from './AboutModal';
 import { VoiceSettingsModal, type GeminiRefineSettings } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Volume2 } from 'lucide-react';
+import { HelpCircle, Square, Volume2 } from 'lucide-react';
 import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import type { SaveLectureToDriveResult } from '../lib/googleDrive';
 import './ConversationMode.css';
@@ -380,7 +380,12 @@ export function ConversationMode({
   const renderMessage = (message: Message) => {
     const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
     const done = message.status === 'done';
+    const canPlay = message.status !== 'translating';
     const isSpeakingThisBubble = twoWayPlayback.playingMessageId === message.id;
+    const isDownloadingThisBubble =
+      isSpeakingThisBubble && twoWayPlayback.downloadingMessageId === message.id;
+    const spokenText = (done && message.translated) || message.original;
+    const spokenLang = done && message.translated ? message.reader.lang : message.sender.lang;
     return (
       <article key={message.id} className={`conversation-bubble side-${placedSide}`}>
         <div className="conversation-meta">
@@ -393,25 +398,35 @@ export function ConversationMode({
             })}
           </span>
           <span className="lecture-play-actions">
-            {done && (
+            {canPlay && (
               <button
                 type="button"
-                className="conversation-play-btn"
+                className={`conversation-play-btn ${isSpeakingThisBubble ? 'is-playing' : ''}`}
                 aria-label={
                   isSpeakingThisBubble
                     ? `Stop reading ${message.original}`
                     : `Read aloud: ${message.original}`
                 }
-                title={isSpeakingThisBubble ? 'Stop reading' : 'Read aloud'}
+                title={isSpeakingThisBubble ? 'Stop reading' : 'Play translated speech'}
                 onClick={() =>
                   twoWayPlayback.togglePlayMessage({
                     id: message.id,
-                    text: message.translated || message.original,
-                    lang: message.reader.lang,
+                    text: spokenText,
+                    lang: spokenLang,
                   })
                 }
               >
-                {isSpeakingThisBubble ? '⏹' : '▶'}
+                {isSpeakingThisBubble ? (
+                  <>
+                    <Square size={10} aria-hidden="true" />
+                    <span>{isDownloadingThisBubble ? 'Loading…' : 'Stop'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 size={12} aria-hidden="true" />
+                    <span>Play</span>
+                  </>
+                )}
               </button>
             )}
             <button

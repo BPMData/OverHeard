@@ -311,6 +311,7 @@ export function useTwoWayPlayback({
   client = piperClient,
 }: UseTwoWayPlaybackOptions) {
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [downloadingMessageId, setDownloadingMessageId] = useState<string | null>(null);
   const playingIdRef = useRef<string | null>(null);
   playingIdRef.current = playingMessageId;
 
@@ -338,6 +339,7 @@ export function useTwoWayPlayback({
     ) {
       playingIdRef.current = null;
       setPlayingMessageId(null);
+      setDownloadingMessageId(null);
       onResumeRef.current();
     }
   }, []);
@@ -354,6 +356,7 @@ export function useTwoWayPlayback({
     window.speechSynthesis?.cancel();
     playingIdRef.current = null;
     setPlayingMessageId(null);
+    setDownloadingMessageId(null);
   }, []);
 
   const startPiperItem = useCallback(
@@ -361,6 +364,7 @@ export function useTwoWayPlayback({
       if (gen !== generationRef.current) return;
       playingIdRef.current = item.id;
       setPlayingMessageId(item.id);
+      setDownloadingMessageId(null);
 
       const nextQueued = piperQueueRef.current[0];
       if (nextQueued) {
@@ -372,6 +376,7 @@ export function useTwoWayPlayback({
         if (settled || gen !== generationRef.current) return;
         settled = true;
         activePiperRef.current = null;
+        setDownloadingMessageId((cur) => (cur === item.id ? null : cur));
         const next = piperQueueRef.current.shift();
         if (next) {
           startPiperItem(next, gen);
@@ -383,6 +388,16 @@ export function useTwoWayPlayback({
       const handle = client.speak(item.text, {
         lang: item.lang,
         voiceId: item.voiceId,
+        onDownloading: () => {
+          if (!settled && gen === generationRef.current) {
+            setDownloadingMessageId(item.id);
+          }
+        },
+        onStart: () => {
+          if (!settled && gen === generationRef.current) {
+            setDownloadingMessageId((cur) => (cur === item.id ? null : cur));
+          }
+        },
         onEnd: onFinish,
         onError: onFinish,
       });
@@ -489,6 +504,7 @@ export function useTwoWayPlayback({
 
   return {
     playingMessageId,
+    downloadingMessageId,
     enqueueAuto,
     togglePlayMessage,
     cancelAll,
