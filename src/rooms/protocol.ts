@@ -6,6 +6,16 @@ export const MAX_ROOM_ENTRIES = 2000;
 export const MAX_ROOM_FILE_BYTES = 8 * 1024 * 1024;
 export const normalizeRoomCode = (value: string) => value.trim().toLowerCase();
 export const validRoomCode = (value: string) => /^[a-z0-9][a-z0-9-]{2,39}$/.test(value);
+// Room codes double as top-level paths here and on the GitHub Pages short-link site
+// (bpmdata.github.io/<code>), so never hand out a name either site already uses.
+export const RESERVED_ROOM_CODES: ReadonlySet<string> = new Set([
+  // OverHeard's own paths
+  'api', 'assets', 'ort', 'piper', 'index',
+  // bpmdata.github.io pages and project sites
+  'allaboard', 'allhail', 'overboard', 'overheard', 'proofer', 'eomd', 'bibleviz',
+  'icons', 'privacy', 'terms', 'style', 'theme', 'readme',
+]);
+export const isReservedRoomCode = (value: string) => RESERVED_ROOM_CODES.has(normalizeRoomCode(value));
 export const normalizePin = (value: string) => value.trim();
 export const validPin = (value: string) => {
   const pin = normalizePin(value);

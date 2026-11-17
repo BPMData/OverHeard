@@ -61,6 +61,8 @@ describe('live classroom rooms', () => {
   it('requires a valid PIN, issues private teacher credentials, and rejects unauthorized writes or collisions', async () => {
     expect((await request('', 'POST', { code: 'science-101' })).status).toBe(400);
     expect((await request('', 'POST', { code: 'science-101', pin: '12' })).status).toBe(400);
+    // Names used by the app or the GitHub Pages short-link site cannot become rooms
+    expect((await request('', 'POST', { code: 'OverHeard', pin: '1234' })).status).toBe(400);
     const { code, token } = await create();
     expect(token).toHaveLength(64);
     expect((await request('', 'POST', { code, pin: '1234' })).status).toBe(409);

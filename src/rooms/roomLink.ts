@@ -1,7 +1,4 @@
-import { normalizeRoomCode, validRoomCode } from './protocol';
-
-// Top-level paths the app or server already uses; never treated as a room code.
-const RESERVED_PATHS = new Set(['api', 'assets', 'ort', 'piper', 'index']);
+import { isReservedRoomCode, normalizeRoomCode, validRoomCode } from './protocol';
 
 /**
  * Room code for a student page: `?room=code` (original links) or the short form `/code`.
@@ -13,15 +10,30 @@ export function roomCodeFromLocation(location: Pick<Location, 'pathname' | 'sear
   const match = /^\/([A-Za-z0-9][A-Za-z0-9-]{2,39})\/?$/.exec(location.pathname);
   if (!match) return null;
   const code = normalizeRoomCode(match[1]);
-  return validRoomCode(code) && !RESERVED_PATHS.has(code) ? code : null;
+  return validRoomCode(code) && !isReservedRoomCode(code) ? code : null;
 }
 
-/** Short student link, e.g. https://overheard.example/murphy-p3 */
-export function studentRoomUrl(code: string, origin = window.location.origin): string {
-  return `${origin}/${encodeURIComponent(normalizeRoomCode(code))}`;
+/** Short student link, e.g. https://bpmdata.github.io/murphy-p3 */
+export function studentRoomUrl(code: string, base: string | null = null): string {
+  return `${base || window.location.origin}/${encodeURIComponent(normalizeRoomCode(code))}`;
 }
 
-/** The address without scheme for reading aloud or writing on a board, e.g. overheard.example/murphy-p3 */
-export function displayRoomUrl(code: string, origin = window.location.origin): string {
-  return studentRoomUrl(code, origin).replace(/^https?:\/\//, '');
+/** The address without scheme for reading aloud or writing on a board, e.g. bpmdata.github.io/murphy-p3 */
+export function displayRoomUrl(code: string, base: string | null = null): string {
+  return studentRoomUrl(code, base).replace(/^https?:\/\//, '');
+}
+
+let shortLinkBase: Promise<string | null> | null = null;
+
+/**
+ * The server's short-link base (production: the GitHub Pages site, whose 404 page forwards
+ * `/<code>` here), or null to use this origin. Fetched once; a failure falls back to null.
+ */
+export function loadShortLinkBase(): Promise<string | null> {
+  shortLinkBase ??= fetch('/api/config', { cache: 'no-store' })
+    .then(response => (response.ok ? response.json() : null))
+    .then((data: { shortLinkBase?: unknown } | null) =>
+      typeof data?.shortLinkBase === 'string' && /^https?:\/\//.test(data.shortLinkBase) ? data.shortLinkBase : null)
+    .catch(() => null);
+  return shortLinkBase;
 }

@@ -20,6 +20,7 @@ import { createUsageTracker, forwardedCount } from './server/usage.ts';
 import { createRateLimiter, type RateLimiter } from './server/rateLimit.ts';
 import { SESSION_HEADER, sessionKey } from './server/clientKeys.ts';
 import { createRoomRouter } from './server/rooms.ts';
+import { shortLinkBase } from './server/shortLink.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,7 @@ const REFINE_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_REFINE_
 const MT_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_MT_PER_SESSION, 900));
 // How many proxies sit in front of this server and can be trusted to report the real client
 // address. Cloud Run's front end is one. Too low and every user looks like the same visitor.
+const SHORT_LINK_BASE = shortLinkBase();
 const TRUST_PROXY_HOPS = intFromEnv(process.env.TRUST_PROXY_HOPS, 1);
 const refineSessionLimiter = createRateLimiter(REFINE_PER_SESSION, RATE_LIMIT_WINDOW_MS);
 const mtSessionLimiter = createRateLimiter(MT_PER_SESSION, RATE_LIMIT_WINDOW_MS);
@@ -217,6 +219,7 @@ async function startServer() {
       mtProvider: MT_PROVIDER,
       providers: MT_CHAIN,
       refine: REFINE_ENABLED,
+      shortLinkBase: SHORT_LINK_BASE,
     });
   });
 

@@ -78,20 +78,10 @@ Not specified yet. Starting points: readable from across a desk at a slight angl
 chrome around the captions, and possibly a one-language-at-a-time layout for a single
 student. Decide after using it with a small group.
 
-### Split up `src/App.tsx` (about 2,000 lines)
+### Split up `src/App.tsx` (about 2,400 lines)
 
-It works, but everything lives in one component: captioning, speech recognition, translation,
-the pop-out window, the language modal and the header, so any change risks a side effect. Fix
-sooner rather than later, but carefully:
-
-- Do it as its own PR with **no behavior changes**, in small steps, running CI after each.
-- Suggested pieces: a speech hook for caption mode (start/stop, restart backoff, on-device
-  speech), a translation hook (`fetchMT`, the cache, Auto / On this device logic, the Gemini
-  clean-up), the on-device download state (`packProgress`, `reportPack`), the header and
-  translator picker as components, and the transcript export.
-- Conversation mode already lives in its own files and shows the pattern.
-- Test coverage of the caption path is thin, so add tests around `handleFinalizedPhrase` and
-  `fetchMT` *before* moving them.
+See `ARCHITECTURE.md` for the current layout, the target structure and an ordered list of
+refactor steps that don't change behavior, plus the larger consolidations to do afterward.
 
 ### Small cleanups
 

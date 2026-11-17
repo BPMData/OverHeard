@@ -10,7 +10,7 @@ import {
   type RoomLiveStatus,
 } from './roomHistory';
 import type { LectureState } from './protocol';
-import { displayRoomUrl, studentRoomUrl } from './roomLink';
+import { displayRoomUrl, loadShortLinkBase, studentRoomUrl } from './roomLink';
 
 const STATUS_RANK: Record<RoomLiveStatus, number> = {
   live: 0,
@@ -48,6 +48,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   // Prefill the most recent class code so one posted link works day after day
   const [code, setCode] = useState(() => loadRoomHistory()[0]?.code ?? '');
   const [showJoinCard, setShowJoinCard] = useState(false);
+  const [shortBase, setShortBase] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -138,6 +139,13 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   useEffect(() => {
     if (!room || !visible) setShowJoinCard(false);
   }, [room, visible]);
+  const hasRoom = Boolean(room);
+  useEffect(() => {
+    if (!hasRoom) return;
+    let current = true;
+    void loadShortLinkBase().then(base => { if (current) setShortBase(base); });
+    return () => { current = false; };
+  }, [hasRoom]);
   useEffect(() => {
     if (!showJoinCard) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setShowJoinCard(false); };
@@ -145,7 +153,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showJoinCard]);
 
-  const link = room ? studentRoomUrl(room.code) : '';
+  const link = room ? studentRoomUrl(room.code, shortBase) : '';
   return <div className="room-controls" hidden={!visible}>
     {room ? <>
       <strong>Room: {room.code}</strong>
@@ -166,12 +174,14 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
           <p className="room-join-card-lead">Follow the live captions in your language</p>
           <p className="room-join-card-url">
             {/* Break only after the host, never inside the room code */}
-            <span>{displayRoomUrl(room.code).slice(0, -room.code.length)}</span><wbr />
+            <span>{displayRoomUrl(room.code, shortBase).slice(0, -room.code.length)}</span><wbr />
             <span className="room-join-card-code">{room.code}</span>
           </p>
-          <p className="room-join-card-alt">
-            or open <strong>{window.location.host}</strong> and enter code <strong>{room.code}</strong>
-          </p>
+          {!shortBase && (
+            <p className="room-join-card-alt">
+              or open <strong>{window.location.host}</strong> and enter code <strong>{room.code}</strong>
+            </p>
+          )}
         </div>
       )}
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
