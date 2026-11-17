@@ -1,0 +1,15 @@
+.git/
+node_modules/
+dist/
+build/
+coverage/
+saves/
+branding/
+.DS_Store
+*.log
+.env*
+!.env.example
+bun.lock
+package-lock.json
+public/ort/
+public/piper/
