@@ -325,3 +325,25 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
   fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
   expect(onExit).toHaveBeenCalledTimes(1);
 });
+
+it('streams live translations through a long run-on sentence without a pause', async () => {
+  const translate = vi.fn(async (text: string) => `es:${text}`);
+  render(<ConversationMode active fontSize={32} isDark translate={translate}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  const rec = FakeRecognition.instances[0];
+  const words = Array.from({ length: 120 }, (_, i) => `word${i}`);
+  for (let n = 10; n <= words.length; n += 10) {
+    const transcript = words.slice(0, n).join(' ');
+    await act(async () => rec.onresult?.({ resultIndex: 0, results: [{ isFinal: false, 0: { transcript } }] }));
+    await act(async () => { vi.advanceTimersByTime(100); });
+  }
+  await act(async () => { vi.advanceTimersByTime(400); });
+  await act(async () => { vi.advanceTimersByTime(400); });
+  // No pause and no final result, yet the live row is translated up to the latest words
+  expect(screen.getByText(/es:word0 .*es:.*word119/)).toBeTruthy();
+  // Requests stay small instead of growing with the sentence
+  const longest = Math.max(...translate.mock.calls.map(([text]) => text.length));
+  expect(longest).toBeLessThan(200);
+});

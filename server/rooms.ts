@@ -1,7 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import express, { type Response } from 'express';
 import { applyPatch, emptyLecture, MAX_ROOM_FILE_BYTES, normalizePin, normalizeRoomCode,
-  parsePatch, validPin, validRoomCode, type RoomSnapshot } from '../src/rooms/protocol.ts';
+  isReservedRoomCode, parsePatch, validPin, validRoomCode, type RoomSnapshot } from '../src/rooms/protocol.ts';
 import { createRateLimiter } from './rateLimit.ts';
 
 interface Room {
@@ -67,6 +67,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
     }
     const code = normalizeRoomCode(req.body?.code || randomBytes(4).toString('hex'));
     if (!validRoomCode(code)) { res.status(400).json({ error: 'Use 3–40 letters, numbers, or hyphens for the room code.' }); return; }
+    if (isReservedRoomCode(code)) { res.status(400).json({ error: `“${code}” is reserved. Choose another room code.` }); return; }
     const existing = rooms.get(code);
     if (existing) {
       res.status(409).json({

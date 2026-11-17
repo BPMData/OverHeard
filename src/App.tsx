@@ -55,7 +55,7 @@ import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studen
 import { LanguageModal } from './components/LanguageModal';
 import { VoiceSettingsModal, type ServerRefineStatus } from './components/VoiceSettingsModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
-import { shouldSendImmediately } from './liveTranslation';
+import { useLiveTranslations } from './useLiveTranslations';
 import { getSessionId, SESSION_HEADER } from './session';
 import { isFailedSession, restartDelay } from './speechRestart';
 import {
@@ -145,8 +145,6 @@ function formatTimestamp(date: Date = new Date()): string {
 
 // Live translation tuning: send in-progress speech after a short pause, or every few new words
 const LIVE_INTERIM_TRANSLATION = true;
-const LIVE_DEBOUNCE_MS = 450;
-const LIVE_WORD_STEP = 6;
 const MT_CLIENT_CACHE_MAX = 2000;
 
 // "On this device" mode waits this long for the built-in translator before a sentence falls
@@ -437,12 +435,8 @@ export default function App() {
   }, [mtPreference]);
 
   // Live (interim) translation state
-  const [liveTranslations, setLiveTranslations] = useState<Record<string, string>>({});
-  const liveTimerRef = useRef<number | null>(null);
-  const liveSentTextRef = useRef<string>('');
-  const liveSeqRef = useRef<number>(0);
-  const liveClearedAtSeqRef = useRef<number>(0);
-  const liveAppliedSeqRef = useRef<Record<string, number>>({});
+  // Bumped whenever a phrase is finalized or the transcript is cleared: starts a new live utterance
+  const [liveSegment, setLiveSegment] = useState(0);
 
   const refreshServerConfig = useCallback(() => {
     return fetch('/api/config', { cache: 'no-store' })
@@ -676,58 +670,14 @@ export default function App() {
     []
   );
 
-  // Interim speech: translate the in-progress sentence so captions appear while the teacher is still talking
-  const clearLiveTranslation = useCallback(() => {
-    if (liveTimerRef.current !== null) {
-      window.clearTimeout(liveTimerRef.current);
-      liveTimerRef.current = null;
-    }
-    liveClearedAtSeqRef.current = liveSeqRef.current;
-    liveSentTextRef.current = '';
-    setLiveTranslations({});
-  }, []);
-
-  const sendLiveTranslation = useCallback(
-    (text: string) => {
-      liveSentTextRef.current = text;
-      const seq = ++liveSeqRef.current;
-      for (const code of selectedLangsRef.current) {
-        fetchMT(text, code)
-          .then((translation) => {
-            // Ignore stale responses and anything from before the last finalized sentence
-            if (seq <= liveClearedAtSeqRef.current) return;
-            if (seq < (liveAppliedSeqRef.current[code] ?? 0)) return;
-            liveAppliedSeqRef.current[code] = seq;
-            setLiveTranslations((prev) => ({ ...prev, [code]: translation }));
-          })
-          .catch(() => {
-            // Live captions are best-effort; the final sentence path reports errors
-          });
-      }
-    },
-    [fetchMT]
-  );
-
-  const scheduleLiveTranslation = useCallback(
-    (interim: string) => {
-      if (!LIVE_INTERIM_TRANSLATION) return;
-      const text = interim.trim();
-      if (!text || text === liveSentTextRef.current) return;
-      if (liveTimerRef.current !== null) {
-        window.clearTimeout(liveTimerRef.current);
-        liveTimerRef.current = null;
-      }
-      // Long run-on sentence: don't wait for a pause, send every few new words
-      if (shouldSendImmediately(text, liveSentTextRef.current, LIVE_WORD_STEP)) {
-        sendLiveTranslation(text);
-        return;
-      }
-      liveTimerRef.current = window.setTimeout(() => {
-        liveTimerRef.current = null;
-        sendLiveTranslation(text);
-      }, LIVE_DEBOUNCE_MS);
-    },
-    [sendLiveTranslation]
+  // Interim speech: translate the in-progress sentence so captions appear while the teacher is
+  // still talking, even through a long run-on sentence with no pause
+  const clearLiveTranslation = useCallback(() => setLiveSegment((value) => value + 1), []);
+  const liveTranslations: Partial<Record<string, string>> = useLiveTranslations(
+    LIVE_INTERIM_TRANSLATION ? interimTranscript : '',
+    selectedLangs,
+    fetchMT,
+    String(liveSegment),
   );
 
   // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands),
@@ -875,7 +825,6 @@ export default function App() {
           }
         }
         setInterimTranscript(interim);
-        scheduleLiveTranslation(interim);
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -972,7 +921,7 @@ export default function App() {
       }
       begin(false);
     }
-  }, [handleFinalizedPhrase, clearLiveTranslation, scheduleLiveTranslation, reportPack]);
+  }, [handleFinalizedPhrase, clearLiveTranslation, reportPack]);
 
   const stopListening = useCallback(() => {
     userStoppedRef.current = true;

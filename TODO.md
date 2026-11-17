@@ -66,26 +66,22 @@ Pinned until OverHeard is used on a tablet. In Conversation mode, split the scre
 bottom and rotate the top half 180°. Two people facing each other across a tablet lying flat
 can then each read their own side of the conversation right way up.
 
+### Mobile layout, starting with the student room
+
+Almost every page is hard to use at phone width. The student room comes first: a phone is a
+good fit for a student who only reads along with the live translation. Once it works on a
+phone, a QR code beside the student link becomes worth adding.
+
 ### Rework the column view for the "laptop on the desk" use case
 
 Not specified yet. Starting points: readable from across a desk at a slight angle, less
 chrome around the captions, and possibly a one-language-at-a-time layout for a single
 student. Decide after using it with a small group.
 
-### Split up `src/App.tsx` (about 2,000 lines)
+### Split up `src/App.tsx` (about 2,400 lines)
 
-It works, but everything lives in one component: captioning, speech recognition, translation,
-the pop-out window, the language modal and the header, so any change risks a side effect. Fix
-sooner rather than later, but carefully:
-
-- Do it as its own PR with **no behavior changes**, in small steps, running CI after each.
-- Suggested pieces: a speech hook for caption mode (start/stop, restart backoff, on-device
-  speech), a translation hook (`fetchMT`, the cache, Auto / On this device logic, the Gemini
-  clean-up), the on-device download state (`packProgress`, `reportPack`), the header and
-  translator picker as components, and the transcript export.
-- Conversation mode already lives in its own files and shows the pattern.
-- Test coverage of the caption path is thin, so add tests around `handleFinalizedPhrase` and
-  `fetchMT` *before* moving them.
+See `ARCHITECTURE.md` for the current layout, the target structure and an ordered list of
+refactor steps that don't change behavior, plus the larger consolidations to do afterward.
 
 ### Small cleanups
 

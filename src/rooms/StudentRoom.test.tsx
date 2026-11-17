@@ -253,9 +253,37 @@ describe('student lecture view', () => {
     expect(anchor.download).toMatch(/^Lecture for piper-test-001 on .+\.json$/);
 
     const homeLink = screen.getByRole('link', { name: /OverHeard/i }) as HTMLAnchorElement;
-    expect(homeLink.getAttribute('href')).toBe(window.location.pathname);
+    expect(homeLink.getAttribute('href')).toBe('/');
 
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+  });
+});
+
+describe('student waiting for the teacher', () => {
+  it('waits on a link opened before class and connects once the teacher starts', async () => {
+    vi.useFakeTimers();
+    try {
+      let open = false;
+      const fetchMock = vi.fn(async () => ({ ok: open, status: open ? 200 : 404, json: async () => ({}) }));
+      vi.stubGlobal('fetch', fetchMock);
+      render(<StudentRoom code="murphy-p3" />);
+      await act(async () => { FakeEvents.instances[0].onerror?.(); });
+      expect(screen.getByText(/Waiting for your teacher to start room murphy-p3/)).toBeTruthy();
+      expect(FakeEvents.instances[0].close).toHaveBeenCalled();
+
+      // Still closed on the next check: keeps waiting without opening another stream
+      await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+      expect(FakeEvents.instances).toHaveLength(1);
+
+      open = true;
+      await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+      expect(FakeEvents.instances).toHaveLength(2);
+      await act(async () => FakeEvents.instances[1].emit('snapshot', snapshot()));
+      expect(screen.getByText('Bienvenidos a ciencias')).toBeTruthy();
+      expect(screen.queryByText(/Waiting for your teacher/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

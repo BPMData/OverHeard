@@ -223,39 +223,7 @@ export function useTeacherRoom(
     setCanRetry(false);
   }, []);
 
-  const create = useCallback(async (code: string, pin: string) => {
-    const cleanPin = normalizePin(pin);
-    clearRetry();
-    if (!validPin(cleanPin)) {
-      setStatus('Enter a room PIN (4–20 characters) so you can rejoin if disconnected.');
-      return;
-    }
-    awaitingRestoreRef.current = false;
-    rejoinedBaselineRef.current = null;
-    setBusy(true);
-    setStatus('');
-    try {
-      const result = (await requestWithRetry('', 'POST', {
-        code: code.trim() || undefined,
-        pin: cleanPin,
-      })) as Credential;
-      if (!mountedRef.current) return;
-      setRoom(result);
-      setUnavailable(false);
-      setStatus('Connecting…');
-    } catch (error) {
-      if (!mountedRef.current) return;
-      if (isTransientRoomError(error)) {
-        lastFailedActionRef.current = { kind: 'create', code, pin };
-        setCanRetry(true);
-      }
-      setStatus(formatRoomError(error, 'Could not create room.'));
-    } finally {
-      if (mountedRef.current) setBusy(false);
-    }
-  }, [clearRetry, requestWithRetry]);
-
-  const rejoin = useCallback(async (code: string, pin: string) => {
+  const rejoin = useCallback(async (code: string, pin: string, options?: { afterConflict?: boolean }) => {
     const cleanCode = normalizeRoomCode(code);
     clearRetry();
     if (!validRoomCode(cleanCode)) {
@@ -303,11 +271,51 @@ export function useTeacherRoom(
         lastFailedActionRef.current = { kind: 'rejoin', code, pin };
         setCanRetry(true);
       }
-      setStatus(formatRoomError(error, 'Could not rejoin room.'));
+      setStatus(options?.afterConflict && (error as RoomRequestError).status === 403
+        ? 'That room code is already in use with a different PIN. Enter its PIN or choose another code.'
+        : formatRoomError(error, 'Could not rejoin room.'));
     } finally {
       if (mountedRef.current) setBusy(false);
     }
   }, [clearRetry, onRestore, requestWithRetry]);
+
+  const create = useCallback(async (code: string, pin: string) => {
+    const cleanPin = normalizePin(pin);
+    clearRetry();
+    if (!validPin(cleanPin)) {
+      setStatus('Enter a room PIN (4–20 characters) so you can rejoin if disconnected.');
+      return;
+    }
+    awaitingRestoreRef.current = false;
+    rejoinedBaselineRef.current = null;
+    setBusy(true);
+    setStatus('');
+    try {
+      const result = (await requestWithRetry('', 'POST', {
+        code: code.trim() || undefined,
+        pin: cleanPin,
+      })) as Credential;
+      if (!mountedRef.current) return;
+      setRoom(result);
+      setUnavailable(false);
+      setStatus('Connecting…');
+    } catch (error) {
+      if (!mountedRef.current) return;
+      // A class code reused every day: if the room still exists, reopen it with the same PIN
+      if ((error as RoomRequestError).status === 409 && code.trim()) {
+        setBusy(false);
+        await rejoin(code, pin, { afterConflict: true });
+        return;
+      }
+      if (isTransientRoomError(error)) {
+        lastFailedActionRef.current = { kind: 'create', code, pin };
+        setCanRetry(true);
+      }
+      setStatus(formatRoomError(error, 'Could not create room.'));
+    } finally {
+      if (mountedRef.current) setBusy(false);
+    }
+  }, [clearRetry, rejoin, requestWithRetry]);
 
   const retryLast = useCallback(async () => {
     const action = lastFailedActionRef.current;

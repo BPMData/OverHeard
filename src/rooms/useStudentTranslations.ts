@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LanguageCode } from '../types';
+import { useLiveTranslations } from '../useLiveTranslations';
 import { createStudentTranslator } from './translateStudent';
 import type { RoomSnapshot } from './protocol';
 
@@ -33,20 +34,11 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
     }
   }, [snapshot, language, translate, version]);
 
-  const [live, setLive] = useState<{ key: string; text: string } | null>(null);
-  const interim = snapshot?.interim || '';
   const teacherSupplies = language !== 'en' && !!snapshot?.selectedLangs.includes(language);
-  useEffect(() => {
-    if (!interim || language === 'en' || teacherSupplies) return;
-    let canceled = false;
-    const timer = window.setTimeout(() => {
-      // Same 500-character request bound as the teacher's finalized lecture lines.
-      void translate(interim.slice(0, 500), language).then(text => {
-        if (!canceled) setLive({ key: `${language}\0${interim}`, text });
-      }, () => { /* Interim translation is best effort. Final lines report failures. */ });
-    }, 450);
-    return () => { canceled = true; window.clearTimeout(timer); };
-  }, [interim, language, teacherSupplies, translate]);
+  const liveLangs = useMemo<LanguageCode[]>(
+    () => (language === 'en' || teacherSupplies ? [] : [language]), [language, teacherSupplies]);
+  const lastEntry = snapshot?.entries[snapshot.entries.length - 1];
+  const studentLive = useLiveTranslations(snapshot?.interim || '', liveLangs, translate, lastEntry?.id ?? '');
 
   const entries = useMemo(() => snapshot?.entries.map(entry => {
     if (language === 'en' || entry.translations[language]) return entry;
@@ -55,7 +47,7 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
       failedLangs: { ...entry.failedLangs, [language]: local === null } };
   }) || [], [snapshot?.entries, language, version]);
   const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] ||
-    (live?.key === keyFor(interim) ? live.text : '');
+    studentLive[language] || '';
   return { entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
     hasFailures: language !== 'en' && entries.some(entry => !entry.translations[language] && entry.failedLangs[language]),
     retry: () => { for (const [key, result] of results.current) if (result === null) results.current.delete(key); refresh(value => value + 1); } };
