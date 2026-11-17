@@ -21,6 +21,7 @@ import {
   Moon,
   PictureInPicture2,
   Send,
+  Square,
   Subtitles,
   Sun,
   Trash2,
@@ -28,6 +29,8 @@ import {
   Volume2,
   Zap,
 } from 'lucide-react';
+import { piperClient, type PlaybackHandle } from './tts/piperClient';
+import { resolveVoiceId, useVoicePreferences } from './tts/voices';
 import {
   DEFAULT_FONT_SIZE,
   DEFAULT_LANGUAGES,
@@ -203,6 +206,69 @@ export default function App() {
   const [conversationVisited, setConversationVisited] = useState(false);
   const previousMode = useRef<'columns' | 'subtitle'>('columns');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('columns');
+  const [voicePrefs] = useVoicePreferences();
+  const [columnPlayback, setColumnPlayback] = useState<{
+    code: LanguageCode;
+    status: 'downloading' | 'playing';
+  } | null>(null);
+  const columnPlayHandleRef = useRef<PlaybackHandle | null>(null);
+  const columnPlayGenRef = useRef(0);
+
+  const stopColumnPlayback = useCallback(() => {
+    columnPlayGenRef.current += 1;
+    columnPlayHandleRef.current?.stop();
+    columnPlayHandleRef.current = null;
+    setColumnPlayback(null);
+  }, []);
+
+  const speakColumnTranslation = useCallback(
+    (code: LanguageCode, text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      stopColumnPlayback();
+      const gen = columnPlayGenRef.current;
+      const voiceId = resolveVoiceId(code, voicePrefs);
+      piperClient.unlockAudio();
+      let settled = false;
+      setColumnPlayback({ code, status: 'playing' });
+      const handle = piperClient.speak(trimmed, {
+        lang: code,
+        voiceId,
+        onDownloading: () => {
+          if (settled || gen !== columnPlayGenRef.current) return;
+          setColumnPlayback({ code, status: 'downloading' });
+        },
+        onStart: () => {
+          if (settled || gen !== columnPlayGenRef.current) return;
+          setColumnPlayback({ code, status: 'playing' });
+        },
+        onEnd: () => {
+          if (settled || gen !== columnPlayGenRef.current) return;
+          settled = true;
+          columnPlayHandleRef.current = null;
+          setColumnPlayback(null);
+        },
+        onError: () => {
+          if (settled || gen !== columnPlayGenRef.current) return;
+          settled = true;
+          columnPlayHandleRef.current = null;
+          setColumnPlayback(null);
+        },
+      });
+      if (!settled && gen === columnPlayGenRef.current) {
+        columnPlayHandleRef.current = handle;
+      } else if (gen !== columnPlayGenRef.current) {
+        handle.stop();
+      }
+    },
+    [stopColumnPlayback, voicePrefs],
+  );
+
+  useEffect(() => {
+    if (displayMode !== 'columns') stopColumnPlayback();
+  }, [displayMode, stopColumnPlayback]);
+
+  useEffect(() => () => stopColumnPlayback(), [stopColumnPlayback]);
 
   // Modals & drawers
   const [isLangModalOpen, setIsLangModalOpen] = useState<boolean>(false);
@@ -1145,6 +1211,7 @@ export default function App() {
 
   // Clear transcript history
   const handleClearConfirm = () => {
+    stopColumnPlayback();
     setSegments([]);
     setInterimTranscript('');
     finalizedHistoryRef.current = [];
@@ -1916,6 +1983,8 @@ export default function App() {
               const isTranslating =
                 currentSegment?.status === 'translating' && !currText;
               const isUnavailable = currText === 'translation unavailable';
+              const canPlay = Boolean(currText && !isTranslating && !isUnavailable);
+              const isThisColActive = columnPlayback?.code === code;
 
               return (
                 <section
@@ -1937,9 +2006,50 @@ export default function App() {
                         {isRtl ? ' · RTL' : ''}
                       </span>
                     </div>
-                    <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
-                      {code}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!canPlay && !isThisColActive}
+                        onClick={() => {
+                          if (isThisColActive) stopColumnPlayback();
+                          else if (currText) speakColumnTranslation(code, currText);
+                        }}
+                        aria-label={
+                          isThisColActive
+                            ? `Stop reading ${lang.name} translation`
+                            : `Read ${lang.name} translation aloud`
+                        }
+                        title={
+                          isThisColActive
+                            ? 'Stop reading'
+                            : canPlay
+                              ? `Read ${lang.name} translation aloud`
+                              : 'Translation appears here after a sentence finishes'
+                        }
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                          isThisColActive
+                            ? 'border-[#5843A5] bg-[#5843A5] text-white dark:border-[#A78BFA] dark:bg-[#5843A5]'
+                            : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#475569] dark:text-[#CBD5E1] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isThisColActive ? (
+                          <>
+                            <Square className="w-3 h-3" />
+                            <span>
+                              {columnPlayback.status === 'downloading' ? 'Loading…' : 'Stop'}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+                            <span>Play</span>
+                          </>
+                        )}
+                      </button>
+                      <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
+                        {code}
+                      </span>
+                    </div>
                   </div>
 
                   <div

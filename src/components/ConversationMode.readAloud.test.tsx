@@ -226,3 +226,20 @@ it('imports a conversation JSON into the conversation thread without reading imp
   await finishVoice();
   expect(Recognition.instances).toHaveLength(countBeforeReplay + 1);
 });
+
+it('plays and stops any two-way message bubble even when Read aloud is unchecked', async () => {
+  const { translate } = mount(false);
+  await act(async () => result(Recognition.instances[0].onresult, 'Hello student'));
+  await tick(2500);
+  expect(translate).toHaveBeenCalledWith('Hello student', 'es', 'en');
+  expect(speak).not.toHaveBeenCalled();
+
+  const playBtn = screen.getByRole('button', { name: 'Read aloud: Hello student' });
+  fireEvent.click(playBtn);
+  expect(speak).toHaveBeenCalledTimes(1);
+  expect(queue[0].text).toBe('translated Hello student');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Stop reading Hello student' }));
+  expect(window.speechSynthesis.cancel).toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Read aloud: Hello student' })).toBeTruthy();
+});

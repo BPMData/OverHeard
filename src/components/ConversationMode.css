@@ -454,13 +454,17 @@
 }
 .lecture-play-btn,
 .conversation-play-btn {
-  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
   font-size: 11px;
   line-height: 1.4;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 .lecture-play-btn:hover,
 .conversation-play-btn:hover,
+.conversation-play-btn.is-playing,
 .lecture-cell-speaking .lecture-play-btn {
   opacity: 1;
   border-color: #5843a5;
@@ -468,6 +472,7 @@
 }
 .conversation-dark .lecture-play-btn:hover,
 .conversation-dark .conversation-play-btn:hover,
+.conversation-dark .conversation-play-btn.is-playing,
 .conversation-dark .lecture-cell-speaking .lecture-play-btn {
   border-color: #a78bfa;
   color: #c4b5fd;

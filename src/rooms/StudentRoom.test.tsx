@@ -29,6 +29,14 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const emit = async (data = snapshot()) => { await act(async () => FakeEvents.instances[0].emit('snapshot', data)); };
 
 describe('student lecture view', () => {
+  it('defaults to Spanish with the Claude voice when no preferences are saved', async () => {
+    render(<StudentRoom code="macbookairtest" />);
+    await emit();
+    expect((screen.getByLabelText('My language') as HTMLSelectElement).value).toBe('es');
+    expect((screen.getByLabelText('Voice') as HTMLSelectElement).value).toBe('es_MX-claude-high');
+    expect(screen.getByText('Bienvenidos a ciencias')).toBeTruthy();
+  });
+
   it('is read-only and reuses teacher translations without starting a microphone', async () => {
     render(<StudentRoom code="science-101" />); await emit();
     fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });

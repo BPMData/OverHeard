@@ -17,7 +17,7 @@ export interface PipPrefs {
 
 const DEFAULT_STUDENT_PREFS: StudentPrefs = {
   isDark: true,
-  language: 'en',
+  language: 'es',
   fontSize: 28,
 };
 
