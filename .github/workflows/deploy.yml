@@ -94,7 +94,9 @@ jobs:
           region: us-east1
           project_id: loyal-rookery-403218
           image: ${{ steps.migrate.outputs.image }}
-          flags: '--allow-unauthenticated --port=3000 --max-instances=1'
+          # --command= / --args= reset AI Studio's leftover `/bin/sh -c "...npm start"` override,
+          # which bypasses the Buildpacks launcher (no node on PATH) so the container never listens.
+          flags: '--allow-unauthenticated --port=3000 --max-instances=1 --command= --args='
 
       - name: Deploy to Cloud Run
         if: steps.migrate.outputs.image == ''
@@ -104,4 +106,6 @@ jobs:
           region: us-east1
           project_id: loyal-rookery-403218
           source: .
-          flags: '--allow-unauthenticated --port=3000 --max-instances=1'
+          # --command= / --args= reset AI Studio's leftover `/bin/sh -c "...npm start"` override,
+          # which bypasses the Buildpacks launcher (no node on PATH) so the container never listens.
+          flags: '--allow-unauthenticated --port=3000 --max-instances=1 --command= --args='
