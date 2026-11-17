@@ -86,26 +86,27 @@ jobs:
             fi
           fi
 
-      - name: Deploy migrated image to Cloud Run
-        if: steps.migrate.outputs.image != ''
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          service: over-heard
-          region: us-east1
-          project_id: loyal-rookery-403218
-          image: ${{ steps.migrate.outputs.image }}
-          # --command= / --args= reset AI Studio's leftover `/bin/sh -c "...npm start"` override,
-          # which bypasses the Buildpacks launcher (no node on PATH) so the container never listens.
-          flags: '--allow-unauthenticated --port=3000 --max-instances=1 --command= --args='
-
+      # Call gcloud directly: deploy-cloudrun's flag parser turns `--command=` into a bare
+      # `--command`, which gcloud rejects. --command="" / --args="" reset AI Studio's leftover
+      # `/bin/sh -c "...npm start"` override, which bypasses the Buildpacks launcher (no node on
+      # PATH) so the container never listens on 3000.
       - name: Deploy to Cloud Run
-        if: steps.migrate.outputs.image == ''
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          service: over-heard
-          region: us-east1
-          project_id: loyal-rookery-403218
-          source: .
-          # --command= / --args= reset AI Studio's leftover `/bin/sh -c "...npm start"` override,
-          # which bypasses the Buildpacks launcher (no node on PATH) so the container never listens.
-          flags: '--allow-unauthenticated --port=3000 --max-instances=1 --command= --args='
+        env:
+          MIGRATED_IMAGE: ${{ steps.migrate.outputs.image }}
+        run: |
+          if [ -n "$MIGRATED_IMAGE" ]; then
+            SOURCE_ARGS=(--image "$MIGRATED_IMAGE")
+          else
+            SOURCE_ARGS=(--source .)
+          fi
+          gcloud run deploy over-heard \
+            "${SOURCE_ARGS[@]}" \
+            --region us-east1 \
+            --project loyal-rookery-403218 \
+            --allow-unauthenticated \
+            --port 3000 \
+            --max-instances 1 \
+            --command "" \
+            --args "" \
+            --update-labels "managed-by=github-actions,commit-sha=${GITHUB_SHA}" \
+            --quiet
