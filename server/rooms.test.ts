@@ -105,7 +105,10 @@ describe('live classroom rooms', () => {
     expect((await next()).data.teacherOnline).toBe(false);
     await request(`/${code}`, 'PUT', { ...patch(), entries: [] }, token);
     expect((await next()).data.teacherOnline).toBe(true);
-    clock += 9 * 60 * 60_000; service.sweep();
+    clock += 9 * 60 * 60_000;
+    expect((await request(`/${code}`)).status).toBe(404);
+    expect((await request(`/${code}/events`)).status).toBe(404);
+    service.sweep();
     expect((await next()).event).toBe('expired');
     expect((await request(`/${code}`)).status).toBe(404);
   });

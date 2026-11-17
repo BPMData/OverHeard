@@ -43,6 +43,207 @@
   opacity: 0.8;
 }
 .room-pin-toggle:hover { opacity: 1; }
+.room-history-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.room-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.room-history-btn.is-open {
+  border-color: #5843a5;
+  color: #5843a5;
+}
+.conversation-dark .room-history-btn.is-open {
+  border-color: #a78bfa;
+  color: #c4b5fd;
+}
+.room-history-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: min(360px, calc(100vw - 32px));
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.conversation-dark .room-history-menu {
+  background: #111827;
+  color: #f8fafc;
+  border-color: #334155;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+.room-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.room-history-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.room-history-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+.room-history-icon-btn,
+.room-history-clear {
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  display: inline-flex;
+  align-items: center;
+}
+.room-history-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+}
+.conversation-dark .room-history-hint {
+  color: #94a3b8;
+}
+.room-history-empty {
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+}
+.conversation-dark .room-history-empty {
+  color: #94a3b8;
+}
+.room-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.room-history-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px !important;
+  border-radius: 7px !important;
+  text-align: left;
+  font-size: 12px;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.room-history-item.is-live {
+  border-color: rgba(16, 185, 129, 0.55) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+}
+.conversation-dark .room-history-item.is-live {
+  border-color: rgba(52, 211, 153, 0.5) !important;
+  background: rgba(16, 185, 129, 0.14) !important;
+}
+.room-history-item.is-live:hover {
+  background: rgba(16, 185, 129, 0.15) !important;
+}
+.room-history-item.is-ended {
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  opacity: 0.88;
+}
+.room-history-item.is-expired {
+  opacity: 0.48;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+.room-history-item.is-expired:hover {
+  opacity: 0.72;
+}
+.room-history-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #94a3b8;
+}
+.room-history-item.is-live .room-history-dot {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+}
+.room-history-item.is-ended .room-history-dot {
+  background: #f59e0b;
+}
+.room-history-item.is-checking .room-history-dot {
+  background: #8b5cf6;
+  animation: conversation-pulse 1.2s ease-in-out infinite;
+}
+.room-history-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.room-history-age {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.conversation-dark .room-history-age {
+  color: #94a3b8;
+}
+.room-history-status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.room-history-item.is-live .room-history-status {
+  color: #059669;
+}
+.conversation-dark .room-history-item.is-live .room-history-status {
+  color: #34d399;
+}
+.room-history-item.is-ended .room-history-status {
+  color: #b45309;
+}
+.conversation-dark .room-history-item.is-ended .room-history-status {
+  color: #fbbf24;
+}
+.room-history-item.is-expired .room-history-status {
+  color: #64748b;
+}
+.conversation-dark .room-history-item.is-expired .room-history-status {
+  color: #94a3b8;
+}
+.room-status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.room-retry-btn {
+  padding: 3px 9px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  border-color: #5843a5 !important;
+  color: #5843a5 !important;
+}
+.conversation-dark .room-retry-btn {
+  border-color: #a78bfa !important;
+  color: #c4b5fd !important;
+}
 .student-theme-btn {
   display: inline-flex;
   align-items: center;

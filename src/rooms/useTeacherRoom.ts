@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   normalizePin,
   normalizeRoomCode,
@@ -9,8 +9,14 @@ import {
   type RoomRejoinResponse,
 } from './protocol';
 
+import { recordRoomHistory } from './roomHistory';
+
 const STORAGE_KEY = 'overheard.teacherRoom';
+const RETRY_DELAYS_MS = [500, 1000] as const;
+
 interface Credential { code: string; token: string }
+type FailedAction = { kind: 'create' | 'rejoin'; code: string; pin: string };
+type RoomRequestError = Error & { status?: number; retryable?: boolean };
 
 function loadCredential(): Credential | null {
   try {
@@ -19,13 +25,106 @@ function loadCredential(): Credential | null {
   } catch { return null; }
 }
 
+function createRequestSignal(timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return { signal: AbortSignal.timeout(timeoutMs), cleanup: () => {} };
+  }
+  const controller = new AbortController();
+  const timer = window.setTimeout(
+    () => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
+    timeoutMs,
+  );
+  return { signal: controller.signal, cleanup: () => window.clearTimeout(timer) };
+}
+
+function isTransientRoomError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as RoomRequestError;
+  if (err.retryable === true) return true;
+  if (typeof err.status === 'number') return [502, 503, 504].includes(err.status);
+  if (error instanceof TypeError) return true;
+  if (error instanceof Error) {
+    return (
+      error.name === 'TimeoutError' ||
+      error.name === 'AbortError' ||
+      /failed to fetch|load failed|networkerror|network request failed/i.test(error.message)
+    );
+  }
+  return false;
+}
+
+function formatRoomError(error: unknown, fallback: string): string {
+  const err = error as RoomRequestError | undefined;
+  if (typeof err?.status === 'number') {
+    if ([502, 503, 504].includes(err.status)) {
+      return 'The OverHeard server is temporarily busy or restarting. Please try again in a moment.';
+    }
+    return err.message || fallback;
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return 'You appear to be offline. Reconnect to the internet and try again.';
+  }
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return 'The server took too long to respond. Please check your connection and try again.';
+  }
+  if (isTransientRoomError(error)) {
+    return 'Could not reach the OverHeard server. Check your internet connection or refresh the page, then try again.';
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 async function request(path: string, method: string, body?: unknown, token?: string) {
-  const response = await fetch(`/api/rooms${path}`, { method,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
-  const data = await response.json();
-  if (!response.ok) throw Object.assign(new Error(data.error || 'Room request failed.'), { status: response.status });
-  return data;
+  const { signal, cleanup } = createRequestSignal(15_000);
+  try {
+    const response = await fetch(`/api/rooms${path}`, {
+      method,
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+    let data: { error?: unknown } | null = null;
+    if (typeof response.text === 'function') {
+      const raw = await response.text();
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as { error?: unknown };
+        } catch {
+          data = null;
+        }
+      }
+    } else if (typeof response.json === 'function') {
+      try {
+        data = (await response.json()) as { error?: unknown };
+      } catch {
+        data = null;
+      }
+    }
+    if (!response.ok) {
+      const serverMsg = typeof data?.error === 'string' && data.error.trim() ? data.error : '';
+      const error: RoomRequestError = Object.assign(
+        new Error(serverMsg || `Room request failed (HTTP ${response.status}).`),
+        {
+          status: response.status,
+          retryable: [502, 503, 504].includes(response.status),
+        },
+      );
+      throw error;
+    }
+    if (data === null) {
+      const error: RoomRequestError = Object.assign(
+        new Error('Unexpected response from server.'),
+        { retryable: true },
+      );
+      throw error;
+    }
+    return data;
+  } finally {
+    cleanup();
+  }
 }
 
 export function useTeacherRoom(
@@ -38,11 +137,22 @@ export function useTeacherRoom(
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [canRetry, setCanRetry] = useState(false);
   const awaitingRestoreRef = useRef(false);
   const rejoinedBaselineRef = useRef<{ token: string; state: LectureState } | null>(null);
+  const lastFailedActionRef = useRef<FailedAction | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     try { if (room) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(room)); else sessionStorage.removeItem(STORAGE_KEY); } catch { /* in-memory room still works */ }
+    if (room?.code) recordRoomHistory(room.code);
   }, [room]);
 
   useEffect(() => {
@@ -78,7 +188,7 @@ export function useTeacherRoom(
         if (!disposed) {
           const fatal = [403, 404, 410].includes((error as { status?: number }).status ?? 0);
           setUnavailable(fatal);
-          setStatus(error instanceof Error ? error.message : 'Connection lost. Retrying…');
+          setStatus(fatal ? formatRoomError(error, 'This room is no longer available.') : 'Connection interrupted — retrying…');
           if (fatal) disposed = true;
         }
       } finally { pending = false; }
@@ -88,8 +198,34 @@ export function useTeacherRoom(
     return () => { disposed = true; window.clearInterval(timer); };
   }, [room]);
 
-  const create = async (code: string, pin: string) => {
+  const requestWithRetry = useCallback(async (path: string, method: string, body?: unknown, token?: string) => {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await request(path, method, body, token);
+      } catch (error) {
+        if (!isTransientRoomError(error) || attempt >= RETRY_DELAYS_MS.length) {
+          throw error;
+        }
+        const delayMs = RETRY_DELAYS_MS[attempt];
+        attempt += 1;
+        if (mountedRef.current) {
+          setStatus(`Connection interrupted — retrying (${attempt}/${RETRY_DELAYS_MS.length})…`);
+        }
+        await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
+        if (!mountedRef.current) throw error;
+      }
+    }
+  }, []);
+
+  const clearRetry = useCallback(() => {
+    lastFailedActionRef.current = null;
+    setCanRetry(false);
+  }, []);
+
+  const create = useCallback(async (code: string, pin: string) => {
     const cleanPin = normalizePin(pin);
+    clearRetry();
     if (!validPin(cleanPin)) {
       setStatus('Enter a room PIN (4–20 characters) so you can rejoin if disconnected.');
       return;
@@ -97,15 +233,31 @@ export function useTeacherRoom(
     awaitingRestoreRef.current = false;
     rejoinedBaselineRef.current = null;
     setBusy(true);
+    setStatus('');
     try {
-      const result: Credential = await request('', 'POST', { code: code.trim() || undefined, pin: cleanPin });
-      setRoom(result); setUnavailable(false); setStatus('Connecting…');
-    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not create room.'); }
-    finally { setBusy(false); }
-  };
+      const result = (await requestWithRetry('', 'POST', {
+        code: code.trim() || undefined,
+        pin: cleanPin,
+      })) as Credential;
+      if (!mountedRef.current) return;
+      setRoom(result);
+      setUnavailable(false);
+      setStatus('Connecting…');
+    } catch (error) {
+      if (!mountedRef.current) return;
+      if (isTransientRoomError(error)) {
+        lastFailedActionRef.current = { kind: 'create', code, pin };
+        setCanRetry(true);
+      }
+      setStatus(formatRoomError(error, 'Could not create room.'));
+    } finally {
+      if (mountedRef.current) setBusy(false);
+    }
+  }, [clearRetry, requestWithRetry]);
 
-  const rejoin = async (code: string, pin: string) => {
+  const rejoin = useCallback(async (code: string, pin: string) => {
     const cleanCode = normalizeRoomCode(code);
+    clearRetry();
     if (!validRoomCode(cleanCode)) {
       setStatus('Enter the room code you want to rejoin.');
       return;
@@ -116,8 +268,14 @@ export function useTeacherRoom(
       return;
     }
     setBusy(true);
+    setStatus('');
     try {
-      const result: RoomRejoinResponse = await request(`/${encodeURIComponent(cleanCode)}/rejoin`, 'POST', { pin: cleanPin });
+      const result = (await requestWithRetry(
+        `/${encodeURIComponent(cleanCode)}/rejoin`,
+        'POST',
+        { pin: cleanPin },
+      )) as RoomRejoinResponse;
+      if (!mountedRef.current) return;
       const localEmpty = latest.current.entries.length === 0;
       if (localEmpty && (result.snapshot.entries.length > 0 || result.snapshot.selectedLangs.length > 0)) {
         awaitingRestoreRef.current = result.snapshot.entries.length > 0;
@@ -140,22 +298,42 @@ export function useTeacherRoom(
       setUnavailable(false);
       setStatus('Rejoining…');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not rejoin room.');
+      if (!mountedRef.current) return;
+      if (isTransientRoomError(error)) {
+        lastFailedActionRef.current = { kind: 'rejoin', code, pin };
+        setCanRetry(true);
+      }
+      setStatus(formatRoomError(error, 'Could not rejoin room.'));
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
-  };
+  }, [clearRetry, onRestore, requestWithRetry]);
 
-  const end = async () => {
+  const retryLast = useCallback(async () => {
+    const action = lastFailedActionRef.current;
+    if (!action || busy) return;
+    if (action.kind === 'create') {
+      await create(action.code, action.pin);
+    } else {
+      await rejoin(action.code, action.pin);
+    }
+  }, [busy, create, rejoin]);
+
+  const end = useCallback(async () => {
     if (!room) return;
     setBusy(true);
     try {
-      if (!unavailable) await request(`/${room.code}`, 'DELETE', undefined, room.token);
+      if (!unavailable) await requestWithRetry(`/${room.code}`, 'DELETE', undefined, room.token);
       awaitingRestoreRef.current = false;
       rejoinedBaselineRef.current = null;
+      clearRetry();
       setRoom(null); setStatus(''); setUnavailable(false);
-    } catch (error) { setStatus(error instanceof Error ? error.message : 'Could not end room.'); }
-    finally { setBusy(false); }
-  };
-  return { room, status, busy, unavailable, create, rejoin, end };
+    } catch (error) {
+      if (mountedRef.current) setStatus(formatRoomError(error, 'Could not end room.'));
+    } finally {
+      if (mountedRef.current) setBusy(false);
+    }
+  }, [clearRetry, requestWithRetry, room, unavailable]);
+
+  return { room, status, busy, unavailable, canRetry, create, rejoin, end, retryLast, clearRetry };
 }
