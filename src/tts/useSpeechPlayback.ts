@@ -331,13 +331,18 @@ export function useLecturePlayback({
     const lang = liveLangRef.current;
     const translated = lang === 'en' ? Promise.resolve(english) : options.translate(english, lang);
     translated.then(
-      (text) => { slot.text = text.trim() || null; },
+      (text) => {
+        slot.text = text.trim() || null;
+        // Synthesize now, while earlier pieces are still playing
+        const voiceId = resolveVoiceId(lang, voicePrefsRef.current);
+        if (slot.text && client.isPiperSupported() && voiceId !== BROWSER_VOICE_ID) client.prefetch(slot.text, voiceId);
+      },
       () => { slot.text = null; },
     ).finally(() => {
       slot.done = true;
       pumpLiveRef.current();
     });
-  }, []);
+  }, [client]);
 
   /** Start a fresh utterance; `spoken` words at its start are skipped. */
   const resetLive = useCallback((spoken: number, keepSlots: boolean) => {
@@ -430,6 +435,13 @@ export function useLecturePlayback({
   }, [readAloud, liveLang, stopInternal, resetLive]);
 
   const liveEnabled = Boolean(live);
+
+  // Load and warm up the reading voice as soon as reading is on, so the first words aren't
+  // held back by the voice model starting up.
+  const readingVoice = resolveVoiceId(liveLang, voicePrefs);
+  useEffect(() => {
+    if (readAloud && readingVoice !== BROWSER_VOICE_ID) client.preloadVoice(readingVoice);
+  }, [readAloud, readingVoice, client]);
   // A line was finalized after part of it was already read live: read only the rest of it,
   // and don't read the whole line again.
   useEffect(() => {

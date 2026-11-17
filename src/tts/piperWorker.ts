@@ -35,6 +35,9 @@ const workerScope = self as unknown as {
 };
 
 const sessionCache = new Map<string, TtsSession>();
+// Models that have already synthesized once in this worker. The first synthesis also starts
+// the phonemizer and runs the slowest inference, so a preload does it ahead of real speech.
+const warmedModels = new Set<string>();
 const cancelledJobs = new Set<number>();
 let ortPatched = false;
 let activeSpeakerId = 0;
@@ -150,7 +153,11 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   if (data.type === 'preload') {
     runSerialized(async () => {
       try {
-        await ensureSession(data.modelId);
+        const session = await ensureSession(data.modelId);
+        if (!warmedModels.has(data.modelId)) {
+          warmedModels.add(data.modelId);
+          await session.predict('Hello.').catch(() => undefined);
+        }
       } catch {
         // Status error already posted by ensureSession.
       }
