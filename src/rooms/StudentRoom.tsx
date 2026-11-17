@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Moon, Sun, Volume2 } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
@@ -13,7 +13,7 @@ import {
   useVoicePreferences,
 } from '../tts/voices';
 import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
-import type { LanguageCode } from '../types';
+import type { ConversationLanguage, LanguageCode } from '../types';
 import { ExportLectureButton } from './LectureFiles';
 import { LecturePip } from './LecturePip';
 import { useStudentRoom } from './useStudentRoom';
@@ -48,6 +48,11 @@ export function StudentRoom({ code }: { code: string }) {
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [readAloud, setReadAloud] = useState(false);
   const translations = useStudentTranslations(snapshot, language);
+  const studentTranslate = translations.translate;
+  const translateLive = useCallback(
+    (text: string, lang: ConversationLanguage) => (lang === 'en' ? Promise.resolve(text) : studentTranslate(text, lang)),
+    [studentTranslate],
+  );
   const state = { ...(snapshot || emptyLecture()), entries: translations.entries,
     selectedLangs: language === 'en' ? [] : [language],
     interim: connected ? snapshot?.interim || '' : '',
@@ -58,6 +63,8 @@ export function StudentRoom({ code }: { code: string }) {
     voicePrefs,
     readAloud,
     liveLang: language,
+    // Students listen on their own device, so read along while the teacher is still talking
+    live: connected ? { interim: snapshot?.interim || '', translate: translateLive, suspendSpeech: true } : null,
   });
   const adjustFont = (delta: number) => setFontSize(value => Math.min(56, Math.max(20, value + delta)));
   return <main className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}>

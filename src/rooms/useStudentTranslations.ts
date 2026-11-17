@@ -48,7 +48,7 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
   }) || [], [snapshot?.entries, language, version]);
   const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] ||
     studentLive[language] || '';
-  return { entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
+  return { translate, entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
     hasFailures: language !== 'en' && entries.some(entry => !entry.translations[language] && entry.failedLangs[language]),
     retry: () => { for (const [key, result] of results.current) if (result === null) results.current.delete(key); refresh(value => value + 1); } };
 }

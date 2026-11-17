@@ -76,6 +76,11 @@ interface Props {
   importedLecture?: { seq: number; entries: LectureEntry[] } | null;
   geminiRefine?: GeminiRefineSettings;
 }
+// Read the teacher's translation aloud while they are still talking. The microphone keeps
+// listening while it reads, so the teacher needs headphones. Set to false to read only on
+// student devices (the teacher laptop then reads finished lines and pauses the microphone).
+const TEACHER_LIVE_READ_ALOUD = true;
+
 const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
 const color = (side: Side, lang: ConversationLanguage) =>
   side === 'a'
@@ -171,6 +176,10 @@ export function ConversationMode({
     onPermissionDenied,
     onPackProgress,
   });
+  const translateLiveSpeech = useCallback(
+    (text: string, lang: ConversationLanguage) => translate(text, lang, 'en'),
+    [translate],
+  );
   const lectureLangs: ConversationLanguage[] = ['en', ...targetLangs];
   const effectiveLectureLang = lectureLangs.includes(lecturePlaybackLang)
     ? lecturePlaybackLang
@@ -181,6 +190,9 @@ export function ConversationMode({
     readAloud: active && isLecture && lectureReadAloud,
     liveLang: effectiveLectureLang,
     onBeforePlay: lecture.speech.suspend,
+    live: TEACHER_LIVE_READ_ALOUD
+      ? { interim: lecture.speech.interim, translate: translateLiveSpeech, suspendSpeech: false }
+      : null,
   });
   const twoWayPlayback = useTwoWayPlayback({
     voicePrefs,
