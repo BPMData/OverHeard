@@ -3,6 +3,14 @@ import type { LectureEntry } from '../conversation/lectureState';
 import type { ConversationLanguage } from '../types';
 import { piperClient, type PlaybackHandle, type SpeechClient } from './piperClient';
 import { BROWSER_VOICE_ID, resolveVoiceId, type VoicePreferences } from './voices';
+import {
+  emptyTracker,
+  finalRemainder,
+  nextLiveSegment,
+  splitWords,
+  trackWords,
+  type WordTracker,
+} from './liveSegments';
 
 export type PlaybackStatus = 'idle' | 'playing' | 'paused' | 'downloading';
 
@@ -12,14 +20,47 @@ export interface ActivePlayback {
   status: Exclude<PlaybackStatus, 'idle'>;
 }
 
+/** `activePlayback.entryId` while a piece of the not-yet-finalized line is being read. */
+export const LIVE_PLAYBACK_ID = 'live';
+
+export interface LiveReadAloud {
+  /** The speaker's in-progress (interim) English. */
+  interim: string;
+  translate: (text: string, lang: ConversationLanguage) => Promise<string>;
+  /**
+   * Call `onBeforePlay` (which pauses the teacher's microphone) for automatic reading too.
+   * False keeps the microphone listening while it reads, which needs headphones.
+   */
+  suspendSpeech: boolean;
+}
+
 export interface UseLecturePlaybackOptions {
   entries: LectureEntry[];
   voicePrefs: VoicePreferences;
   readAloud: boolean;
   liveLang: ConversationLanguage;
   onBeforePlay?: () => void;
+  /** Read settled words while the speaker is still talking, instead of waiting for a pause. */
+  live?: LiveReadAloud | null;
   client?: SpeechClient;
 }
+
+interface LiveSlot {
+  text: string | null;
+  done: boolean;
+}
+
+interface LiveState {
+  /** Id of the last finalized entry when this utterance began. */
+  key: string;
+  tracker: WordTracker;
+  /** Words of the current utterance already sent to be read. */
+  spoken: number;
+  /** Pieces waiting to be read, in order; each fills in when its translation arrives. */
+  slots: LiveSlot[];
+}
+
+const lastEntryId = (entries: LectureEntry[]) => entries[entries.length - 1]?.id ?? '';
 
 export function getLectureCellText(entry: LectureEntry, lang: ConversationLanguage): string | null {
   const raw = lang === 'en' ? entry.english : entry.translations[lang];
@@ -33,6 +74,7 @@ export function useLecturePlayback({
   readAloud,
   liveLang,
   onBeforePlay,
+  live = null,
   client = piperClient,
 }: UseLecturePlaybackOptions) {
   const [cursor, setCursor] = useState<{ entryId: string; lang: ConversationLanguage } | null>(null);
@@ -53,6 +95,14 @@ export function useLecturePlayback({
 
   const onBeforePlayRef = useRef(onBeforePlay);
   onBeforePlayRef.current = onBeforePlay;
+
+  const liveRef = useRef(live);
+  liveRef.current = live;
+  const liveStateRef = useRef<LiveState>({ key: lastEntryId(entries), tracker: emptyTracker(), spoken: 0, slots: [] });
+  /** Automatic reading pauses the microphone unless live reading says to keep listening. */
+  const beforeAutoPlay = () => {
+    if (!liveRef.current || liveRef.current.suspendSpeech) onBeforePlayRef.current?.();
+  };
 
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
@@ -89,6 +139,10 @@ export function useLecturePlayback({
 
   const stop = useCallback(() => {
     stopInternal(true);
+    // Don't pick the interrupted sentence back up
+    const state = liveStateRef.current;
+    state.spoken = Math.max(state.spoken, state.tracker.words.length);
+    state.slots = [];
   }, [stopInternal]);
 
   const speakEntryAt = useCallback(
@@ -130,12 +184,15 @@ export function useLecturePlayback({
         if (currentIdx >= 0) {
           for (let i = currentIdx + 1; i < latestEntries.length; i += 1) {
             const candidate = latestEntries[i];
+            // Automatic reading skips lines already read aloud while they were spoken
+            if (fromLive && seenLiveRef.current.has(`${lang}:${candidate.id}`)) continue;
             if (getLectureCellText(candidate, lang)) {
               speakEntryAt(candidate, lang, gen, fromLive);
               return;
             }
           }
         }
+        if (fromLive && playNextLiveRef.current(gen)) return;
         // Reached the end of the current backlog.
         startedFromLiveRef.current = false;
         cursorRef.current = null;
@@ -145,7 +202,8 @@ export function useLecturePlayback({
         setDownloadProgress(null);
       };
 
-      onBeforePlayRef.current?.();
+      if (fromLive) beforeAutoPlay();
+      else onBeforePlayRef.current?.();
       statusRef.current = 'playing';
       setStatus('playing');
 
@@ -176,6 +234,120 @@ export function useLecturePlayback({
     },
     [client],
   );
+
+  // Speak the next translated piece of the line still being spoken, if it is ready.
+  // Pieces play strictly in order: a slow translation holds back the ones after it.
+  const playNextLive = (gen: number): boolean => {
+    if (gen !== generationRef.current || !readAloudRef.current || !liveRef.current) return false;
+    const slots = liveStateRef.current.slots;
+    while (slots.length > 0 && slots[0].done && !slots[0].text) slots.shift();
+    const slot = slots[0];
+    if (!slot?.done || !slot.text) return false;
+    slots.shift();
+    const text = slot.text;
+    const lang = liveLangRef.current;
+    const voiceId = resolveVoiceId(lang, voicePrefsRef.current);
+    const nextReady = slots[0]?.done ? slots[0].text : null;
+    if (nextReady && client.isPiperSupported() && voiceId !== BROWSER_VOICE_ID) client.prefetch(nextReady, voiceId);
+
+    startedFromLiveRef.current = true;
+    const nextCursor = { entryId: LIVE_PLAYBACK_ID, lang };
+    cursorRef.current = nextCursor;
+    setCursor(nextCursor);
+    setDownloadProgress(null);
+    let settled = false;
+    const advance = () => {
+      if (settled || gen !== generationRef.current) return;
+      settled = true;
+      handleRef.current = null;
+      cursorRef.current = null;
+      statusRef.current = 'idle';
+      if (playNextLive(gen) || speakNextUnseen(gen)) return;
+      startedFromLiveRef.current = false;
+      setCursor(null);
+      setStatus('idle');
+      setDownloadProgress(null);
+    };
+    beforeAutoPlay();
+    statusRef.current = 'playing';
+    setStatus('playing');
+    const handle = client.speak(text, {
+      lang,
+      voiceId,
+      onDownloading: (progress) => {
+        if (settled || gen !== generationRef.current) return;
+        statusRef.current = 'downloading';
+        setStatus('downloading');
+        setDownloadProgress(progress);
+      },
+      onStart: () => {
+        if (settled || gen !== generationRef.current) return;
+        statusRef.current = 'playing';
+        setStatus('playing');
+        setDownloadProgress(null);
+      },
+      onEnd: advance,
+      onError: advance,
+    });
+    if (settled || gen !== generationRef.current) {
+      handle.stop();
+      return true;
+    }
+    handleRef.current = handle;
+    return true;
+  };
+  const playNextLiveRef = useRef(playNextLive);
+  playNextLiveRef.current = playNextLive;
+
+  // Automatic reading: the oldest finalized line not yet read in the live language.
+  const speakNextUnseen = (gen: number): boolean => {
+    if (!readAloudRef.current) return false;
+    const lang = liveLangRef.current;
+    for (const entry of entriesRef.current) {
+      if (seenLiveRef.current.has(`${lang}:${entry.id}`)) continue;
+      if (getLectureCellText(entry, lang)) {
+        speakEntryAt(entry, lang, gen, true);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /** Start reading if nothing is playing: live pieces first, then any unread lines. */
+  const pumpLive = () => {
+    if (statusRef.current !== 'idle') return;
+    const gen = generationRef.current;
+    if (!playNextLive(gen)) speakNextUnseen(gen);
+  };
+  const pumpLiveRef = useRef(pumpLive);
+  pumpLiveRef.current = pumpLive;
+
+  // Translate a settled piece now; it plays in order once its translation arrives.
+  const queueLivePiece = useCallback((english: string) => {
+    const options = liveRef.current;
+    if (!options || !english.trim()) return;
+    const slot: LiveSlot = { text: null, done: false };
+    liveStateRef.current.slots.push(slot);
+    const lang = liveLangRef.current;
+    const translated = lang === 'en' ? Promise.resolve(english) : options.translate(english, lang);
+    translated.then(
+      (text) => { slot.text = text.trim() || null; },
+      () => { slot.text = null; },
+    ).finally(() => {
+      slot.done = true;
+      pumpLiveRef.current();
+    });
+  }, []);
+
+  /** Start a fresh utterance; `spoken` words at its start are skipped. */
+  const resetLive = useCallback((spoken: number, keepSlots: boolean) => {
+    liveStateRef.current = {
+      key: lastEntryId(entriesRef.current),
+      tracker: emptyTracker(),
+      spoken,
+      slots: keepSlots ? liveStateRef.current.slots : [],
+    };
+  }, []);
 
   const togglePause = useCallback(() => {
     const currentStatus = statusRef.current;
@@ -250,20 +422,56 @@ export function useLecturePlayback({
     if (!readAloud && wasReadAloud && startedFromLiveRef.current) {
       stopInternal(false);
     }
-  }, [readAloud, liveLang, stopInternal]);
+
+    if (readAloud !== wasReadAloud || prevLiveLang !== liveLang) {
+      // Start live reading with the next words, not from the middle of the current sentence
+      resetLive(splitWords(liveRef.current?.interim ?? '').length, false);
+    }
+  }, [readAloud, liveLang, stopInternal, resetLive]);
+
+  const liveEnabled = Boolean(live);
+  // A line was finalized after part of it was already read live: read only the rest of it,
+  // and don't read the whole line again.
+  useEffect(() => {
+    const state = liveStateRef.current;
+    const lastId = lastEntryId(entries);
+    if (lastId === state.key) return;
+    const finalized = entries[entries.length - 1];
+    if (readAloud && liveEnabled && finalized && state.spoken > 0) {
+      seenLiveRef.current.add(`${liveLang}:${finalized.id}`);
+      const { remainder, carry } = finalRemainder(finalized.english, state.spoken);
+      resetLive(carry, true);
+      queueLivePiece(remainder);
+    } else {
+      resetLive(0, true);
+    }
+  }, [entries, readAloud, liveLang, liveEnabled, resetLive, queueLivePiece]);
+
+  // Follow the in-progress line and queue each settled piece. Settling depends on time
+  // passing, so re-check a few times a second while there is unread speech.
+  const liveInterim = readAloud && live ? live.interim : '';
+  useEffect(() => {
+    if (!liveRef.current || !readAloud) return;
+    const state = liveStateRef.current;
+    state.tracker = trackWords(state.tracker, liveInterim, Date.now());
+    const check = () => {
+      const current = liveStateRef.current;
+      const segment = nextLiveSegment(current.tracker, current.spoken, Date.now());
+      if (!segment) return;
+      current.spoken = segment.end;
+      queueLivePiece(current.tracker.words.slice(segment.start, segment.end).join(' '));
+    };
+    check();
+    if (!liveInterim) return;
+    const timer = setInterval(check, 200);
+    return () => clearInterval(timer);
+  }, [liveInterim, readAloud, queueLivePiece]);
 
   // Auto-speak newly finalized entries when readAloud ("Read live") is enabled.
   useEffect(() => {
     if (!readAloud || statusRef.current !== 'idle') return;
-    for (const entry of entries) {
-      const key = `${liveLang}:${entry.id}`;
-      if (seenLiveRef.current.has(key)) continue;
-      if (getLectureCellText(entry, liveLang)) {
-        const gen = generationRef.current;
-        speakEntryAt(entry, liveLang, gen, true);
-        return;
-      }
-    }
+    speakNextUnseen(generationRef.current);
+    // speakNextUnseen reads everything else it needs from refs
   }, [entries, readAloud, liveLang, speakEntryAt]);
 
   useEffect(() => () => {
