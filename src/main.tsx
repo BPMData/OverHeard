@@ -2,11 +2,11 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { StudentRoom } from './rooms/StudentRoom';
-import { normalizeRoomCode } from './rooms/protocol';
+import { roomCodeFromLocation } from './rooms/roomLink';
 
-const room = new URLSearchParams(window.location.search).get('room');
+const room = roomCodeFromLocation(window.location);
 createRoot(document.getElementById('root')!).render(room !== null
-  ? <StudentRoom code={normalizeRoomCode(room)} /> : <App />);
+  ? <StudentRoom code={room} /> : <App />);
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

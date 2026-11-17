@@ -1,16 +1,6 @@
 export const wordCount = (text: string): number =>
   text.trim().split(/\s+/).filter(Boolean).length;
 
-/**
- * True when a run-on interim sentence has grown enough since the last send that it
- * should be translated now instead of waiting for the speaker to pause.
- */
-export const shouldSendImmediately = (
-  interim: string,
-  lastSent: string,
-  wordStep: number
-): boolean => wordCount(interim) - wordCount(lastSent) >= wordStep;
-
 /** Words per frozen live-translation chunk. The open tail holds CHUNK..2*CHUNK-1 words. */
 export const LIVE_CHUNK_WORDS = 12;
 

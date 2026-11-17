@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, EyeOff, History, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, History, Presentation, RefreshCw, X } from 'lucide-react';
 import { useTeacherRoom } from './useTeacherRoom';
 import {
   checkRoomLiveStatus,
@@ -10,6 +10,7 @@ import {
   type RoomLiveStatus,
 } from './roomHistory';
 import type { LectureState } from './protocol';
+import { displayRoomUrl, studentRoomUrl } from './roomLink';
 
 const STATUS_RANK: Record<RoomLiveStatus, number> = {
   live: 0,
@@ -44,7 +45,9 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   useEffect(() => {
     onRoomCodeChange?.(room?.code ?? null);
   }, [room?.code, onRoomCodeChange]);
-  const [code, setCode] = useState('');
+  // Prefill the most recent class code so one posted link works day after day
+  const [code, setCode] = useState(() => loadRoomHistory()[0]?.code ?? '');
+  const [showJoinCard, setShowJoinCard] = useState(false);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -132,16 +135,45 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
     });
   }, [historyEntries, liveOnly, liveStatuses]);
 
-  const link = new URL(window.location.pathname, window.location.origin);
-  if (room) link.searchParams.set('room', room.code);
+  useEffect(() => {
+    if (!room || !visible) setShowJoinCard(false);
+  }, [room, visible]);
+  useEffect(() => {
+    if (!showJoinCard) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setShowJoinCard(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showJoinCard]);
+
+  const link = room ? studentRoomUrl(room.code) : '';
   return <div className="room-controls" hidden={!visible}>
     {room ? <>
       <strong>Room: {room.code}</strong>
-      <input aria-label="Student room link" value={link.href} readOnly onFocus={event => event.target.select()} />
+      <input aria-label="Student room link" value={link} readOnly onFocus={event => event.target.select()} />
       <button type="button" onClick={async () => {
-        try { await navigator.clipboard.writeText(link.href); setCopied(true); }
+        try { await navigator.clipboard.writeText(link); setCopied(true); }
         catch { setCopied(false); }
       }}>{copied ? 'Link copied' : 'Copy student link'}</button>
+      <button type="button" className="inline-flex items-center gap-1.5" onClick={() => setShowJoinCard(true)}>
+        <Presentation size={14} aria-hidden="true" />
+        <span>Show join info</span>
+      </button>
+      {showJoinCard && (
+        <div className="room-join-card" role="dialog" aria-modal="true" aria-label="Join this room"
+          onClick={() => setShowJoinCard(false)}>
+          <button type="button" className="room-join-card-close" aria-label="Close join info"
+            onClick={() => setShowJoinCard(false)}><X size={28} /></button>
+          <p className="room-join-card-lead">Follow the live captions in your language</p>
+          <p className="room-join-card-url">
+            {/* Break only after the host, never inside the room code */}
+            <span>{displayRoomUrl(room.code).slice(0, -room.code.length)}</span><wbr />
+            <span className="room-join-card-code">{room.code}</span>
+          </p>
+          <p className="room-join-card-alt">
+            or open <strong>{window.location.host}</strong> and enter code <strong>{room.code}</strong>
+          </p>
+        </div>
+      )}
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
     </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
       <input aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
@@ -275,6 +307,6 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
         )}
       </span>
     )}
-    {!room && <small>Choose a PIN to create a room, or enter an existing code and PIN to rejoin. Export JSON to keep a copy.</small>}
+    {!room && <small>Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.</small>}
   </div>;
 }

@@ -19,6 +19,7 @@ import { LecturePip } from './LecturePip';
 import { useStudentRoom } from './useStudentRoom';
 import { useStudentTranslations } from './useStudentTranslations';
 import { emptyLecture, normalizeRoomCode, validRoomCode } from './protocol';
+import { studentRoomUrl } from './roomLink';
 import { loadStudentPrefs, saveStudentPrefs } from './studentPrefs';
 import '../components/ConversationMode.css';
 
@@ -28,8 +29,7 @@ export function JoinRoomForm() {
     event.preventDefault();
     const normalized = normalizeRoomCode(code);
     if (!validRoomCode(normalized)) return;
-    const url = new URL(window.location.href); url.search = ''; url.searchParams.set('room', normalized);
-    window.location.assign(url.href);
+    window.location.assign(studentRoomUrl(normalized));
   }}>
     <input aria-label="Room code to join" placeholder="Student room code" value={code} maxLength={40}
       onChange={event => setCode(event.target.value)} />
@@ -38,7 +38,7 @@ export function JoinRoomForm() {
 }
 
 export function StudentRoom({ code }: { code: string }) {
-  const { snapshot, connected, error } = useStudentRoom(code);
+  const { snapshot, connected, error, waiting } = useStudentRoom(code);
   const [prefs] = useState(loadStudentPrefs);
   const [language, setLanguage] = useState<LanguageCode | 'en'>(prefs.language);
   const [fontSize, setFontSize] = useState(prefs.fontSize);
@@ -63,7 +63,7 @@ export function StudentRoom({ code }: { code: string }) {
   return <main className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}>
     <div className="conversation-settings">
       <a
-        href={window.location.pathname}
+        href="/"
         className="conversation-brand"
         aria-label="OverHeard — Go to main Columns page"
         title="Back to OverHeard Columns view"
@@ -148,11 +148,12 @@ export function StudentRoom({ code }: { code: string }) {
       >
         {isDark ? <Sun size={16} /> : <Moon size={16} />}
       </button>
-      <a href={window.location.pathname}>Leave room</a>
+      <a href="/">Leave room</a>
     </div>
     <p className="conversation-help">Follow your teacher’s captions in your language. Pop them out to keep reading while you work.</p>
     <p aria-live="polite">{error || (snapshot?.ended ? 'This lecture has ended.' : !snapshot?.teacherOnline
       ? 'Teacher disconnected. Waiting for them to reconnect…' : state.isListening ? 'Connected · Lecture live' : 'Connected · Teacher paused')}</p>
+    {waiting && <p className="room-waiting">This page joins automatically when your teacher starts. Keep it open.</p>}
     {error && !snapshot && <JoinRoomForm />}
     {translations.hasFailures && <button type="button" onClick={translations.retry}>Retry unavailable translations</button>}
     <LectureTranscript entries={state.entries} selectedLangs={state.selectedLangs} fontSize={fontSize} isDark={isDark}

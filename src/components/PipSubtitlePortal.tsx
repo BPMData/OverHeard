@@ -36,7 +36,7 @@ interface PipSubtitlePortalProps {
   onToggleLayout?: () => void;
   currentSegment: CaptionSegment | null;
   interimTranscript: string;
-  liveTranslations: Record<string, string>;
+  liveTranslations: Partial<Record<string, string>>;
 }
 
 export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({

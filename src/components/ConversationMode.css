@@ -704,3 +704,21 @@
     padding: 10px 12px;
   }
 }
+
+/* Projector-friendly join card for a live room */
+.room-join-card {
+  position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2rem; padding: 2rem;
+  background: #0f172a; color: #f8fafc; text-align: center; cursor: pointer;
+}
+.room-join-card-close {
+  position: absolute; top: 1rem; right: 1rem; background: none; border: 0; color: inherit;
+}
+.room-join-card-lead { font-size: clamp(1.25rem, 3vw, 2.5rem); opacity: .85; margin: 0; }
+.room-join-card-url {
+  font-size: clamp(2rem, 6vw, 5.5rem); font-weight: 800; margin: 0;
+  overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.room-join-card-code { white-space: nowrap; }
+.room-join-card-alt { font-size: clamp(1rem, 2.5vw, 2rem); opacity: .85; margin: 0; }
+.room-waiting { opacity: .8; }

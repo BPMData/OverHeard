@@ -244,3 +244,36 @@ describe('TeacherRoomControls', () => {
     expect(createAttempts).toBe(4);
   });
 });
+
+describe('TeacherRoomControls class codes', () => {
+  it('reuses the last code, reopens it when still active, and shares a short link', async () => {
+    recordRoomHistory('murphy-p3');
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/rooms' && init?.method === 'POST') {
+        return { ok: false, status: 409, text: async () => JSON.stringify({ error: 'That room code is already in use.' }) };
+      }
+      if (url === '/api/rooms/murphy-p3/rejoin') {
+        return { ok: true, status: 200, text: async () => JSON.stringify({
+          code: 'murphy-p3', token: 'tok', snapshot: { ...emptyLecture(), revision: 1, teacherOnline: true, ended: false } }) };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify({ revision: 2 }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<TeacherRoomControls state={{ ...emptyLecture() }} visible />);
+
+    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('murphy-p3');
+    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+
+    await waitFor(() => expect(screen.getByText('Room: murphy-p3')).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith('/api/rooms/murphy-p3/rejoin', expect.anything());
+    expect((screen.getByLabelText('Student room link') as HTMLInputElement).value)
+      .toBe(`${window.location.origin}/murphy-p3`);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show join info' }));
+    const card = screen.getByRole('dialog', { name: 'Join this room' });
+    expect(card.textContent).toContain(`${window.location.host}/murphy-p3`);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Join this room' })).toBeNull();
+  });
+});
