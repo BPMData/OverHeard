@@ -69,7 +69,7 @@ jobs:
                 gcloud builds submit --pack "image=$IMAGE" --project loyal-rookery-403218 .
                 yq -i ".spec.template.spec.containers[0].image = \"$IMAGE\"" /tmp/service.yaml
               fi
-              yq -i 'del(.spec.template.metadata.annotations["run.googleapis.com/sources"], .spec.template.metadata.annotations["run.googleapis.com/base-images"], .spec.template.metadata.name)' /tmp/service.yaml
+              yq -i 'del(.spec.template.metadata.annotations["run.googleapis.com/sources"], .spec.template.metadata.annotations["run.googleapis.com/base-images"], .spec.template.metadata.name, .spec.template.spec.runtimeClassName)' /tmp/service.yaml
               CONTAINER_COUNT="$(yq '.spec.template.spec.containers | length' /tmp/service.yaml)"
               if [ "$CONTAINER_COUNT" = "1" ]; then
                 yq -i '.spec.template.spec.containers[0].name = "over-heard"' /tmp/service.yaml
