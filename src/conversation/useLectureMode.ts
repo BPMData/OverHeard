@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { shouldSendImmediately } from '../liveTranslation';
 import { withMicAccess, type MicBlock } from '../micPermission';
 import {
   isOnDeviceTranslationSupported,
@@ -15,10 +14,8 @@ import {
   saveLectureEntries,
 } from './lectureState';
 import { useLectureSpeech } from './useLectureSpeech';
+import { useLiveTranslations } from '../useLiveTranslations';
 
-const LIVE_DEBOUNCE_MS = 450;
-const LIVE_WORD_STEP = 6;
-const NO_LIVE_TRANSLATIONS: Partial<Record<LanguageCode, string>> = {};
 
 export interface UseLectureModeOptions {
   active: boolean;
@@ -44,50 +41,35 @@ export function useLectureMode({
   onPackProgress,
 }: UseLectureModeOptions) {
   const [entries, dispatch] = useReducer(lectureReducer, undefined, loadLectureEntries);
-  const [liveResult, setLiveResult] = useState<{ english: string; translations: Partial<Record<LanguageCode, string>> }>({
-    english: '', translations: NO_LIVE_TRANSLATIONS,
-  });
   const [uiError, setUiError] = useState('');
 
-  const selectedLangsRef = useRef(selectedLangs);
-  selectedLangsRef.current = selectedLangs;
-
-  const liveTimerRef = useRef<number | null>(null);
-  const liveSentTextRef = useRef('');
-  const liveSeqRef = useRef(0);
-  const liveClearedAtSeqRef = useRef(0);
-  const liveAppliedSeqRef = useRef<Record<string, number>>({});
   const inFlightRef = useRef<Set<string>>(new Set());
   const generation = useRef(0);
 
-  const clearLiveTranslation = useCallback(() => {
-    if (liveTimerRef.current !== null) {
-      window.clearTimeout(liveTimerRef.current);
-      liveTimerRef.current = null;
-    }
-    liveClearedAtSeqRef.current = liveSeqRef.current;
-    liveSentTextRef.current = '';
-    setLiveResult({ english: '', translations: NO_LIVE_TRANSLATIONS });
-  }, []);
-
   const addLine = useCallback(
     (rawText: string) => {
-      clearLiveTranslation();
       const phrase = rawText.trim().slice(0, 500);
       if (!phrase) return;
       dispatch({ type: 'add', entry: createLectureEntry(phrase) });
     },
-    [clearLiveTranslation],
+    [],
   );
 
   const speech = useLectureSpeech({
     onFinal: addLine,
     onPermissionDenied,
   });
-  const currentEnglish = useRef('');
-  currentEnglish.current = speech.interim.trim();
-  const liveTranslations = liveResult.english === currentEnglish.current
-    ? liveResult.translations : NO_LIVE_TRANSLATIONS;
+  const translateLive = useCallback(
+    (text: string, code: LanguageCode) => translate(text, code, 'en'),
+    [translate],
+  );
+  const lastEntryId = entries.length ? entries[entries.length - 1].id : '';
+  const liveTranslations = useLiveTranslations(
+    active ? speech.interim : '',
+    selectedLangs,
+    translateLive,
+    lastEntryId,
+  );
 
   // Persist finalized lecture entries locally in the browser until explicitly cleared
   useEffect(() => {
@@ -98,67 +80,8 @@ export function useLectureMode({
   useEffect(() => {
     if (!active) {
       speech.stop();
-      clearLiveTranslation();
     }
-  }, [active, speech.stop, clearLiveTranslation]);
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (liveTimerRef.current !== null) {
-        window.clearTimeout(liveTimerRef.current);
-      }
-    };
-  }, []);
-
-  const sendLiveTranslation = useCallback(
-    (text: string) => {
-      liveSentTextRef.current = text;
-      const seq = ++liveSeqRef.current;
-      for (const code of selectedLangsRef.current) {
-        void translate(text, code, 'en').then(
-          (translation) => {
-            if (currentEnglish.current !== text) return;
-            if (seq <= liveClearedAtSeqRef.current) return;
-            if (seq < (liveAppliedSeqRef.current[code] ?? 0)) return;
-            liveAppliedSeqRef.current[code] = seq;
-            setLiveResult((prev) => ({ english: text,
-              translations: { ...(prev.english === text ? prev.translations : {}), [code]: translation } }));
-          },
-          () => {
-            // Interim streaming is best-effort; finalized rows record unavailable state
-          },
-        );
-      }
-    },
-    [translate],
-  );
-
-  // Stream live translations as English interim transcript updates
-  useEffect(() => {
-    if (!active) return;
-    const text = speech.interim.trim();
-    if (!text) {
-      clearLiveTranslation();
-      return;
-    }
-    if (text === liveSentTextRef.current) return;
-
-    if (liveTimerRef.current !== null) {
-      window.clearTimeout(liveTimerRef.current);
-      liveTimerRef.current = null;
-    }
-
-    if (shouldSendImmediately(text, liveSentTextRef.current, LIVE_WORD_STEP)) {
-      sendLiveTranslation(text);
-      return;
-    }
-
-    liveTimerRef.current = window.setTimeout(() => {
-      liveTimerRef.current = null;
-      sendLiveTranslation(text);
-    }, LIVE_DEBOUNCE_MS);
-  }, [active, speech.interim, clearLiveTranslation, sendLiveTranslation]);
+  }, [active, speech.stop]);
 
   // Translate any finalized lecture entries for all active target languages (including newly added languages)
   useEffect(() => {
@@ -200,23 +123,20 @@ export function useLectureMode({
 
   const stop = useCallback(() => {
     speech.stop();
-    clearLiveTranslation();
-  }, [speech, clearLiveTranslation]);
+  }, [speech]);
 
   const clear = useCallback(() => {
     if (window.confirm('Clear the entire lecture transcript?')) {
       generation.current++;
       inFlightRef.current.clear();
-      clearLiveTranslation();
       dispatch({ type: 'clear' });
     }
-  }, [clearLiveTranslation]);
+  }, []);
 
   const replace = useCallback(
     (nextEntries: LectureEntry[], options?: { preserveIds?: boolean }) => {
       speech.stop();
       generation.current++;
-      clearLiveTranslation();
       inFlightRef.current.clear();
       dispatch({
         type: 'replace',
@@ -229,7 +149,7 @@ export function useLectureMode({
             })),
       });
     },
-    [speech.stop, clearLiveTranslation],
+    [speech.stop],
   );
 
   return {
