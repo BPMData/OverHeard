@@ -149,6 +149,9 @@ export function LectureSettings({
           onChange={(e) => {
             const checked = e.target.checked;
             setLectureReadAloud(checked);
+            // "While I talk" only applies while reading aloud: clear it rather than leave it
+            // greyed out but still ticked
+            if (!checked) setSettings((s) => ({ ...s, lectureLiveReadAloud: false }));
             if (checked) {
               piperClient.unlockAudio();
               const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
@@ -163,7 +166,7 @@ export function LectureSettings({
       <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
         <input
           type="checkbox"
-          checked={settings.lectureLiveReadAloud}
+          checked={lectureReadAloud && settings.lectureLiveReadAloud}
           disabled={!lectureReadAloud}
           onChange={(e) => {
             const checked = e.target.checked;

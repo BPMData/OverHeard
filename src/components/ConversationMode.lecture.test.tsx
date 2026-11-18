@@ -388,3 +388,23 @@ it('pops the teacher lecture out into a floating window next to Start lecture', 
   fireEvent.click(screen.getByRole('button', { name: 'Two-way' }));
   expect(win.close).toHaveBeenCalled();
 });
+
+it('clears "While I talk" when Read aloud is turned off, instead of leaving it greyed out and ticked', () => {
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  const readAloud = screen.getByRole('checkbox', { name: 'Read aloud' });
+  const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
+  fireEvent.click(readAloud);
+  fireEvent.click(live);
+  expect(live.checked).toBe(true);
+
+  fireEvent.click(readAloud);
+  expect(live.disabled).toBe(true);
+  expect(live.checked).toBe(false);
+  expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(false);
+
+  // Turning Read aloud back on doesn't silently turn "While I talk" back on
+  fireEvent.click(readAloud);
+  expect(live.checked).toBe(false);
+});
