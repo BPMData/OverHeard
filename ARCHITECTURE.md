@@ -44,7 +44,12 @@ server/                 mt.ts (provider chain + request coalescing), rooms.ts (l
                         rateLimit, usage, clientKeys, shortLink, geminiSingle
 src/main.tsx            Picks StudentRoom (?room= or /<code>) or App
 src/App.tsx             Caption mode (Columns + Subtitle), header, pop-out, modals, and the
-                        host for Conversation mode (2,378 lines)
+                        host for Conversation mode (1,973 lines)
+src/app/                settings.ts (initial languages, timing helpers, storage keys),
+                        usePackProgress, useBrowserSupport, useTheme (including the PiP document)
+src/speech/types.ts     Caption recognition interfaces and browser API declarations
+src/translation/        useServerConfig (refine availability and settings, provider list),
+                        useTranslator (preference, MT cache and retries, provider tracking)
 src/components/         ConversationMode (983 lines: Two-way and Lecture), LectureTranscript,
                         PipSubtitlePortal, modals
 src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
@@ -62,32 +67,28 @@ Find each part by its comment; line numbers drift.
 
 | Part | Landmark comment(s) | Approx. lines |
 |---|---|---|
-| Web Speech types, URL parsing, timing helpers, storage keys | `interface SpeechRecognitionEvent`, `parseInitialLanguages`, `rejectAfter` | 85–188 |
-| Column read-aloud playback | `columnPlayback`, `speakColumnTranslation` | 205–270 |
-| ~45 `useState`/`useRef` declarations for every feature | `// Modals & drawers`, `// Speech recognition & permission states`, … | 270–440 |
-| Server config and translator preference | `refreshServerConfig`, `mtPreference`, `availableProviders` | 380–480 |
-| On-device language pack progress | `packProgress`, `reportPack` | 400–436 |
-| Theme sync and browser capability detection | `// Sync dark mode class`, `// Initial browser capability detection` | 481–523 |
-| **Translation client**: retry, cache, Auto/on-device/server choice | `fetchTranslationWithRetry`, `fetchMT` | 524–672 |
-| Live (interim) translation | `useLiveTranslations(` | 673–682 |
-| **Finalized phrase**: per-language MT, then optional Gemini refine | `handleFinalizedPhrase` | 683–775 |
-| **Caption speech recognition**: Chrome keep-alive, restart backoff | `startListening`, `stopListening`, `toggleListening` | 776–972 |
-| Space bar shortcut, language toggle, font size | `// Spacebar toggles` | 973–1013 |
-| **Pop-out window** (Document Picture-in-Picture) | `// Document Picture-in-Picture Pop-Out Window` | 1014–1111 |
-| Transcript export, clear, test sentences, lecture import | `// Lecture-compatible JSON Transcript Export` … `applyImportedLecture` | 1112–1390 |
-| JSX: banners | `{/* Browser Compatibility Banner */}` | 1395–1447 |
-| JSX: **header** (≈330 lines, ~15 controls) | `{/* Top Teacher Control Bar */}` | 1448–1775 |
-| JSX: test input bar | `{/* Collapsible Silent Test Input Bar */}` | 1776–1828 |
-| JSX: **columns view** | `{/* Main Projector Display Stage */}` | 1829–2156 |
-| JSX: subtitle bar | `{/* Fixed Bottom Subtitle Bar */}` | 2157–2287 |
-| JSX: Conversation mode, modals, pop-out portal | `<ConversationMode`, `{/* Modals & Portals */}` | 2288–2378 |
+| Column read-aloud playback | `columnPlayback`, `speakColumnTranslation` | 112–174 |
+| Modal, speech, transcript and pop-out state | `// Modals & drawers`, `// Refs for synchronous access` | 175–249 |
+| Server config, translator, pack progress, theme and browser hook calls | `useServerConfig`, `useTranslator`, `usePackProgress`, `useTheme`, `useBrowserSupport` | 250–279 |
+| Live (interim) translation | `useLiveTranslations(` | 280–289 |
+| **Finalized phrase**: per-language MT, then optional Gemini refine | `handleFinalizedPhrase` | 290–382 |
+| **Caption speech recognition**: Chrome keep-alive, restart backoff | `startListening`, `stopListening`, `toggleListening` | 383–579 |
+| Space bar shortcut, language toggle, font size | `// Spacebar toggles` | 580–620 |
+| **Pop-out window** (Document Picture-in-Picture) | `// Document Picture-in-Picture Pop-Out Window` | 621–718 |
+| Transcript export, clear, test sentences, lecture import and header controls | `// Lecture-compatible JSON Transcript Export`, `applyImportedLecture`, `translatorPicker` | 719–989 |
+| JSX: banners | `{/* Browser Compatibility Banner */}` | 990–1042 |
+| JSX: **header** | `{/* Top Teacher Control Bar */}` | 1043–1370 |
+| JSX: test input bar | `{/* Collapsible Silent Test Input Bar */}` | 1371–1423 |
+| JSX: **columns view** | `{/* Main Projector Display Stage */}` | 1424–1751 |
+| JSX: subtitle bar | `{/* Fixed Bottom Subtitle Bar */}` | 1752–1882 |
+| JSX: Conversation mode, modals, pop-out portal | `<ConversationMode`, `{/* Modals & Portals */}` | 1883–1973 |
 
 ### Other problem spots
 
 - **Speech recognition is written three times.** The caption mode recognizer (inline in
   `App.tsx`), `useLectureSpeech` and `useConversationSpeech` each repeat the Chrome keep-alive
   restart, backoff (`speechRestart.ts`) and duplicate filtering (`speechDedupe.ts`).
-- **There are two translation clients.** `fetchMT` in `App.tsx` (teacher) and
+- **There are two translation clients.** `fetchMT` in `src/translation/useTranslator.ts` (teacher) and
   `createStudentTranslator` in `src/rooms/translateStudent.ts` each implement on-device first,
   then `/api/mt`, with caching.
 - `ConversationMode.tsx` holds both Two-way and Lecture UI, with lecture logic already pulled

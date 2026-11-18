@@ -77,6 +77,9 @@ import {
   pipHeightFor,
 } from './components/PipSubtitlePortal';
 
+import { useBrowserSupport } from './app/useBrowserSupport';
+import { usePackProgress } from './app/usePackProgress';
+import { useTheme } from './app/useTheme';
 import type { SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionInstance } from './speech/types';
 import {
   formatTimestamp,
@@ -91,9 +94,6 @@ import {
 } from './app/settings';
 
 export default function App() {
-  // Theme state (Dark mode default for projector legibility)
-  const [isDark, setIsDark] = useState<boolean>(true);
-
   // Language selection state hydrated from ?langs=
   const [selectedLangs, setSelectedLangs] = useState<LanguageCode[]>(() =>
     parseInitialLanguages()
@@ -235,12 +235,6 @@ export default function App() {
     }
   }, [pipLayout]);
 
-  // Environment checks
-  const [isSupportedBrowser, setIsSupportedBrowser] = useState<boolean>(true);
-  const [hasSpeechApi, setHasSpeechApi] = useState<boolean>(true);
-  const [hasPipApi, setHasPipApi] = useState<boolean>(false);
-  const [isEmbeddedIframe, setIsEmbeddedIframe] = useState<boolean>(false);
-
   // Refs for synchronous access in event callbacks & concurrency tracking
   const userStoppedRef = useRef<boolean>(true);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
@@ -264,33 +258,7 @@ export default function App() {
 
   // Whether speech recognition is running on this device (null = not started yet)
   const [speechIsLocal, setSpeechIsLocal] = useState<boolean | null>(null);
-  // On-device language pack downloads in progress: language code → 0–1, or 'speech' → -1
-  // (Chrome reports no progress for speech packs, so that one shows elapsed time only)
-  const [packProgress, setPackProgress] = useState<Record<string, number>>({});
-  const [packStartedAt, setPackStartedAt] = useState<number | null>(null);
-  const [, setPackTick] = useState(0);
-  const packDownloading = Object.keys(packProgress).length > 0;
-
-  const reportPack = useCallback((key: string, fraction: number | null) => {
-    setPackProgress((prev) => {
-      const next = { ...prev };
-      if (fraction === null || fraction >= 1) delete next[key];
-      else next[key] = fraction;
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (packDownloading && packStartedAt === null) setPackStartedAt(Date.now());
-    if (!packDownloading && packStartedAt !== null) setPackStartedAt(null);
-  }, [packDownloading, packStartedAt]);
-
-  // Re-render once a second while downloading so the elapsed time ticks
-  useEffect(() => {
-    if (!packDownloading) return;
-    const id = window.setInterval(() => setPackTick((t) => t + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [packDownloading]);
+  const { packProgress, packStartedAt, reportPack } = usePackProgress();
 
   // Live (interim) translation state
   // Bumped whenever a phrase is finalized or the transcript is cleared: starts a new live utterance
@@ -306,48 +274,8 @@ export default function App() {
     window.history.replaceState({}, '', url.toString());
   }, [selectedLangs, subtitleLang]);
 
-  // Sync dark mode class on <html>, <body>, and PiP window
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-      document.body.className =
-        'bg-[#090D16] text-[#F8FAFC] antialiased selection:bg-[#5843A5]/35';
-    } else {
-      root.classList.remove('dark');
-      document.body.className =
-        'bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#5843A5]/20';
-    }
-
-    if (pipWindow && !pipWindow.closed) {
-      if (isDark) {
-        pipWindow.document.documentElement.classList.add('dark');
-      } else {
-        pipWindow.document.documentElement.classList.remove('dark');
-      }
-    }
-  }, [isDark, pipWindow]);
-
-  // Initial browser capability detection
-  useEffect(() => {
-    const ua = navigator.userAgent;
-    const isChromeOrEdge =
-      (/Chrome\//.test(ua) || /Edg\//.test(ua) || /CriOS\//.test(ua)) &&
-      !/OPR\//.test(ua);
-    const speechAvailable = Boolean(
-      window.SpeechRecognition || window.webkitSpeechRecognition
-    );
-
-    setIsSupportedBrowser(isChromeOrEdge && speechAvailable);
-    setHasSpeechApi(speechAvailable);
-    setHasPipApi(Boolean(window.documentPictureInPicture));
-
-    try {
-      setIsEmbeddedIframe(window.self !== window.top);
-    } catch {
-      setIsEmbeddedIframe(true);
-    }
-  }, []);
+  const { isDark, setIsDark } = useTheme(pipWindow);
+  const { isSupportedBrowser, hasSpeechApi, setHasSpeechApi, hasPipApi, isEmbeddedIframe } = useBrowserSupport();
 
   // Interim speech: translate the in-progress sentence so captions appear while the teacher is
   // still talking, even through a long run-on sentence with no pause
