@@ -43,13 +43,17 @@ server.ts               Express app: security headers, /api/config, /api/mt, /ap
 server/                 mt.ts (provider chain + request coalescing), rooms.ts (live rooms, SSE),
                         rateLimit, usage, clientKeys, shortLink, geminiSingle
 src/main.tsx            Picks StudentRoom (?room= or /<code>) or App
-src/App.tsx             Caption mode (Columns + Subtitle), header, pop-out, modals, and the
-                        host for Conversation mode (1,973 lines)
-src/app/                settings.ts (initial languages, timing helpers, storage keys),
-                        usePackProgress, useBrowserSupport, useTheme (including the PiP document)
-src/speech/types.ts     Caption recognition interfaces and browser API declarations
-src/translation/        useServerConfig (refine availability and settings, provider list),
-                        useTranslator (preference, MT cache and retries, provider tracking)
+src/App.tsx             Wires caption hooks and views, mode changes, lecture import, modals and
+                        the Conversation host (288 lines)
+src/app/                Settings and URL sync, browser support, pack progress, main-window theme,
+                        browser and microphone permission banners
+src/speech/             Caption recognition lifecycle, Space shortcut, Web Speech types
+src/captions/           Transcript state and export, column playback, ColumnsView, SubtitleBar,
+                        TestInputBar
+src/translation/        Server config, translation cache and retries, finalized-line refinement
+src/pip/usePipWindow.ts Pop-out lifecycle, line/layout/size preferences and pop-out theme sync
+src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch,
+                        TranslatorPicker and ClearTranscriptButton
 src/components/         ConversationMode (983 lines: Two-way and Lecture), LectureTranscript,
                         PipSubtitlePortal, modals
 src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
@@ -63,30 +67,15 @@ src/*.ts                Small shared helpers: onDevice, speechRestart, speechDed
 
 ### What is inside `App.tsx`
 
-Find each part by its comment; line numbers drift.
-
-| Part | Landmark comment(s) | Approx. lines |
-|---|---|---|
-| Column read-aloud playback | `columnPlayback`, `speakColumnTranslation` | 112–174 |
-| Modal, speech, transcript and pop-out state | `// Modals & drawers`, `// Refs for synchronous access` | 175–249 |
-| Server config, translator, pack progress, theme and browser hook calls | `useServerConfig`, `useTranslator`, `usePackProgress`, `useTheme`, `useBrowserSupport` | 250–279 |
-| Live (interim) translation | `useLiveTranslations(` | 280–289 |
-| **Finalized phrase**: per-language MT, then optional Gemini refine | `handleFinalizedPhrase` | 290–382 |
-| **Caption speech recognition**: Chrome keep-alive, restart backoff | `startListening`, `stopListening`, `toggleListening` | 383–579 |
-| Space bar shortcut, language toggle, font size | `// Spacebar toggles` | 580–620 |
-| **Pop-out window** (Document Picture-in-Picture) | `// Document Picture-in-Picture Pop-Out Window` | 621–718 |
-| Transcript export, clear, test sentences, lecture import and header controls | `// Lecture-compatible JSON Transcript Export`, `applyImportedLecture`, `translatorPicker` | 719–989 |
-| JSX: banners | `{/* Browser Compatibility Banner */}` | 990–1042 |
-| JSX: **header** | `{/* Top Teacher Control Bar */}` | 1043–1370 |
-| JSX: test input bar | `{/* Collapsible Silent Test Input Bar */}` | 1371–1423 |
-| JSX: **columns view** | `{/* Main Projector Display Stage */}` | 1424–1751 |
-| JSX: subtitle bar | `{/* Fixed Bottom Subtitle Bar */}` | 1752–1882 |
-| JSX: Conversation mode, modals, pop-out portal | `<ConversationMode`, `{/* Modals & Portals */}` | 1883–1973 |
+App selects the caption or conversation surface and connects their shared settings and
+actions. Caption recognition passes final and interim results to the transcript hook.
+Both the projector views and the pop-out read the same transcript and listening state.
+Conversation mode stays mounted after its first visit, with its activity controlled by
+the display mode.
 
 ### Other problem spots
 
-- **Speech recognition is written three times.** The caption mode recognizer (inline in
-  `App.tsx`), `useLectureSpeech` and `useConversationSpeech` each repeat the Chrome keep-alive
+- **Speech recognition is written three times.** The caption mode recognizer (`useCaptionSpeech`), `useLectureSpeech` and `useConversationSpeech` each repeat the Chrome keep-alive
   restart, backoff (`speechRestart.ts`) and duplicate filtering (`speechDedupe.ts`).
 - **There are two translation clients.** `fetchMT` in `src/translation/useTranslator.ts` (teacher) and
   `createStudentTranslator` in `src/rooms/translateStudent.ts` each implement on-device first,
