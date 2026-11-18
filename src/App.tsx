@@ -33,14 +33,12 @@ import { piperClient, type PlaybackHandle } from './tts/piperClient';
 import { resolveVoiceId, useVoicePreferences } from './tts/voices';
 import {
   DEFAULT_FONT_SIZE,
-  DEFAULT_LANGUAGES,
   FONT_STEP,
   LANGUAGE_MAP,
   MAX_FONT_SIZE,
   MAX_LANGUAGES,
   MIN_FONT_SIZE,
   SAMPLE_SENTENCES,
-  VALID_LANGUAGE_CODES,
 } from './constants';
 import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLayout, PipLine } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
@@ -81,110 +79,27 @@ import {
   pipHeightFor,
 } from './components/PipSubtitlePortal';
 
-// Web Speech API TypeScript definitions
-interface SpeechRecognitionEvent extends Event {
-  readonly resultIndex: number;
-  readonly results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message?: string;
-}
-
-interface SpeechRecognitionInstance extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  /** Chrome 139+: run recognition on this device instead of Google's servers */
-  processLocally?: boolean;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
-    documentPictureInPicture?: {
-      requestWindow: (options?: {
-        width?: number;
-        height?: number;
-      }) => Promise<Window>;
-      window?: Window | null;
-    };
-  }
-}
-
-function parseInitialLanguages(): LanguageCode[] {
-  if (typeof window === 'undefined') return DEFAULT_LANGUAGES;
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get('langs');
-  if (!raw) return DEFAULT_LANGUAGES;
-
-  const codes = raw
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter((code): code is LanguageCode => VALID_LANGUAGE_CODES.has(code));
-
-  const unique = Array.from(new Set(codes)).slice(0, MAX_LANGUAGES);
-  return unique.length > 0 ? unique : DEFAULT_LANGUAGES;
-}
-
-function formatTimestamp(date: Date = new Date()): string {
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
-  const ss = String(date.getSeconds()).padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
-}
-
-// Live translation tuning: send in-progress speech after a short pause, or every few new words
-const LIVE_INTERIM_TRANSLATION = true;
-const MT_CLIENT_CACHE_MAX = 2000;
-
-// "On this device" mode waits this long for the built-in translator before a sentence falls
-// back to the online translators. Deliberately generous (the server's online translators get
-// 2.5 s) so slow on-device translations can be measured instead of abandoned.
-const ON_DEVICE_TIMEOUT_MS = 10_000;
-// In Auto mode on-device is only a first choice: if it hasn't answered this fast, that
-// sentence goes to the online translators while on-device keeps loading for the next one.
-const AUTO_ON_DEVICE_TIMEOUT_MS = 2500;
-// Translations slower than this are flagged in the UI and console with how far over they went
-const SLOW_TRANSLATION_MS = 2500;
-
-function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: number | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = window.setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
-}
-
-const mtCacheKey = (preference: string, source: string, lang: string, text: string) =>
-  `${preference}\u0000${source}\u0000${lang}\u0000${text}`;
-
-const overBy = (ms: number) =>
-  ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
-
-type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
-type TranslatorId = MtProviderId | 'on-device';
-type MtPreference = 'auto' | TranslatorId;
-const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
-const GEMINI_REFINE_STORAGE_KEY = 'overheard.geminiRefine';
-const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
-const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
-const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
-  auto: 'Auto',
-  'google-cloud': 'Google Cloud',
-  gtx: 'Free (unofficial)',
-  gemini: 'Gemini (slow)',
-  'on-device': 'On this device',
-};
+import type { SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionInstance } from './speech/types';
+import {
+  AUTO_ON_DEVICE_TIMEOUT_MS,
+  formatTimestamp,
+  GEMINI_REFINE_STORAGE_KEY,
+  LIVE_INTERIM_TRANSLATION,
+  MT_CLIENT_CACHE_MAX,
+  MT_PREFERENCE_STORAGE_KEY,
+  MT_PROVIDER_LABELS,
+  mtCacheKey,
+  ON_DEVICE_TIMEOUT_MS,
+  overBy,
+  parseInitialLanguages,
+  PIP_LINES_STORAGE_KEY,
+  PIP_SIZE_STORAGE_KEY,
+  rejectAfter,
+  SLOW_TRANSLATION_MS,
+  type MtPreference,
+  type MtProviderId,
+  type TranslatorId,
+} from './app/settings';
 
 export default function App() {
   // Theme state (Dark mode default for projector legibility)
