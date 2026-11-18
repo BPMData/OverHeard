@@ -20,6 +20,9 @@ describe('conversation settings', () => {
     settings.switchAfterMs = 5000;
     settings.readAloud = true;
     settings.placement = 'reader';
+    // Reading while the teacher talks is off until chosen, then remembered
+    expect(settings.lectureLiveReadAloud).toBe(false);
+    settings.lectureLiveReadAloud = true;
     saveConversationSettings(settings);
     expect(loadConversationSettings()).toEqual(settings);
   });

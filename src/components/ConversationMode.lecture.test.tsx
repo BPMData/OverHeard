@@ -347,3 +347,17 @@ it('streams live translations through a long run-on sentence without a pause', a
   const longest = Math.max(...translate.mock.calls.map(([text]) => text.length));
   expect(longest).toBeLessThan(200);
 });
+
+it('offers reading while the teacher talks only once Read aloud is on', () => {
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
+  expect(live.checked).toBe(false);
+  expect(live.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
+  expect(live.disabled).toBe(false);
+  fireEvent.click(live);
+  expect(live.checked).toBe(true);
+  expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(true);
+});

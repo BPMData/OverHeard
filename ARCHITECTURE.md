@@ -246,10 +246,6 @@ Do these only after steps 0–9 (including 8b), each as its own PR, with a note 
   at the start of each pause-separated line during live read-aloud. Fixing it means
   patching or forking the library (e.g. with `patch-package`); measure on a school laptop
   first.
-- **Make `TEACHER_LIVE_READ_ALOUD` a setting.** It's a constant in
-  `src/components/ConversationMode.tsx` (currently `true`: the teacher's mic keeps listening
-  while it reads, so the teacher needs headphones). The owner expects to prefer `false`
-  (live reading only on student devices). A visible toggle would let each teacher choose.
 - **Live translation for the finalized line.** The final sentence is translated from
   scratch, while its interim chunks were already translated. Reusing them is possible but
   would lower quality; measure before changing it.
@@ -273,8 +269,9 @@ Do these only after steps 0–9 (including 8b), each as its own PR, with a note 
   a newly finalized line must run **before** the effect that tracks interim words, and both
   **before** the effect that auto-reads finalized lines. Otherwise a line already read live
   is read again. Pieces play strictly in order through the same player as finished lines.
-- With live read-aloud on, automatic reading doesn't call `onBeforePlay` (which pauses the
-  teacher's microphone) unless `live.suspendSpeech` is true. Clicking a line to replay it
+- With live read-aloud on (the teacher's **While I talk (headphones)** option, saved as
+  `lectureLiveReadAloud` in conversation settings), automatic reading doesn't call
+  `onBeforePlay` (which pauses the teacher's microphone) unless `live.suspendSpeech` is true. Clicking a line to replay it
   still pauses the mic. Don't "simplify" this.
 - The timing constants at the top of `src/tts/liveSegments.ts` and `LIVE_CHUNK_WORDS` /
   `LIVE_THROTTLE_MS` for live translation were tuned with the owner. Don't change them in a
