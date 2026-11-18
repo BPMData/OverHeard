@@ -4,6 +4,7 @@
  */
 
 import { SpeechDebugPanel } from './speechDebug';
+import { useCaptionTranscript } from './captions/useCaptionTranscript';
 import { useCaptionSpeech } from './speech/useCaptionSpeech';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -39,20 +40,18 @@ import {
   MIN_FONT_SIZE,
   SAMPLE_SENTENCES,
 } from './constants';
-import { CaptionSegment, ConversationLanguage, DisplayMode, LanguageCode, PipLayout, PipLine } from './types';
+import { ConversationLanguage, DisplayMode, LanguageCode, PipLayout, PipLine } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
 import { loadLectureEntries, saveLectureEntries, type LectureEntry } from './conversation/lectureState';
 import { ConversationMode } from './components/ConversationMode';
 import { OpenFromDriveButton } from './components/DriveLectureActions';
 import { loadConversationSettings, saveConversationSettings } from './components/conversationSettings';
 import { JoinRoomForm } from './rooms/StudentRoom';
-import { formatLectureFilename } from './rooms/LectureFiles';
-import { MAX_ROOM_FILE_BYTES, parseRoomJson, roomJson } from './rooms/protocol';
+import { MAX_ROOM_FILE_BYTES, parseRoomJson } from './rooms/protocol';
 import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from './rooms/studentPrefs';
 import { LanguageModal } from './components/LanguageModal';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
-import { useLiveTranslations } from './useLiveTranslations';
 import { useServerConfig } from './translation/useServerConfig';
 import {
   CaptionSwatch,
@@ -77,8 +76,6 @@ import { useBrowserSupport } from './app/useBrowserSupport';
 import { usePackProgress } from './app/usePackProgress';
 import { useTheme } from './app/useTheme';
 import {
-  formatTimestamp,
-  LIVE_INTERIM_TRANSLATION,
   MT_PROVIDER_LABELS,
   overBy,
   parseInitialLanguages,
@@ -172,22 +169,14 @@ export default function App() {
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [isTestBarOpen, setIsTestBarOpen] = useState<boolean>(false);
-  const [confirmClear, setConfirmClear] = useState<boolean>(false);
   const [importError, setImportError] = useState<string>('');
   const [importedLecture, setImportedLecture] = useState<{ seq: number; entries: LectureEntry[] } | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const importSeqRef = useRef<number>(0);
 
   // Speech recognition & permission states
-  const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [micInsecure, setMicInsecure] = useState(false);
-
-  // Transcript store
-  const [segments, setSegments] = useState<CaptionSegment[]>([]);
-
-  // Silent testing input
-  const [manualInput, setManualInput] = useState<string>('');
 
   // Document Picture-in-Picture window state
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
@@ -228,9 +217,7 @@ export default function App() {
     }
   }, [pipLayout]);
 
-  const nextIdRef = useRef<number>(1);
   const selectedLangsRef = useRef<LanguageCode[]>(selectedLangs);
-  const finalizedHistoryRef = useRef<string[]>([]);
 
   const {
     availableProviders, refineEnabledRef, serverRefineAvailable, serverRefineStatus,
@@ -242,10 +229,6 @@ export default function App() {
   } = useTranslator(availableProviders);
 
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
-
-  // Live (interim) translation state
-  // Bumped whenever a phrase is finalized or the transcript is cleared: starts a new live utterance
-  const [liveSegment, setLiveSegment] = useState(0);
 
   useEffect(() => {
     selectedLangsRef.current = selectedLangs;
@@ -260,108 +243,15 @@ export default function App() {
   const { isDark, setIsDark } = useTheme(pipWindow);
   const { isSupportedBrowser, hasSpeechApi, setHasSpeechApi, hasPipApi, isEmbeddedIframe } = useBrowserSupport();
 
-  // Interim speech: translate the in-progress sentence so captions appear while the teacher is
-  // still talking, even through a long run-on sentence with no pause
-  const clearLiveTranslation = useCallback(() => setLiveSegment((value) => value + 1), []);
-  const liveTranslations: Partial<Record<string, string>> = useLiveTranslations(
-    LIVE_INTERIM_TRANSLATION ? interimTranscript : '',
-    selectedLangs,
-    fetchMT,
-    String(liveSegment),
-  );
-
-  // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands),
-  // then an optional Gemini pass quietly upgrades the text with context.
-  const handleFinalizedPhrase = useCallback(
-    (rawPhrase: string) => {
-      const phrase = rawPhrase.trim().slice(0, 500);
-      if (!phrase) return;
-
-      const contextSnapshot = finalizedHistoryRef.current.slice(-2);
-      finalizedHistoryRef.current = [
-        ...finalizedHistoryRef.current.slice(-20),
-        phrase,
-      ];
-
-      const segmentId = nextIdRef.current++;
-      const langs = [...selectedLangsRef.current];
-
-      setSegments((prev) => [
-        ...prev,
-        {
-          id: segmentId,
-          timestamp: formatTimestamp(),
-          english: phrase,
-          translations: {},
-          status: 'translating',
-        },
-      ]);
-
-      const patch = (fn: (seg: CaptionSegment) => CaptionSegment) =>
-        setSegments((prev) =>
-          prev.map((seg) => (seg.id === segmentId ? fn(seg) : seg))
-        );
-
-      let failures = 0;
-      const mtJobs = langs.map((code) =>
-        fetchMT(phrase, code).then(
-          (translation) =>
-            patch((seg) => ({
-              ...seg,
-              translations: { ...seg.translations, [code]: translation },
-            })),
-          () => {
-            failures += 1;
-            patch((seg) => ({
-              ...seg,
-              translations: {
-                ...seg.translations,
-                [code]: 'translation unavailable',
-              },
-            }));
-          }
-        )
-      );
-
-      void Promise.all(mtJobs).then(async () => {
-        patch((seg) => ({
-          ...seg,
-          status: failures === langs.length ? 'error' : 'done',
-        }));
-
-        // Optional Gemini clean-up, only for languages that weren't translated on this device
-        // (so on-device text never leaves the machine, and the server's Gemini calls stay low).
-        // "On this device" mode skips it entirely.
-        const preference = mtPreferenceRef.current;
-        const refineLangs =
-          !refineEnabledRef.current ||
-          !geminiRefineEnabledRef.current ||
-          preference === 'on-device'
-            ? []
-            : langs.filter(
-                (code) =>
-                  getMtProvider(preference, 'en', code, phrase) !==
-                  'on-device'
-              );
-        if (refineLangs.length === 0) return;
-        const refined = await fetchTranslationWithRetry(
-          phrase,
-          refineLangs,
-          contextSnapshot
-        ).catch(() => null);
-        if (!refined) return;
-        patch((seg) => {
-          const merged = { ...seg.translations };
-          for (const code of refineLangs) {
-            const value = refined[code];
-            if (value && value !== 'translation unavailable') merged[code] = value;
-          }
-          return { ...seg, translations: merged, status: 'done' };
-        });
-      });
-    },
-    [fetchMT, fetchTranslationWithRetry, getMtProvider, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef]
-  );
+  const {
+    segments, currentSegment, previousSegment, handleFinalizedPhrase,
+    interimTranscript, setInterimTranscript, clearLiveTranslation, liveTranslations,
+    confirmClear, setConfirmClear, handleClearConfirm, handleExportJson,
+    manualInput, setManualInput, handleManualSubmit, handleBurstTest,
+  } = useCaptionTranscript({
+    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT, getMtProvider,
+    fetchTranslationWithRetry, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef,
+  });
 
   const { isListening, speechIsLocal, speechStatusNotice, stopListening, toggleListening } = useCaptionSpeech({
     onFinal: handleFinalizedPhrase, onInterim: setInterimTranscript, clearLiveTranslation,
@@ -508,87 +398,6 @@ export default function App() {
     }
   };
 
-  // Lecture-compatible JSON Transcript Export
-  const handleExportJson = () => {
-    if (segments.length === 0) return;
-
-    const toEpochMs = (hhmmss: string): number => {
-      const match = /^(\d{2}):(\d{2}):(\d{2})$/.exec(hhmmss.trim());
-      if (!match) return Date.now();
-      const d = new Date();
-      d.setHours(Number(match[1]), Number(match[2]), Number(match[3]), 0);
-      return d.getTime();
-    };
-
-    const entries: LectureEntry[] = [];
-    for (const seg of segments) {
-      const english = seg.english.trim();
-      if (!english) continue;
-      const translations: Partial<Record<LanguageCode, string>> = {};
-      const failedLangs: Partial<Record<LanguageCode, boolean>> = {};
-      for (const code of selectedLangs) {
-        const translated = seg.translations[code]?.trim();
-        if (translated) {
-          translations[code] = translated;
-        } else if (seg.status === 'error') {
-          failedLangs[code] = true;
-        }
-      }
-      entries.push({
-        id: `seg-${seg.id}`,
-        timestamp: toEpochMs(seg.timestamp),
-        english,
-        translations,
-        failedLangs,
-      });
-    }
-
-    if (entries.length === 0) return;
-
-    const jsonContent = roomJson({ selectedLangs, entries });
-    const blob = new Blob([jsonContent], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = formatLectureFilename();
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-
-  // Clear transcript history
-  const handleClearConfirm = () => {
-    stopColumnPlayback();
-    setSegments([]);
-    setInterimTranscript('');
-    finalizedHistoryRef.current = [];
-    clearLiveTranslation();
-    setConfirmClear(false);
-  };
-
-  // Submit silent test sentence
-  const handleManualSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualInput.trim()) return;
-    handleFinalizedPhrase(manualInput);
-    setManualInput('');
-  };
-
-  // Burst test (5 rapid sentences to exercise parallel per-language translation)
-  const handleBurstTest = () => {
-    const burstSentences = [
-      'Good morning class, today we are studying the water cycle.',
-      'First, solar energy warms water on the surface of oceans and lakes.',
-      'This causes evaporation, turning liquid water into invisible water vapor.',
-      'As the warm air rises into the atmosphere, it cools down and condenses into clouds.',
-      'Finally, precipitation returns water to the Earth as rain, snow, or sleet.',
-    ];
-    burstSentences.forEach((sentence) => {
-      handleFinalizedPhrase(sentence);
-    });
-  };
-
   // Pop-out lines: keep only English + languages still selected, in on-screen order
   const visiblePipLines = getVisiblePipLines(pipLines, selectedLangs, MAX_PIP_LINES);
 
@@ -600,10 +409,6 @@ export default function App() {
     setPipLines(next);
   };
 
-  const currentSegment =
-    segments.length > 0 ? segments[segments.length - 1] : null;
-  const previousSegment =
-    segments.length > 1 ? segments[segments.length - 2] : null;
   const previousFontSize = Math.max(16, Math.round(fontSize * 0.68));
   const activeSubtitleLang = selectedLangs.includes(subtitleLang)
     ? subtitleLang
