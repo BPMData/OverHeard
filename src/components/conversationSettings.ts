@@ -14,6 +14,12 @@ export interface ConversationSettings extends Participants {
   switchAfterMs: number;
   readAloud: boolean;
   placement: 'speaker' | 'reader';
+  /**
+   * Lecture: read the translation aloud while the teacher is still talking. The microphone
+   * keeps listening while it reads, so this needs headphones. Off: the teacher laptop reads
+   * finished lines and pauses the microphone. Student devices always read live.
+   */
+  lectureLiveReadAloud: boolean;
 }
 const validLanguage = (value: unknown): value is ConversationLanguage =>
   value === 'en' || SUPPORTED_LANGUAGES.some((l) => l.code === value);
@@ -28,6 +34,7 @@ export function loadConversationSettings(
     switchAfterMs: 2500,
     readAloud: false,
     placement: 'speaker',
+    lectureLiveReadAloud: false,
   };
   try {
     const saved = JSON.parse(localStorage.getItem('overheard.conversation') || 'null');
@@ -42,6 +49,7 @@ export function loadConversationSettings(
     defaults.manualTurns = saved.manualTurns === true;
     defaults.readAloud = saved.readAloud === true;
     defaults.placement = saved.placement === 'reader' ? 'reader' : 'speaker';
+    defaults.lectureLiveReadAloud = saved.lectureLiveReadAloud === true;
   } catch {
     /* Storage may be unavailable. */
   }
