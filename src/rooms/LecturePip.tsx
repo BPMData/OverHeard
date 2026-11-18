@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PictureInPicture2 } from 'lucide-react';
 import { PipSubtitlePortal, MAX_PIP_LINES, pipHeightFor } from '../components/PipSubtitlePortal';
 import { togglePipLine, visiblePipLines } from '../pipLines';
 import type { PipLayout, PipLine } from '../types';
@@ -50,7 +51,11 @@ export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = tru
     } catch { setNotice('Could not open floating captions. Open the room in a full browser tab and try again.'); }
   };
   return <>
-    <button type="button" onClick={() => void toggle()}>{pip ? 'Close pop-out' : 'Pop out lecture'}</button>
+    <button type="button" className={`lecture-pip-btn${pip ? ' is-open' : ''}`} onClick={() => void toggle()}
+      title="Open an always-on-top caption window that floats over slides and other apps">
+      <PictureInPicture2 size={14} aria-hidden="true" />
+      <span>{pip ? 'Close pop-out' : 'Pop out lecture'}</span>
+    </button>
     {notice && <span role="alert">{notice}</span>}
     <PipSubtitlePortal pipWindow={pip} onClosePip={() => pip?.close()} isDark={isDark}
       isListening={state.isListening} fontSize={fontSize} onAdjustFont={onAdjustFont}

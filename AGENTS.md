@@ -1,7 +1,13 @@
-# OverHeard — AI Studio deployment rules
+# OverHeard — deployment rules
 
-These requirements were supplied by the owner from AI Studio. Follow them before making
-changes. Keep work in OverHeard; AllAboard may be read as a reference but must not be edited.
+OverHeard runs entirely on **Google Cloud Run** (service `over-heard`, region `us-east1`).
+Google AI Studio is no longer part of the workflow: nothing is built, synced, or deployed
+from it. Every push to `main` runs `.github/workflows/deploy.yml`, which repeats the checks
+below on Node 22 and then deploys with `gcloud run deploy --source .`. Merging a pull
+request is the deploy; there is no manual rebuild step.
+
+Follow these rules before making changes. Keep work in OverHeard; AllAboard may be read as
+a reference but must not be edited.
 
 ## Preserve the deployment contract
 
@@ -17,12 +23,15 @@ changes. Keep work in OverHeard; AllAboard may be read as a reference but must n
 - Mark type imports with `type`, and use explicit **`.ts` extensions** on all relative
   server imports. Never pull React, CSS, test modules, or devDependencies into the production
   server import graph. Tests run through Vitest; they are not production server modules.
-- Do not modify `DISABLE_HMR` handling in `vite.config.ts`.
-- Keep `metadata.json` capabilities and permissions intact.
+- Do not modify `DISABLE_HMR` handling in `vite.config.ts`, and keep `metadata.json`
+  capabilities and permissions intact. Both are left over from the original AI Studio
+  template; they are harmless on Cloud Run, so only remove them if the owner asks.
 - Preserve `Cache-Control: no-cache, no-store, must-revalidate` for `index.html`, `sw.js`,
   and the SPA fallback in `server.ts`.
 - Keep all API keys server-only. Preserve graceful fallbacks when environment variables
-  are missing; do not require new keys just to start the app.
+  are missing; do not require new keys just to start the app. Production keys and settings
+  are environment variables on the Cloud Run service itself (Console → Edit & deploy new
+  revision → Variables & Secrets); `deploy.yml` does not set them, so deploys keep them.
 
 ## Required verification
 

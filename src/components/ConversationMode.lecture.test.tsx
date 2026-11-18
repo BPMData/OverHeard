@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversationMode } from './ConversationMode';
 
@@ -360,4 +360,31 @@ it('offers reading while the teacher talks only once Read aloud is on', () => {
   fireEvent.click(live);
   expect(live.checked).toBe(true);
   expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(true);
+});
+
+it('pops the teacher lecture out into a floating window next to Start lecture', async () => {
+  const pipDocument = document.implementation.createHTMLDocument('PiP');
+  const win = { document: pipDocument, addEventListener: vi.fn(), close: vi.fn(), closed: false };
+  const requestWindow = vi.fn(async () => win);
+  vi.stubGlobal('documentPictureInPicture', { requestWindow });
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => 'Hola clase')}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  const start = screen.getByRole('button', { name: 'Start lecture' });
+  const pop = screen.getByRole('button', { name: 'Pop out lecture' });
+  expect(start.nextElementSibling).toBe(pop);
+
+  fireEvent.change(screen.getByLabelText('Lecture line text'), { target: { value: 'Hello class' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+
+  fireEvent.click(pop);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(requestWindow).toHaveBeenCalledTimes(1);
+  expect(within(pipDocument.body).getByText('Hello class')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Close pop-out' }).className).toContain('is-open');
+
+  // Leaving Lecture mode closes the floating window
+  fireEvent.click(screen.getByRole('button', { name: 'Two-way' }));
+  expect(win.close).toHaveBeenCalled();
 });

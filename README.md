@@ -106,6 +106,8 @@ src/
 
 ## Deployment Notes
 
+- **Google Cloud Run only**: Production is the Cloud Run service `over-heard` (`us-east1`). Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which typechecks, tests, builds, smoke-tests, and then deploys. No AI Studio rebuild or sync is involved. API keys and the optional settings above are environment variables on the Cloud Run service and survive deploys.
+- **Student short links**: `bpmdata.github.io/<room>` is a GitHub Pages redirect to the Cloud Run service (see [ROOMS.md](ROOMS.md)).
 - **Single instance required for live rooms**: Live classroom rooms and translation request coalescing currently reside in server process memory — keep Cloud Run **maximum instances set to `1`** (see [ROOMS.md](ROOMS.md)).
 - **Node 22 native TypeScript stripping**: Server and shared files imported by `server.ts` must stay strictly erasable TypeScript with explicit `.ts` extensions on relative server imports (see [AGENTS.md](AGENTS.md)).
 - **Roadmap**: See [TODO.md](TODO.md) for planned features and future enhancements.

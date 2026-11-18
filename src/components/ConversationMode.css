@@ -722,3 +722,25 @@
 .room-join-card-code { white-space: nowrap; }
 .room-join-card-alt { font-size: clamp(1rem, 2.5vw, 2rem); opacity: .85; margin: 0; }
 .room-waiting { opacity: .8; }
+
+/* Pop out lecture (teacher toolbar and student room): icon + label, green while the window is open */
+.lecture-pip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lecture-pip-btn svg {
+  color: #5843a5;
+}
+.conversation-dark .lecture-pip-btn svg,
+.dark .lecture-pip-btn svg {
+  color: #a78bfa;
+}
+.lecture-pip-btn.is-open {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+.lecture-pip-btn.is-open svg {
+  color: currentColor;
+}

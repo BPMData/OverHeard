@@ -630,6 +630,8 @@ export function ConversationMode({
             >
               {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
             </button>
+            <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
+              onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
             <button
               type="button"
               onClick={lecture.clear}
@@ -677,8 +679,6 @@ export function ConversationMode({
                 setUiError(msg);
               }}
             />
-            <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
-              onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
             <label>
               Voice for
               <select

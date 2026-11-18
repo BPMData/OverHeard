@@ -38,6 +38,5 @@ jobs:
         run: NODE_ENV=production node --check server.ts
 
       - name: Server smoke test
-        # Run through bash so it works even when the file loses its executable bit
-        # (Google AI Studio syncs drop it)
+        # Run through bash so it works even if the file loses its executable bit
         run: bash scripts/smoke.sh
