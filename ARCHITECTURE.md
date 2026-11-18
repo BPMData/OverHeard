@@ -38,8 +38,10 @@ Rules for every step:
 ## Current layout (November 2026)
 
 ```
-server.ts               Express app: security headers, /api/config, /api/mt, /api/translate,
-                        static files and SPA fallback (465 lines)
+server.ts               Reads the environment, calls createApp(), and listens on 0.0.0.0:3000
+server/app.ts           Express middleware, room routes, static files and SPA fallback
+server/routes/mt.ts     /api/config, /api/mt, /api/translate, rate limits and usage
+server/development.ts   Vite middleware and development-only WASM file routes
 server/                 mt.ts (provider chain + request coalescing), rooms.ts (live rooms, SSE),
                         rateLimit, usage, clientKeys, shortLink, geminiSingle
 src/main.tsx            Picks StudentRoom (?room= or /<code>) or App
@@ -54,12 +56,12 @@ src/translation/        Server config, translation cache and retries, finalized-
 src/pip/usePipWindow.ts Pop-out lifecycle, line/layout/size preferences and pop-out theme sync
 src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch,
                         TranslatorPicker and ClearTranscriptButton
-src/components/         ConversationMode (983 lines: Two-way and Lecture), LectureTranscript,
-                        PipSubtitlePortal, modals
+src/components/         ConversationMode (mode switching, shared settings and lifecycle),
+                        TwoWayView, LectureView, LectureTranscript, PipSubtitlePortal, modals
 src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
 src/rooms/              Shared lecture rooms: teacher publishing, student view, protocol
-src/tts/                Piper voices and read-aloud playback, including live read-aloud
-                        (useSpeechPlayback.ts, 732 lines; liveSegments.ts)
+src/tts/                Piper voices, useLecturePlayback (finished lines and live read-aloud),
+                        useTwoWayPlayback, liveSegments and useSpeechPlayback re-exports
 src/lib/                Google Drive
 src/*.ts                Small shared helpers: onDevice, speechRestart, speechDedupe,
                         liveTranslation, useLiveTranslations, packProgress, pipLines, wakeLock
@@ -80,15 +82,8 @@ the display mode.
 - **There are two translation clients.** `fetchMT` in `src/translation/useTranslator.ts` (teacher) and
   `createStudentTranslator` in `src/rooms/translateStudent.ts` each implement on-device first,
   then `/api/mt`, with caching.
-- `ConversationMode.tsx` holds both Two-way and Lecture UI, with lecture logic already pulled
-  into `useLectureMode`.
-- **`src/tts/useSpeechPlayback.ts` holds three things:** finished-line lecture playback,
-  live read-aloud (reading settled words while the speaker is still talking) and Two-way
-  playback (`useTwoWayPlayback`). Lecture and live reading must stay one hook, because they
-  share one player and a queue that can't overlap. Its effects must also run in declaration
-  order (see Traps).
-- `server.ts` builds the whole Express app inline, so the `/api/mt` and `/api/translate`
-  handlers can't be tested without starting a server.
+- Finished-line lecture playback and live read-aloud share one player and queue in
+  `useLecturePlayback`. Its effects run in declaration order (see Traps).
 
 ## Target layout
 
