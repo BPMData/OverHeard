@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run after npm run build. Exercise the production Node entrypoint (including native
-# TypeScript imports), not tsx: CI runs this on the same Node 22 major as AI Studio.
+# TypeScript imports), not tsx: CI runs this on the same Node 22 major as Cloud Run.
 set -euo pipefail
 node --version
 

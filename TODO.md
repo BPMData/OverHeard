@@ -108,8 +108,8 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
   throttling, and how much of today's spending guards are used.
 - If the link spreads beyond people you trust, add an access code. Anyone with the URL can
   currently use your translation quota.
-- Switch Gemini to a cheaper model by setting `GEMINI_MODEL` to the Flash-Lite model ID shown in
-  AI Studio's model picker. Test one sentence afterwards: the code sets a thinking level that
+- Switch Gemini to a cheaper model by setting `GEMINI_MODEL` (a Cloud Run environment variable)
+  to the current Flash-Lite model ID from the Gemini API model list. Test one sentence afterwards: the code sets a thinking level that
   some models may not accept.
 
 ---

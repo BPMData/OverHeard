@@ -42,7 +42,7 @@ Let the operator choose whether sent bubbles appear on the speaker’s side or t
 ### 5. Run release acceptance on the intended devices
 
 - Run the existing CI sequence: `npm run lint`, `npm test`, `npm run build`, and `bash scripts/smoke.sh`.
-- Submit a pull request for the maintainer to test. After merging, the maintainer rebuilds the app in AI Studio and checks the published URL in its own desktop Chrome tab using the manual checklist in the TODO. Run the Grandpa scenario with custom names and a long pause, then the student scenario with speech in both directions. On the school MacBook, use the Network panel to verify that prepared English ↔ Spanish on-device translation sends no requests to `/api/mt`.
+- Submit a pull request for the maintainer to test. Merging to `main` deploys to Cloud Run automatically; the maintainer then checks the published URL in its own desktop Chrome tab using the manual checklist in the TODO. Run the Grandpa scenario with custom names and a long pause, then the student scenario with speech in both directions. On the school MacBook, use the Network panel to verify that prepared English ↔ Spanish on-device translation sends no requests to `/api/mt`.
 
 ## Follow-on work
 
