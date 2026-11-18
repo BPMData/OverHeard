@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createFinalDeduper } from './speechDedupe';
-import { SpeechDebugPanel, logSpeechEvent } from './speechDebug';
-import { withMicAccess } from './micPermission';
+import { SpeechDebugPanel } from './speechDebug';
+import { useCaptionSpeech } from './speech/useCaptionSpeech';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AlertTriangle,
@@ -55,7 +54,6 @@ import { VoiceSettingsModal } from './components/VoiceSettingsModal';
 import { WhiteboatIcon } from './components/WhiteboatIcon';
 import { useLiveTranslations } from './useLiveTranslations';
 import { useServerConfig } from './translation/useServerConfig';
-import { isFailedSession, restartDelay } from './speechRestart';
 import {
   CaptionSwatch,
   CaptionText,
@@ -64,8 +62,6 @@ import {
 } from './captionColors';
 import { useTranslator } from './translation/useTranslator';
 import {
-  isOnDeviceTranslationSupported,
-  prepareOnDeviceSpeech,
   prepareOnDeviceTranslators,
 } from './onDevice';
 import { togglePipLine, visiblePipLines as getVisiblePipLines } from './pipLines';
@@ -80,7 +76,6 @@ import {
 import { useBrowserSupport } from './app/useBrowserSupport';
 import { usePackProgress } from './app/usePackProgress';
 import { useTheme } from './app/useTheme';
-import type { SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionInstance } from './speech/types';
 import {
   formatTimestamp,
   LIVE_INTERIM_TRANSLATION,
@@ -184,11 +179,9 @@ export default function App() {
   const importSeqRef = useRef<number>(0);
 
   // Speech recognition & permission states
-  const [isListening, setIsListening] = useState<boolean>(false);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [micInsecure, setMicInsecure] = useState(false);
-  const [speechStatusNotice, setSpeechStatusNotice] = useState<string | null>(null);
 
   // Transcript store
   const [segments, setSegments] = useState<CaptionSegment[]>([]);
@@ -235,14 +228,6 @@ export default function App() {
     }
   }, [pipLayout]);
 
-  // Refs for synchronous access in event callbacks & concurrency tracking
-  const userStoppedRef = useRef<boolean>(true);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  // Keep-alive backoff: only failed sessions (network errors, instant ends) slow restarts down
-  const restartTimerRef = useRef<number | null>(null);
-  const restartFailuresRef = useRef<number>(0);
-  const sessionStartedAtRef = useRef<number>(0);
-  const lastSpeechErrorRef = useRef<string | null>(null);
   const nextIdRef = useRef<number>(1);
   const selectedLangsRef = useRef<LanguageCode[]>(selectedLangs);
   const finalizedHistoryRef = useRef<string[]>([]);
@@ -256,8 +241,6 @@ export default function App() {
     lastUsedProvider, lastTranslateMs, fetchMT, fetchTranslationWithRetry, getMtProvider,
   } = useTranslator(availableProviders);
 
-  // Whether speech recognition is running on this device (null = not started yet)
-  const [speechIsLocal, setSpeechIsLocal] = useState<boolean | null>(null);
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
 
   // Live (interim) translation state
@@ -380,202 +363,11 @@ export default function App() {
     [fetchMT, fetchTranslationWithRetry, getMtProvider, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef]
   );
 
-  // Start / Stop Web Speech API with Chrome Keep-Alive Loop
-  const startListening = useCallback(() => {
-    const SpeechRecognitionCtor =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognitionCtor) {
-      setHasSpeechApi(false);
-      return;
-    }
-
-    setMicPermissionDenied(false);
-    setSpeechStatusNotice(null);
-    userStoppedRef.current = false;
-    restartFailuresRef.current = 0;
-    if (restartTimerRef.current !== null) {
-      window.clearTimeout(restartTimerRef.current);
-      restartTimerRef.current = null;
-    }
-
-    if (!recognitionRef.current) {
-      const recognition = new SpeechRecognitionCtor();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      let newWords = createFinalDeduper();
-
-      recognition.onstart = () => {
-        newWords = createFinalDeduper();
-        sessionStartedAtRef.current = Date.now();
-        lastSpeechErrorRef.current = null;
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        logSpeechEvent(event);
-        // Hearing speech means the service is healthy again
-        restartFailuresRef.current = 0;
-        setSpeechStatusNotice(null);
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          const result = event.results[i];
-          const transcriptText = result[0]?.transcript || '';
-          if (result.isFinal) {
-            setInterimTranscript('');
-            clearLiveTranslation();
-            const fresh = newWords(transcriptText);
-            if (fresh) handleFinalizedPhrase(fresh);
-          } else {
-            interim += transcriptText;
-          }
-        }
-        setInterimTranscript(interim);
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        const errCode = event.error;
-        lastSpeechErrorRef.current = errCode;
-        if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
-          userStoppedRef.current = true;
-          setIsListening(false);
-          setInterimTranscript('');
-          setMicPermissionDenied(true);
-          return;
-        }
-
-        // On 'no-speech', 'network', or 'aborted' errors, keep restarting via onend keep-alive
-        if (
-          errCode === 'no-speech' ||
-          errCode === 'network' ||
-          errCode === 'aborted'
-        ) {
-          if (errCode === 'network') {
-            setSpeechStatusNotice('Reconnecting speech service…');
-          }
-          return;
-        }
-      };
-
-      recognition.onend = () => {
-        // Keep-alive: Chrome stops recognition after silence. If user has not pressed Stop, call start() again.
-        // Normal ends restart immediately; repeated failures (e.g. offline) back off up to 5 s.
-        if (!userStoppedRef.current) {
-          const sessionMs = Date.now() - sessionStartedAtRef.current;
-          if (isFailedSession(lastSpeechErrorRef.current, sessionMs)) {
-            restartFailuresRef.current += 1;
-          } else {
-            restartFailuresRef.current = 0;
-          }
-          const restart = () => {
-            restartTimerRef.current = null;
-            if (userStoppedRef.current) return;
-            try {
-              recognition.start();
-            } catch {
-              // Ignore InvalidStateError when already running
-            }
-          };
-          const delay = restartDelay(restartFailuresRef.current);
-          if (delay === 0) {
-            restart();
-          } else {
-            if (restartFailuresRef.current >= 3) {
-              setSpeechStatusNotice('Speech service unavailable — retrying…');
-            }
-            restartTimerRef.current = window.setTimeout(restart, delay);
-          }
-        } else {
-          setIsListening(false);
-          setInterimTranscript('');
-        }
-      };
-
-      recognitionRef.current = recognition;
-    }
-
-    const recognition = recognitionRef.current;
-    const begin = (local: boolean) => {
-      if (userStoppedRef.current) return; // Stop was pressed while the speech pack downloaded
-      recognition.processLocally = local;
-      setSpeechIsLocal(local);
-      try {
-        recognition.start();
-      } catch {
-        // Ignore InvalidStateError if already running
-      }
-      setIsListening(true);
-    };
-
-    if (mtPreferenceRef.current === 'on-device') {
-      // Both downloads need a click, and this runs inside the Start click
-      prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
-      setIsListening(true);
-      void prepareOnDeviceSpeech('en-US', () => reportPack('speech', -1)).then((local) => {
-        reportPack('speech', null);
-        setSpeechStatusNotice(
-          local ? null : 'On-device speech not available here — using Google’s speech service.'
-        );
-        begin(local);
-      });
-    } else {
-      // Auto: fetch the translation packs now (this click is the gesture Chrome requires) so
-      // on-device translation takes over as soon as they're ready. Captions keep flowing
-      // through the online translators in the meantime. Speech stays on Google's service.
-      if (mtPreferenceRef.current === 'auto' && isOnDeviceTranslationSupported()) {
-        prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
-      }
-      begin(false);
-    }
-  }, [handleFinalizedPhrase, clearLiveTranslation, reportPack, mtPreferenceRef]);
-
-  const stopListening = useCallback(() => {
-    userStoppedRef.current = true;
-    if (restartTimerRef.current !== null) {
-      window.clearTimeout(restartTimerRef.current);
-      restartTimerRef.current = null;
-    }
-    setIsListening(false);
-    setInterimTranscript('');
-    clearLiveTranslation();
-    setSpeechStatusNotice(null);
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // Ignore stop errors
-      }
-    }
-  }, [clearLiveTranslation]);
-
-  const toggleListening = useCallback(() => {
-    if (isListening) {
-      stopListening();
-    } else {
-      withMicAccess(startListening, (reason) => {
-        setMicInsecure(reason === 'insecure');
-        setMicPermissionDenied(true);
-      });
-    }
-  }, [isListening, startListening, stopListening]);
-
-  // Cleanup recognition on unmount
-  useEffect(() => {
-    return () => {
-      userStoppedRef.current = true;
-      if (restartTimerRef.current !== null) {
-        window.clearTimeout(restartTimerRef.current);
-      }
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // Ignore
-        }
-      }
-    };
-  }, []);
+  const { isListening, speechIsLocal, speechStatusNotice, stopListening, toggleListening } = useCaptionSpeech({
+    onFinal: handleFinalizedPhrase, onInterim: setInterimTranscript, clearLiveTranslation,
+    onPermissionChange: setMicPermissionDenied, setMicInsecure, setHasSpeechApi,
+    mtPreferenceRef, selectedLangsRef, reportPack,
+  });
 
   // Spacebar toggles Start/Stop unless focus is inside <input>, <textarea>, or <select>
   useEffect(() => {
