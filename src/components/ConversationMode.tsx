@@ -1,15 +1,12 @@
 import { useWakeLock } from '../wakeLock';
 import { withMicAccess, type MicBlock } from '../micPermission';
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { DEFAULT_LANGUAGES, LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
-import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
+import { DEFAULT_LANGUAGES, SUPPORTED_LANGUAGES } from '../constants';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import {
   createMessage,
-  correctMessage,
   messagesReducer,
   otherSide,
-  type Message,
   type Side,
 } from '../conversation/state';
 import { useConversationSpeech } from '../conversation/useConversationSpeech';
@@ -26,17 +23,14 @@ import {
   saveConversationSettings,
   type ConversationSubMode,
 } from './conversationSettings';
-import { LectureTranscript } from './LectureTranscript';
 import { AboutModal } from './AboutModal';
+import { LectureSettings, LectureView } from './LectureView';
+import { TwoWayReadAloud, TwoWaySettings, TwoWayView } from './TwoWayView';
 import { VoiceSettingsModal, type GeminiRefineSettings } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Square, Volume2 } from 'lucide-react';
-import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
-import type { SaveLectureToDriveResult } from '../lib/googleDrive';
+import { HelpCircle, Volume2 } from 'lucide-react';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
-import { LectureFiles } from '../rooms/LectureFiles';
-import { LecturePip } from '../rooms/LecturePip';
 import { piperClient } from '../tts/piperClient';
 import { useLecturePlayback, useTwoWayPlayback } from '../tts/useSpeechPlayback';
 import {
@@ -44,7 +38,6 @@ import {
   resolveVoiceId,
   useVoicePreferences,
 } from '../tts/voices';
-import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
 import type { LectureEntry } from '../conversation/lectureState';
 
 interface Props {
@@ -76,13 +69,6 @@ interface Props {
   importedLecture?: { seq: number; entries: LectureEntry[] } | null;
   geminiRefine?: GeminiRefineSettings;
 }
-const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
-const color = (side: Side, lang: ConversationLanguage) =>
-  side === 'a'
-    ? lang === 'en'
-      ? ENGLISH_CAPTION_COLOR
-      : languageCaptionColor(0)
-    : languageCaptionColor(1);
 export function ConversationMode({
   active,
   fontSize,
@@ -384,90 +370,6 @@ export function ConversationMode({
       setUiError(err instanceof Error ? err.message : 'Could not import JSON.');
     }
   };
-  const renderMessage = (message: Message) => {
-    const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
-    const done = message.status === 'done';
-    const canPlay = message.status !== 'translating';
-    const isSpeakingThisBubble = twoWayPlayback.playingMessageId === message.id;
-    const isDownloadingThisBubble =
-      isSpeakingThisBubble && twoWayPlayback.downloadingMessageId === message.id;
-    const spokenText = (done && message.translated) || message.original;
-    const spokenLang = done && message.translated ? message.reader.lang : message.sender.lang;
-    return (
-      <article key={message.id} className={`conversation-bubble side-${placedSide}`}>
-        <div className="conversation-meta">
-          <span>
-            {message.sender.name} ·{' '}
-            {new Date(message.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            })}
-          </span>
-          <span className="lecture-play-actions">
-            {canPlay && (
-              <button
-                type="button"
-                className={`conversation-play-btn ${isSpeakingThisBubble ? 'is-playing' : ''}`}
-                aria-label={
-                  isSpeakingThisBubble
-                    ? `Stop reading ${message.original}`
-                    : `Read aloud: ${message.original}`
-                }
-                title={isSpeakingThisBubble ? 'Stop reading' : 'Play translated speech'}
-                onClick={() =>
-                  twoWayPlayback.togglePlayMessage({
-                    id: message.id,
-                    text: spokenText,
-                    lang: spokenLang,
-                  })
-                }
-              >
-                {isSpeakingThisBubble ? (
-                  <>
-                    <Square size={10} aria-hidden="true" />
-                    <span>{isDownloadingThisBubble ? 'Loading…' : 'Stop'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 size={12} aria-hidden="true" />
-                    <span>Play</span>
-                  </>
-                )}
-              </button>
-            )}
-            <button
-              aria-label={`Correct speaker for ${message.original}`}
-              title="Move to the other speaker"
-              onClick={() => dispatch({ type: 'correct', message: correctMessage(message) })}
-            >
-              ⇄
-            </button>
-          </span>
-        </div>
-        <div style={{ fontSize }} dir={direction(done ? message.reader.lang : message.sender.lang)}>
-          <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
-            {done ? message.translated || message.original : message.original}
-          </span>
-        </div>
-        {message.status === 'translating' && (
-          <small className="conversation-pulse">Translating…</small>
-        )}
-        {message.status === 'error' && (
-          <small className="conversation-error">translation unavailable</small>
-        )}
-        {done && message.sender.lang !== message.reader.lang && (
-          <div
-            className="conversation-original"
-            style={{ fontSize: fontSize * 0.6 }}
-            dir={direction(message.sender.lang)}
-          >
-            {message.original}
-          </div>
-        )}
-      </article>
-    );
-  };
   return (
     <div
       ref={root}
@@ -504,241 +406,46 @@ export function ConversationMode({
             Lecture
           </button>
         </div>
-        {!isLecture ? (
-          <>
-            {(['a', 'b'] as const).map((side) => (
-              <fieldset key={side}>
-                <legend>Side {side.toUpperCase()}</legend>
-                <input
-                  aria-label={`Side ${side.toUpperCase()} name`}
-                  value={settings[side].name}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, [side]: { ...s[side], name: e.target.value } }))
-                  }
-                />
-                <select
-                  aria-label={`Side ${side.toUpperCase()} language`}
-                  value={settings[side].lang}
-                  disabled={speech.isListening}
-                  onChange={(e) =>
-                    setSettings((s) => ({
-                      ...s,
-                      [side]: { ...s[side], lang: e.target.value as ConversationLanguage },
-                    }))
-                  }
-                >
-                  <option value="en">English</option>
-                  {SUPPORTED_LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <VoiceSelect
-                  lang={settings[side].lang}
-                  ariaLabel={`Side ${side.toUpperCase()} voice`}
-                  value={resolveVoiceId(settings[side].lang, voicePrefs)}
-                  onChange={(voiceId) => updateVoicePref(settings[side].lang, voiceId)}
-                />
-                <button onClick={() => speech.setTurn(side)}>
-                  {settings[side].name === 'Me'
-                    ? 'My turn'
-                    : `${settings[side].name || side.toUpperCase()}'s turn`}
-                </button>
-              </fieldset>
-            ))}
-            <label>
-              Turn-taking
-              <select
-                value={settings.manualTurns ? 'manual' : 'auto'}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, manualTurns: e.target.value === 'manual' }))
-                }
-              >
-                <option value="auto">Hands-free</option>
-                <option value="manual">Manual · Spacebar</option>
-              </select>
-            </label>
-            {!settings.manualTurns && (
-              <label>
-                Switch after{' '}
-                <select
-                  value={settings.switchAfterMs}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, switchAfterMs: Number(e.target.value) }))
-                  }
-                >
-                  {[1000, 1500, 2500, 3500, 5000].map((ms) => (
-                    <option key={ms} value={ms}>
-                      {ms / 1000} s
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label>
-              Bubbles on{' '}
-              <select
-                value={settings.placement}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
-                }
-              >
-                <option value="speaker">Speaker's side</option>
-                <option value="reader">Reader's side</option>
-              </select>
-            </label>
-            {translatorPicker}
-            <button
-              className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
-              onClick={speech.isListening ? speech.stop : start}
-              disabled={!speech.supported}
-            >
-              {speech.isListening ? 'Pause conversation' : 'Start conversation'}
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm('Clear the whole conversation?')) dispatch({ type: 'clear' });
-              }}
-            >
-              Clear conversation
-            </button>
-            <button type="button" onClick={exportJson}>Export JSON</button>
-            <button type="button" onClick={() => fileInput.current?.click()}>Import JSON</button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".json,application/json"
-              aria-label="Import JSON file"
-              hidden
-              onChange={importJson}
-            />
-          </>
+        {isLecture ? (
+          <LectureSettings
+            active={active && isLecture}
+            targetLangs={targetLangs}
+            onOpenLanguages={onOpenLanguages}
+            onSetLanguages={onSetLanguages}
+            translatorPicker={translatorPicker}
+            lecture={lecture}
+            lectureState={lectureState}
+            isDark={isDark}
+            fontSize={fontSize}
+            onAdjustFont={onAdjustFont}
+            activeRoomCode={activeRoomCode}
+            setUiError={setUiError}
+            setDriveStatus={setDriveStatus}
+            effectiveLectureLang={effectiveLectureLang}
+            setLecturePlaybackLang={setLecturePlaybackLang}
+            lectureLangs={lectureLangs}
+            voicePrefs={voicePrefs}
+            updateVoicePref={updateVoicePref}
+            lectureReadAloud={lectureReadAloud}
+            setLectureReadAloud={setLectureReadAloud}
+            settings={settings}
+            setSettings={setSettings}
+            lecturePlayback={lecturePlayback}
+          />
         ) : (
-          <>
-            {onOpenLanguages && (
-              <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
-                Languages ({targetLangs.join(', ')})
-              </button>
-            )}
-            {translatorPicker}
-            <button
-              type="button"
-              className={`conversation-start ${lecture.speech.isListening ? 'is-listening' : ''}`}
-              onClick={lecture.speech.isListening ? lecture.stop : lecture.start}
-              disabled={!lecture.speech.supported}
-            >
-              {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
-            </button>
-            <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
-              onAdjustFont={onAdjustFont ?? (() => {})} active={active && isLecture} />
-            <button
-              type="button"
-              onClick={lecture.clear}
-              disabled={lecture.entries.length === 0 && !lecture.speech.interim}
-            >
-              Clear lecture
-            </button>
-            <LectureFiles
-              state={lectureState}
-              roomCode={activeRoomCode}
-              onImport={value => {
-                lecture.replace(value.entries);
-                onSetLanguages?.(value.selectedLangs);
-              }}
-            />
-            <SaveLectureToDriveControl
-              state={lectureState}
-              roomCode={activeRoomCode}
-              className="inline-flex items-center gap-1.5"
-              onSaved={(result: SaveLectureToDriveResult) => {
-                setUiError('');
-                setDriveStatus({
-                  message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
-                  link: result.file.webViewLink,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-            <OpenFromDriveButton
-              className="inline-flex items-center gap-1.5"
-              hasExistingEntries={() => lecture.entries.length > 0}
-              onImport={(imported, file) => {
-                setUiError('');
-                lecture.replace(imported.entries);
-                onSetLanguages?.(imported.selectedLangs);
-                setDriveStatus({
-                  message: `Opened "${file.name}" from Google Drive.`,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-            <label>
-              Voice for
-              <select
-                aria-label="Playback language"
-                value={effectiveLectureLang}
-                onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
-              >
-                {lectureLangs.map((code) => (
-                  <option key={code} value={code}>
-                    {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Voice
-              <VoiceSelect
-                lang={effectiveLectureLang}
-                ariaLabel="Voice"
-                value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
-                onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
-              />
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={lectureReadAloud}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setLectureReadAloud(checked);
-                  if (checked) {
-                    piperClient.unlockAudio();
-                    const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
-                    if (activeVoice !== BROWSER_VOICE_ID) {
-                      piperClient.preloadVoice(activeVoice);
-                    }
-                  }
-                }}
-              />
-              Read aloud
-            </label>
-            <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
-              <input
-                type="checkbox"
-                checked={settings.lectureLiveReadAloud}
-                disabled={!lectureReadAloud}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setSettings((s) => ({ ...s, lectureLiveReadAloud: checked }));
-                }}
-              />
-              While I talk (headphones)
-            </label>
-            <PlaybackToolbar
-              status={lecturePlayback.status}
-              downloadProgress={lecturePlayback.downloadProgress}
-              onTogglePause={lecturePlayback.togglePause}
-              onStop={lecturePlayback.stop}
-            />
-          </>
+          <TwoWaySettings
+            settings={settings}
+            setSettings={setSettings}
+            speech={speech}
+            voicePrefs={voicePrefs}
+            updateVoicePref={updateVoicePref}
+            translatorPicker={translatorPicker}
+            start={start}
+            onClear={() => dispatch({ type: 'clear' })}
+            exportJson={exportJson}
+            importJson={importJson}
+            fileInput={fileInput}
+          />
         )}
         <button
           type="button"
@@ -771,27 +478,13 @@ export function ConversationMode({
           </>
         )}
         {!isLecture && (
-          <label>
-            <input
-              type="checkbox"
-              checked={settings.readAloud}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setSettings((s) => ({ ...s, readAloud: checked }));
-                if (checked) {
-                  piperClient.unlockAudio();
-                  const voiceA = resolveVoiceId(settings.a.lang, voicePrefs);
-                  const voiceB = resolveVoiceId(settings.b.lang, voicePrefs);
-                  if (voiceA !== BROWSER_VOICE_ID) piperClient.preloadVoice(voiceA);
-                  if (voiceB !== BROWSER_VOICE_ID) piperClient.preloadVoice(voiceB);
-                } else {
-                  twoWayPlayback.cancelAll();
-                  speech.resume();
-                }
-              }}
-            />
-            Read aloud
-          </label>
+          <TwoWayReadAloud
+            settings={settings}
+            setSettings={setSettings}
+            voicePrefs={voicePrefs}
+            speech={speech}
+            twoWayPlayback={twoWayPlayback}
+          />
         )}
         <span className="inline-flex items-center gap-2" style={{ marginLeft: 'auto' }}>
           <button type="button" className="conversation-exit" onClick={exit}>
@@ -819,173 +512,39 @@ export function ConversationMode({
         }}
       />
       {isLecture ? (
-        <>
-          <p className="conversation-help">
-            Continuous single-speaker English lecture mode. Live translations stream across columns
-            as you speak and stay saved locally until cleared.
-          </p>
-          {packPanel}
-          {driveStatus && (
-            <p role="status" className="text-xs flex flex-wrap items-center gap-2">
-              <span>{driveStatus.message}</span>
-              {driveStatus.link && (
-                <a
-                  href={driveStatus.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Open in Drive
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={() => setDriveStatus(null)}
-                className="underline"
-              >
-                Dismiss
-              </button>
-            </p>
-          )}
-          {(uiError || lecture.uiError || lecture.speech.error || !lecture.speech.supported) && (
-            <p role="alert">
-              {uiError ||
-                lecture.uiError ||
-                lecture.speech.error ||
-                'Speech recognition is unavailable. You can type a line below.'}
-            </p>
-          )}
-          <LectureTranscript
-            entries={lecture.entries}
-            selectedLangs={targetLangs}
-            fontSize={fontSize}
-            isDark={isDark}
-            isListening={lecture.speech.isListening}
-            speechLocal={lecture.speech.speechLocal}
-            interim={lecture.speech.interim}
-            liveTranslations={lecture.liveTranslations}
-            onAddLine={lecture.addLine}
-            activePlayback={lecturePlayback.activePlayback}
-            onPlayFrom={lecturePlayback.playFrom}
-            onTogglePause={lecturePlayback.togglePause}
-            onStopPlayback={lecturePlayback.stop}
-          />
-        </>
+        <LectureView
+          packPanel={packPanel}
+          driveStatus={driveStatus}
+          setDriveStatus={setDriveStatus}
+          uiError={uiError}
+          lecture={lecture}
+          targetLangs={targetLangs}
+          fontSize={fontSize}
+          isDark={isDark}
+          lecturePlayback={lecturePlayback}
+        />
       ) : (
-        <>
-          <p className="conversation-help">
-            Each message uses the current speaker’s name.{' '}
-            {settings.manualTurns
-              ? 'Press Space or click Next speaker to pass the turn.'
-              : 'Pause to send and pass the turn.'}{' '}
-            Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
-          </p>
-          {packPanel}
-          {(uiError || speech.error || !speech.supported) && (
-            <p role="alert">
-              {uiError ||
-                speech.error ||
-                'Speech recognition is unavailable. You can type messages below.'}
-            </p>
-          )}
-          <div
-            className="conversation-thread"
-            ref={thread}
-            role="log"
-            aria-label="Conversation messages"
-            onScroll={() => {
-              const el = thread.current!;
-              following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-              if (following.current) setNewMessage(false);
-            }}
-          >
-            {!messages.length && (
-              <p className="conversation-empty">
-                Start a conversation or type a message. Messages stay here until you clear them.
-              </p>
-            )}
-            {messages.map(renderMessage)}
-            {(speech.draft || speech.interim) && (
-              <article className={`conversation-bubble side-${speech.turn}`}>
-                <small>{settings[speech.turn].name} · speaking…</small>
-                <div
-                  dir={direction(settings[speech.turn].lang)}
-                  style={{
-                    fontSize,
-                    ...captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark),
-                  }}
-                >
-                  {[speech.draft, speech.interim].filter(Boolean).join(' ')}
-                </div>
-              </article>
-            )}
-          </div>
-          {newMessage && (
-            <button
-              className="conversation-new"
-              onClick={() => {
-                following.current = true;
-                if (thread.current) thread.current.scrollTop = thread.current.scrollHeight;
-                setNewMessage(false);
-              }}
-            >
-              ↓ New message
-            </button>
-          )}
-          <footer>
-            <div
-              role="status"
-              className={`conversation-listening ${speech.isListening ? 'conversation-pulse' : ''}`}
-              style={
-                speech.isListening
-                  ? captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)
-                  : undefined
-              }
-            >
-              {speech.isListening
-                ? `Listening for ${settings[speech.turn].name}…`
-                : 'Conversation stopped'}{' '}
-              {speech.isListening && <small>🎙 {speech.speechLocal ? 'local' : 'cloud'}</small>}
-            </div>
-            {settings.manualTurns && speech.isListening && (
-              <button
-                type="button"
-                ref={nextButton}
-                className="conversation-next-speaker conversation-start"
-                aria-keyshortcuts="Space"
-                onClick={() => speech.setTurn(otherSide(speech.turn))}
-              >
-                Next speaker · {settings[otherSide(speech.turn)].name} <kbd>Space</kbd>
-              </button>
-            )}
-            <details>
-              <summary>Type a message</summary>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send(sender, text);
-                  setText('');
-                }}
-              >
-                <select
-                  aria-label="Message sender"
-                  value={sender}
-                  onChange={(e) => setSender(e.target.value as Side)}
-                >
-                  <option value="a">{settings.a.name}</option>
-                  <option value="b">{settings.b.name}</option>
-                </select>
-                <input
-                  aria-label="Message text"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Type and press Enter"
-                />
-                <button disabled={!text.trim()}>Send</button>
-              </form>
-            </details>
-          </footer>
-        </>
+        <TwoWayView
+          settings={settings}
+          speech={speech}
+          twoWayPlayback={twoWayPlayback}
+          fontSize={fontSize}
+          isDark={isDark}
+          packPanel={packPanel}
+          uiError={uiError}
+          thread={thread}
+          following={following}
+          messages={messages}
+          onCorrectMessage={(message) => dispatch({ type: 'correct', message })}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          nextButton={nextButton}
+          send={send}
+          sender={sender}
+          setSender={setSender}
+          text={text}
+          setText={setText}
+        />
       )}
       <VoiceSettingsModal
         isOpen={isVoiceSettingsOpen}
