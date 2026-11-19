@@ -1,10 +1,10 @@
 // Fast machine translation for live captions: providers, fallback chain, cooldowns and cache.
-// Kept free of Express/Gemini setup so it can be unit-tested with a fake fetch and clock.
+// Kept free of Express setup so it can be unit-tested with a fake fetch and clock.
 
-export type MtProvider = 'google-cloud' | 'gtx' | 'gemini';
+export type MtProvider = 'google-cloud' | 'gtx';
 
 export const isMtProvider = (value: unknown): value is MtProvider =>
-  value === 'google-cloud' || value === 'gtx' || value === 'gemini';
+  value === 'google-cloud' || value === 'gtx';
 
 export class ProviderError extends Error {
   readonly status?: number;
@@ -16,18 +16,16 @@ export class ProviderError extends Error {
 
 /**
  * Order to try providers in. Default: the free gtx endpoint first, then Google Cloud
- * Translation (when it has a key), then Gemini (when it has a key) as the last resort.
+ * Translation (when it has a key).
  * MT_PROVIDER can move "google-cloud" to the front; the others keep their order as fallbacks.
  */
 export function buildProviderChain(opts: {
   googleKey?: string;
-  geminiKey?: string;
   requested?: string;
 }): MtProvider[] {
   const available: MtProvider[] = [
     'gtx',
     ...(opts.googleKey ? (['google-cloud'] as const) : []),
-    ...(opts.geminiKey ? (['gemini'] as const) : []),
   ];
   const requested = opts.requested?.trim();
   const primary =
@@ -141,7 +139,7 @@ export interface MachineTranslatorOptions {
   cooldownMs?: number;
   /**
    * How long to wait for a provider before moving on to the next one. Default 2.5 s.
-   * Not applied to the last provider tried, so the slow last resort (Gemini) can finish.
+   * Not applied to the last provider tried, so the last resort can always finish.
    */
   timeoutMs?: number;
   cacheMax?: number;

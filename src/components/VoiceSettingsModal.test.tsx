@@ -83,73 +83,16 @@ describe('VoiceSettingsModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('renders Gemini post-translation refinement toggle, explanation, and on-device zero-cloud guarantee when configured', () => {
+  it('shows the on-device privacy note only when asked, with no Gemini option', () => {
     const { client } = createMockClient();
-    const onClose = vi.fn();
-    const onToggleRefine = vi.fn();
+    const { rerender } = render(<VoiceSettingsModal isOpen onClose={vi.fn()} isDark client={client} />);
+    expect(screen.queryByText(/Zero-Cloud \/ On-Device Guarantee/i)).toBeNull();
 
-    const { rerender } = render(
-      <VoiceSettingsModal
-        isOpen
-        onClose={onClose}
-        isDark
-        client={client}
-        geminiRefine={{
-          enabled: true,
-          onChange: onToggleRefine,
-          serverAvailable: true,
-          mtPreference: 'auto',
-        }}
-      />,
-    );
-
+    rerender(<VoiceSettingsModal isOpen onClose={vi.fn()} isDark client={client} showPrivacy />);
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeTruthy();
-    const checkbox = screen.getByRole('checkbox', {
-      name: 'Refine statements with Gemini after speaking',
-    }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
     expect(screen.getByText(/Zero-Cloud \/ On-Device Guarantee/i)).toBeTruthy();
     expect(screen.getByText(/none of your student or classroom data goes online/i)).toBeTruthy();
-
-    fireEvent.click(checkbox);
-    expect(onToggleRefine).toHaveBeenCalledWith(false);
-
-    rerender(
-      <VoiceSettingsModal
-        isOpen
-        onClose={onClose}
-        isDark
-        client={client}
-        geminiRefine={{
-          enabled: false,
-          onChange: onToggleRefine,
-          serverAvailable: false,
-          serverStatus: 'unreachable',
-          mtPreference: 'auto',
-        }}
-      />,
-    );
-    expect(
-      screen.getByText(/Could not reach the server to verify Gemini refinement status/i),
-    ).toBeTruthy();
-
-    rerender(
-      <VoiceSettingsModal
-        isOpen
-        onClose={onClose}
-        isDark
-        client={client}
-        geminiRefine={{
-          enabled: false,
-          onChange: onToggleRefine,
-          serverAvailable: false,
-          serverStatus: 'unreachable',
-          mtPreference: 'on-device',
-        }}
-      />,
-    );
-    expect(
-      screen.getByText(/Skipped automatically because Translator is set to On this device/i),
-    ).toBeTruthy();
+    expect(screen.queryByText(/Gemini/i)).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Refine statements/i })).toBeNull();
   });
 });

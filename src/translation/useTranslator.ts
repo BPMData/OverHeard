@@ -13,9 +13,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
   // Fast MT: in-flight + resolved translations keyed by `${lang}\u0000${text}`.
   // Sharing promises means the final sentence reuses an interim request that's still running.
   const mtCacheRef = useRef<Map<string, Promise<string>>>(new Map());
-  // Which translator produced each cached result, so the Gemini clean-up can skip anything
-  // that was translated on this device
-  const mtProviderRef = useRef<Map<string, TranslatorId>>(new Map());
 
   // Translator picker: 'auto' uses the server's default order; anything else goes first
   const [mtPreference, setMtPreference] = useState<MtPreference>(() => {
@@ -45,52 +42,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
     }
   }, [mtPreference]);
 
-  // Low-level fetch with 1-second single retry
-  const fetchTranslationWithRetry = useCallback(
-    async (
-      phrase: string,
-      targetLangs: LanguageCode[],
-      context: string[]
-    ): Promise<Record<string, string>> => {
-      const attemptFetch = async (): Promise<Record<string, string>> => {
-        const res = await fetch('/api/translate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            [SESSION_HEADER]: getSessionId(),
-          },
-          body: JSON.stringify({
-            phrase: phrase.slice(0, 500),
-            targetLangs,
-            context,
-          }),
-        });
-        if (res.status === 429) throw new RateLimitedError();
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data = (await res.json()) as {
-          translations?: Record<string, string>;
-        };
-        if (!data.translations) {
-          throw new Error('Missing translations payload');
-        }
-        return data.translations;
-      };
-
-      try {
-        return await attemptFetch();
-      } catch (error) {
-        // Throttled: retrying straight away would only add load
-        if (error instanceof RateLimitedError) throw error;
-        // Retry once after 1 second before giving up
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        return await attemptFetch();
-      }
-    },
-    []
-  );
-
   // Fast single-language machine translation (deduped + cached, one quick retry)
   const fetchMT = useCallback(
     (text: string, lang: ConversationLanguage, source: ConversationLanguage = 'en'): Promise<string> => {
@@ -103,14 +54,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
 
       const started = performance.now();
       const recordTiming = () => setLastTranslateMs(Math.round(performance.now() - started));
-      const rememberProvider = (provider: TranslatorId) => {
-        const providers = mtProviderRef.current;
-        providers.set(key, provider);
-        if (providers.size > MT_CLIENT_CACHE_MAX) {
-          const oldest = providers.keys().next().value;
-          if (oldest !== undefined) providers.delete(oldest);
-        }
-      };
 
       const attemptServer = async (): Promise<string> => {
         const res = await fetch('/api/mt', {
@@ -137,7 +80,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         if (!data.translation) throw new Error('Missing translation');
         if (data.provider && data.provider !== 'cache') {
           setLastUsedProvider(data.provider);
-          rememberProvider(data.provider);
         }
         recordTiming();
         return data.translation;
@@ -146,7 +88,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       // "On this device" is strict: it never sends text to the server, so it can't spend money
       // or quietly use an online translator. Auto uses this device whenever the language pack
       // is already installed, and the server's chain (free endpoint, then Cloud Translation,
-      // then Gemini) for anything it can't do. A browser without the Translator API treats
+      // when it has a key) for anything it can't do. A browser without the Translator API treats
       // "On this device" as Auto, matching `effectiveMtPreference`.
       const attempt = async (): Promise<string> => {
         const forced = preference === 'on-device' && isOnDeviceTranslationSupported();
@@ -164,7 +106,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             const ms = Math.round(performance.now() - t0);
             console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
             setLastUsedProvider('on-device');
-            rememberProvider('on-device');
             if (forced) setOnDeviceFailing(false);
             recordTiming();
             return translation;
@@ -213,15 +154,9 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         ? 'auto'
         : mtPreference;
 
-  const getMtProvider = useCallback(
-    (preference: MtPreference, source: ConversationLanguage, lang: ConversationLanguage, text: string) =>
-      mtProviderRef.current.get(mtCacheKey(preference, source, lang, text)),
-    [],
-  );
-
   return {
-    fetchMT, fetchTranslationWithRetry, mtPreference, effectiveMtPreference, setMtPreference,
-    mtPreferenceRef, onDeviceSupported, lastUsedProvider, lastTranslateMs, getMtProvider,
+    fetchMT, mtPreference, effectiveMtPreference, setMtPreference,
+    mtPreferenceRef, onDeviceSupported, lastUsedProvider, lastTranslateMs,
     onDeviceFailing,
   };
 }

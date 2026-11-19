@@ -32,8 +32,6 @@ describe('createUsageTracker', () => {
     usage.mtOk('google-cloud', 25);
     usage.mtOk('cache', 99);
     usage.mtFailed();
-    usage.refine(true);
-    usage.refine(false);
     usage.rateLimited();
 
     expect(usage.flush()).toEqual({
@@ -43,8 +41,6 @@ describe('createUsageTracker', () => {
       cacheHits: 1,
       byProvider: { gtx: 2, 'google-cloud': 1 },
       chars: 75,
-      refine: 2,
-      refineFailed: 1,
       rateLimited: 1,
       forwardedEntries: { '1': 2 },
     });

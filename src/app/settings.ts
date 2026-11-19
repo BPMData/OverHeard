@@ -51,17 +51,15 @@ export const mtCacheKey = (preference: string, source: string, lang: string, tex
 export const overBy = (ms: number) =>
   ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
 
-export type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
+export type MtProviderId = 'google-cloud' | 'gtx';
 export type TranslatorId = MtProviderId | 'on-device';
 export type MtPreference = 'auto' | TranslatorId;
 export const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
-export const GEMINI_REFINE_STORAGE_KEY = 'overheard.geminiRefine';
 export const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
 export const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
 export const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   auto: 'Auto',
   'google-cloud': 'Google Cloud',
   gtx: 'Free (unofficial)',
-  gemini: 'Gemini (slow)',
   'on-device': 'On this device',
 };

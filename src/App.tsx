@@ -58,14 +58,10 @@ export default function App() {
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [micInsecure, setMicInsecure] = useState(false);
 
-  const {
-    availableProviders, refineEnabledRef, serverRefineAvailable, serverRefineStatus,
-    geminiRefineEnabled, geminiRefineEnabledRef, setGeminiRefineEnabled,
-  } = useServerConfig(isVoiceSettingsOpen);
+  const { availableProviders } = useServerConfig();
   const {
     effectiveMtPreference, setMtPreference, mtPreferenceRef, onDeviceSupported,
-    lastUsedProvider, lastTranslateMs, fetchMT, fetchTranslationWithRetry, getMtProvider,
-    onDeviceFailing,
+    lastUsedProvider, lastTranslateMs, fetchMT, onDeviceFailing,
   } = useTranslator(availableProviders);
 
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
@@ -82,8 +78,7 @@ export default function App() {
     confirmClear, setConfirmClear, handleClearConfirm, handleExportJson,
     manualInput, setManualInput, handleManualSubmit, handleBurstTest,
   } = useCaptionTranscript({
-    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT, getMtProvider,
-    fetchTranslationWithRetry, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef,
+    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT,
   });
 
   const { isListening, speechIsLocal, speechStatusNotice, stopListening, toggleListening } = useCaptionSpeech({
@@ -231,13 +226,6 @@ export default function App() {
             setMicPermissionDenied(false);
             setDisplayMode('columns');
           }}
-          geminiRefine={{
-            enabled: geminiRefineEnabled,
-            onChange: setGeminiRefineEnabled,
-            serverAvailable: serverRefineAvailable,
-            serverStatus: serverRefineStatus,
-            mtPreference: effectiveMtPreference,
-          }}
         />
       )}
 
@@ -253,13 +241,7 @@ export default function App() {
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
-        geminiRefine={{
-          enabled: geminiRefineEnabled,
-          onChange: setGeminiRefineEnabled,
-          serverAvailable: serverRefineAvailable,
-          serverStatus: serverRefineStatus,
-          mtPreference: effectiveMtPreference,
-        }}
+        showPrivacy
       />
 
       <AboutModal

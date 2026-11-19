@@ -15,7 +15,7 @@ Real-time classroom speech transcription, multi-language translation, neural rea
   - Runs Piper ONNX voice models locally in a browser Web Worker (`@mintplex-labs/piper-tts-web`, `@diffusionstudio/piper-wasm`, `onnxruntime-web`) and caches models in OPFS so previously downloaded voices play offline, falling back cleanly to `window.speechSynthesis` when needed.
   - Persistent per-language default voices for **English**, **Spanish**, and **Portuguese** via **Voice settings** (available on the home bar, Conversation/Lecture toolbar, and Student rooms) with one-click voice previews, click-to-read from any line/bubble, and live **Read aloud**.
 - **On-Device & Multi-Provider Translation**:
-  - Defaults to Chrome's built-in on-device Translator when supported. `On this device` never uses the server (a failure shows a warning in the header); `Auto` falls back to `/api/mt` (`gtx` -> optional `google-cloud` -> optional `Gemini`, plus optional background context refinement via `/api/refine`) with request coalescing, daily character/call spending caps, and per-session + IP rate limits.
+  - Defaults to Chrome's built-in on-device Translator when supported. `On this device` never uses the server (a failure shows a warning in the header); `Auto` falls back to `/api/mt` (`gtx` -> optional `google-cloud`) with request coalescing, a daily Cloud Translation character cap, and per-session + IP rate limits.
 - **Portable JSON & Optional Google Drive Saves**:
   - Local **Export JSON** / **Import JSON** uses the portable `overheard-lecture` v1 format without teacher room credentials or PINs and works without signing in.
   - Browser-only Google Drive integration (`https://www.googleapis.com/auth/drive.file` scope only, scripts loaded lazily on click) automatically creates/reuses an **`OverHeard Saves`** folder by default, remembers per-account folder and last-save state (`Update existing file` vs `Save as new copy`), and lets teachers reopen lessons via **Open from Drive** from either the home screen or Lecture mode.
@@ -56,16 +56,11 @@ Copy `.env.example` to `.env` for local configuration. OverHeard starts with zer
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | Optional Gemini API key for fallback MT and background sentence refinement (`/api/refine`) | Unset |
 | `GOOGLE_TRANSLATE_API_KEY` | Optional Google Cloud Translation API key | Unset |
 | `MT_PROVIDER` | Primary server translator (`gtx` or `google-cloud`) | `gtx` |
-| `REFINE_WITH_GEMINI` | Context-aware Gemini refinement pass after sentence finalization (`false` disables) | `true` (when `GEMINI_API_KEY` is set) |
-| `GEMINI_MODEL` | Gemini model ID used for refinement/fallback | Server default |
 | `CLOUD_TRANSLATE_DAILY_CHARS` | Daily character cap for Cloud Translation (`0` = unlimited) | `1000000` |
-| `GEMINI_DAILY_CALLS` | Daily call cap for Gemini | `5000` |
 | `TRUST_PROXY_HOPS` | Proxy hops trusted for client IP rate-limit checks | `1` |
 | `RATE_LIMIT_MT_PER_SESSION` | Per-minute `/api/mt` requests per browser tab | `900` |
-| `RATE_LIMIT_REFINE_PER_SESSION` | Per-minute `/api/refine` requests per browser tab | `60` |
 | `RATE_LIMIT_IP_MULTIPLIER` | Per-IP multiplier over per-session limits | `10` |
 | `VITE_GOOGLE_CLIENT_ID` | Optional build-time override for Google OAuth Web Client ID | Shared default in `src/lib/googleConfig.ts` |
 | `VITE_GOOGLE_API_KEY` | Optional build-time override for Google Picker API key | Shared default in `src/lib/googleConfig.ts` |
@@ -76,7 +71,7 @@ Copy `.env.example` to `.env` for local configuration. OverHeard starts with zer
 ## Architecture & Key Files
 
 ```text
-server.ts                     # Express server (0.0.0.0:3000), /api/config, /api/mt, /api/refine, /ort & /piper dev routes
+server.ts                     # Express server (0.0.0.0:3000), /api/config, /api/mt, /ort & /piper dev routes
 server/
   rooms.ts                    # In-memory teacher/student room store, salted PIN auth, SSE streaming
   mt.ts                       # Translation provider chain + pending request coalescing

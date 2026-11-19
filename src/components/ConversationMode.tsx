@@ -26,7 +26,7 @@ import {
 import { AboutModal } from './AboutModal';
 import { LectureSettings, LectureView } from './LectureView';
 import { TwoWayReadAloud, TwoWaySettings, TwoWayView } from './TwoWayView';
-import { VoiceSettingsModal, type GeminiRefineSettings } from './VoiceSettingsModal';
+import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import { HelpCircle, Volume2 } from 'lucide-react';
 import './ConversationMode.css';
@@ -67,7 +67,6 @@ interface Props {
   packPanel?: React.ReactNode;
   /** Lecture imported from the base web-page */
   importedLecture?: { seq: number; entries: LectureEntry[] } | null;
-  geminiRefine?: GeminiRefineSettings;
 }
 export function ConversationMode({
   active,
@@ -89,7 +88,6 @@ export function ConversationMode({
   onPackProgress,
   packPanel,
   importedLecture,
-  geminiRefine,
 }: Props) {
   const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
   const targetLangs: LanguageCode[] =
@@ -451,7 +449,7 @@ export function ConversationMode({
           type="button"
           className="inline-flex items-center gap-1.5"
           onClick={() => setIsVoiceSettingsOpen(true)}
-          title="Open voice and translation refinement settings"
+          title="Open voice and privacy settings"
         >
           <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Settings</span>
@@ -550,7 +548,7 @@ export function ConversationMode({
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
-        geminiRefine={geminiRefine}
+        showPrivacy
       />
       <AboutModal
         isOpen={isGuideOpen}

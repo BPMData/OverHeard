@@ -35,12 +35,8 @@ describe('buildProviderChain', () => {
     ]);
   });
 
-  it('tries free, then Cloud, then Gemini as the last resort', () => {
-    expect(buildProviderChain({ googleKey: 'k', geminiKey: 'g' })).toEqual([
-      'gtx',
-      'google-cloud',
-      'gemini',
-    ]);
+  it('tries free first, then Cloud', () => {
+    expect(buildProviderChain({ googleKey: 'k' })).toEqual(['gtx', 'google-cloud']);
   });
 
   it('ignores a requested provider that is unknown or unavailable', () => {
@@ -157,20 +153,17 @@ describe('createMachineTranslator', () => {
   it('moves on and benches a provider that is too slow, but lets the last one finish', async () => {
     const callProvider = vi.fn(async (provider: MtProvider) => {
       if (provider === 'gtx') return new Promise<string>(() => {}); // never answers
-      if (provider === 'gemini') {
-        return new Promise<string>((resolve) => setTimeout(() => resolve('Hola (gemini)'), 60));
-      }
-      throw new ProviderError('server error', 500);
+      return new Promise<string>((resolve) => setTimeout(() => resolve('Hola (cloud)'), 60));
     });
     const translator = createMachineTranslator({
-      chain: ['gtx', 'google-cloud', 'gemini'],
+      chain: ['gtx', 'google-cloud'],
       callProvider,
       timeoutMs: 20,
       log: quietLog,
     });
     await expect(translator.translate('Hello', 'es')).resolves.toEqual({
-      translation: 'Hola (gemini)',
-      provider: 'gemini',
+      translation: 'Hola (cloud)',
+      provider: 'google-cloud',
     });
     expect(translator.cooldowns().has('gtx')).toBe(true);
     expect(translator.cooldowns().has('google-cloud')).toBe(false);
@@ -180,10 +173,10 @@ describe('createMachineTranslator', () => {
     const warnings: unknown[][] = [];
     const callProvider = vi.fn(async (provider: MtProvider) => {
       if (provider === 'google-cloud') throw new ProviderBudgetError('google-cloud');
-      return provider === 'gtx' ? 'Hola (gtx)' : 'Hola (gemini)';
+      return 'Hola (gtx)';
     });
     const translator = createMachineTranslator({
-      chain: ['google-cloud', 'gtx', 'gemini'],
+      chain: ['google-cloud', 'gtx'],
       callProvider,
       log: { log: () => {}, warn: (...args: unknown[]) => void warnings.push(args) },
     });
@@ -338,16 +331,16 @@ describe('bidirectional translation', () => {
     expect(JSON.parse(String(init.body))).toMatchObject({ source: 'es', target: 'en' });
   });
 
-  it('isolates language pairs and passes the source to every provider including Gemini', async () => {
+  it('isolates language pairs and passes the source to the provider', async () => {
     const callProvider = vi.fn(async (_provider: MtProvider, _text: string, target: string, source: string) => `${source}>${target}`);
-    const translator = createMachineTranslator({ chain: ['gemini'], callProvider, log: quietLog });
+    const translator = createMachineTranslator({ chain: ['google-cloud'], callProvider, log: quietLog });
     expect((await translator.translate('same', 'en', undefined, 'es')).translation).toBe('es>en');
     expect((await translator.translate('same', 'es')).translation).toBe('en>es');
     // Same target and text, different source must also miss the cache.
     expect((await translator.translate('same', 'en', undefined, 'fr')).translation).toBe('fr>en');
     expect((await translator.translate('same', 'en', undefined, 'es')).provider).toBe('cache');
     expect(callProvider).toHaveBeenCalledTimes(3);
-    expect(callProvider).toHaveBeenCalledWith('gemini', 'same', 'en', 'es');
+    expect(callProvider).toHaveBeenCalledWith('google-cloud', 'same', 'en', 'es');
   });
 });
 

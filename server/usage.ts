@@ -13,8 +13,6 @@ export interface UsageSummary {
   byProvider: Record<string, number>;
   /** Characters translated (cache hits excluded) */
   chars: number;
-  refine: number;
-  refineFailed: number;
   rateLimited: number;
   /** How many X-Forwarded-For entries requests carried, e.g. {"1": 120}. Normally one value. */
   forwardedEntries: Record<string, number>;
@@ -25,7 +23,6 @@ export interface UsageTracker {
   forwardedEntries(count: number): void;
   mtOk(provider: string, chars: number): void;
   mtFailed(): void;
-  refine(ok: boolean): void;
   rateLimited(): void;
   /** Returns this interval's counts and starts a new interval; null if nothing happened. */
   flush(): UsageSummary | null;
@@ -45,8 +42,6 @@ const fresh = () => ({
   cacheHits: 0,
   byProvider: {} as Record<string, number>,
   chars: 0,
-  refine: 0,
-  refineFailed: 0,
   rateLimited: 0,
   forwardedEntries: {} as Record<string, number>,
 });
@@ -72,15 +67,11 @@ export function createUsageTracker(): UsageTracker {
       current.mt++;
       current.mtFailed++;
     },
-    refine(ok) {
-      current.refine++;
-      if (!ok) current.refineFailed++;
-    },
     rateLimited: () => void current.rateLimited++,
     flush() {
       const { sessions, ...counts } = current;
       current = fresh();
-      const total = counts.mt + counts.refine + counts.rateLimited;
+      const total = counts.mt + counts.rateLimited;
       return total === 0 ? null : { sessions: sessions.size, ...counts };
     },
   };

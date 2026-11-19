@@ -40,7 +40,7 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/?langs=es');
   vi.stubGlobal('SpeechRecognition', FakeRecognition);
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
-    if (url === '/api/config') return Response.json({ refine: false, providers: ['gtx'] });
+    if (url === '/api/config') return Response.json({ providers: ['gtx'] });
     if (url === '/api/mt' && init?.method === 'POST') return mt(JSON.parse(String(init.body)));
     throw new Error('Unexpected request to ' + url);
   });
