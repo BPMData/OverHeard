@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { Eye, EyeOff, History, Presentation, RefreshCw, X } from 'lucide-react';
 import { useTeacherRoom } from './useTeacherRoom';
 import {
@@ -35,9 +35,14 @@ function statusLabel(status: RoomLiveStatus | undefined): string {
   }
 }
 
-export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChange }: {
+export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup = true, guideSetup = false, archiveControls, onRestore, onRoomCodeChange }: {
   state: LectureState;
   visible: boolean;
+  id?: string;
+  roomCodeRef?: Ref<HTMLInputElement>;
+  guideSetup?: boolean;
+  archiveControls?: ReactNode;
+  showSetup?: boolean;
   onRestore?: (restored: Pick<LectureState, 'entries' | 'selectedLangs'>) => void;
   onRoomCodeChange?: (code: string | null) => void;
 }) {
@@ -154,7 +159,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
   }, [showJoinCard]);
 
   const link = room ? studentRoomUrl(room.code, shortBase) : '';
-  return <div className="room-controls" hidden={!visible}>
+  return <div id={id} className="room-controls" hidden={!visible || (!room && !showSetup)}>
     {room ? <>
       <strong>Room: {room.code}</strong>
       <input aria-label="Student room link" value={link} readOnly onFocus={event => event.target.select()} />
@@ -162,9 +167,9 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
         try { await navigator.clipboard.writeText(link); setCopied(true); }
         catch { setCopied(false); }
       }}>{copied ? 'Link copied' : 'Copy student link'}</button>
-      <button type="button" className="inline-flex items-center gap-1.5" onClick={() => setShowJoinCard(true)}>
+      <button type="button" className="room-show-join inline-flex items-center gap-1.5" onClick={() => setShowJoinCard(true)}>
         <Presentation size={14} aria-hidden="true" />
-        <span>Show join info</span>
+        <span>Show join code</span>
       </button>
       {showJoinCard && (
         <div className="room-join-card" role="dialog" aria-modal="true" aria-label="Join this room"
@@ -186,7 +191,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
       )}
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
     </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
-      <input aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
+      <input ref={roomCodeRef} aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
         autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
       <span className="room-pin-field">
         <input
@@ -307,6 +312,7 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
         )}
       </div>
     </form>}
+    {archiveControls}
     {(status || canRetry) && (
       <span className="room-status" aria-live="polite">
         <span>{status}</span>
@@ -317,6 +323,8 @@ export function TeacherRoomControls({ state, visible, onRestore, onRoomCodeChang
         )}
       </span>
     )}
-    {!room && <small>Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.</small>}
+    {!room && <small>{guideSetup
+      ? 'Create or rejoin a room, then click Start lecture. You can share the join code before you start.'
+      : 'Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.'}</small>}
   </div>;
 }

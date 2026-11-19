@@ -1,17 +1,15 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { LANGUAGE_MAP } from '../constants';
 import type { useLectureMode } from '../conversation/useLectureMode';
-import type { SaveLectureToDriveResult } from '../lib/googleDrive';
 import { LectureFiles } from '../rooms/LectureFiles';
 import { LecturePip } from '../rooms/LecturePip';
 import type { LectureState } from '../rooms/protocol';
 import { piperClient } from '../tts/piperClient';
 import type { useLecturePlayback } from '../tts/useSpeechPlayback';
 import { BROWSER_VOICE_ID, resolveVoiceId, type VoicePreferences } from '../tts/voices';
-import { PlaybackToolbar, VoiceSelect } from '../tts/VoiceSelect';
+import { VoiceSelect } from '../tts/VoiceSelect';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import type { ConversationSettings } from './conversationSettings';
-import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import { LectureTranscript } from './LectureTranscript';
 
 type Lecture = ReturnType<typeof useLectureMode>;
@@ -22,10 +20,8 @@ interface DriveStatus {
   link?: string;
 }
 
-interface LectureSettingsProps {
+interface LectureToolsProps {
   active: boolean;
-  targetLangs: LanguageCode[];
-  onOpenLanguages?: () => void;
   onSetLanguages?: (languages: LanguageCode[]) => void;
   translatorPicker?: ReactNode;
   lecture: Lecture;
@@ -34,8 +30,6 @@ interface LectureSettingsProps {
   fontSize: number;
   onAdjustFont?: (delta: number) => void;
   activeRoomCode: string | null;
-  setUiError: (message: string) => void;
-  setDriveStatus: (status: DriveStatus | null) => void;
   effectiveLectureLang: ConversationLanguage;
   setLecturePlaybackLang: (lang: ConversationLanguage) => void;
   lectureLangs: ConversationLanguage[];
@@ -45,32 +39,18 @@ interface LectureSettingsProps {
   setLectureReadAloud: (checked: boolean) => void;
   settings: ConversationSettings;
   setSettings: Dispatch<SetStateAction<ConversationSettings>>;
-  lecturePlayback: Playback;
 }
 
-export function LectureSettings({
-  active, targetLangs, onOpenLanguages, onSetLanguages, translatorPicker, lecture, lectureState,
-  isDark, fontSize, onAdjustFont, activeRoomCode, setUiError, setDriveStatus, effectiveLectureLang,
+export function LectureTools({
+  active, onSetLanguages, translatorPicker, lecture, lectureState,
+  isDark, fontSize, onAdjustFont, activeRoomCode, effectiveLectureLang,
   setLecturePlaybackLang, lectureLangs, voicePrefs, updateVoicePref, lectureReadAloud,
-  setLectureReadAloud, settings, setSettings, lecturePlayback,
-}: LectureSettingsProps) {
+  setLectureReadAloud, settings, setSettings,
+}: LectureToolsProps) {
   return (
     <>
-      {onOpenLanguages && (
-        <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
-          Languages ({targetLangs.join(', ')})
-        </button>
-      )}
       {translatorPicker && <div className="conversation-lecture-translator">{translatorPicker}</div>}
-      <div className="conversation-control-group" role="group" aria-label="Lecture controls">
-        <button
-          type="button"
-          className={`conversation-start ${lecture.speech.isListening ? 'is-listening' : ''}`}
-          onClick={lecture.speech.isListening ? lecture.stop : lecture.start}
-          disabled={!lecture.speech.supported}
-        >
-          {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
-        </button>
+      <div className="conversation-control-group" role="group" aria-label="Lecture actions">
         <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
           onAdjustFont={onAdjustFont ?? (() => {})} active={active} />
         <button
@@ -88,38 +68,6 @@ export function LectureSettings({
           onImport={value => {
             lecture.replace(value.entries);
             onSetLanguages?.(value.selectedLangs);
-          }}
-        />
-        <SaveLectureToDriveControl
-          state={lectureState}
-          roomCode={activeRoomCode}
-          className="inline-flex items-center gap-1.5"
-          onSaved={(result: SaveLectureToDriveResult) => {
-            setUiError('');
-            setDriveStatus({
-              message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
-              link: result.file.webViewLink,
-            });
-          }}
-          onError={(msg) => {
-            if (msg) setDriveStatus(null);
-            setUiError(msg);
-          }}
-        />
-        <OpenFromDriveButton
-          className="inline-flex items-center gap-1.5"
-          hasExistingEntries={() => lecture.entries.length > 0}
-          onImport={(imported, file) => {
-            setUiError('');
-            lecture.replace(imported.entries);
-            onSetLanguages?.(imported.selectedLangs);
-            setDriveStatus({
-              message: `Opened "${file.name}" from Google Drive.`,
-            });
-          }}
-          onError={(msg) => {
-            if (msg) setDriveStatus(null);
-            setUiError(msg);
           }}
         />
       </div>
@@ -182,12 +130,6 @@ export function LectureSettings({
           />
           While I talk (headphones)
         </label>
-        <PlaybackToolbar
-          status={lecturePlayback.status}
-          downloadProgress={lecturePlayback.downloadProgress}
-          onTogglePause={lecturePlayback.togglePause}
-          onStop={lecturePlayback.stop}
-        />
       </div>
     </>
   );

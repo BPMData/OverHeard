@@ -211,6 +211,7 @@ export default function App() {
           onSetLanguages={setSelectedLangs}
           mtPreference={effectiveMtPreference}
           translatorPicker={translatorPicker}
+          onDeviceTranslationFailing={onDeviceFailing}
           permissionBanner={permissionBanner}
           onPackProgress={reportPack}
           packPanel={<PackProgressPanel progress={packProgress} startedAt={packStartedAt} />}

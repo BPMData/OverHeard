@@ -40,6 +40,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it('opens and focuses room setup before starting a lecture with simple controls', () => {
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+  expect(screen.queryByRole('textbox', { name: /Room code/ })).toBeNull();
+  const share = screen.getByRole('button', { name: 'Share room code with students' });
+  fireEvent.click(share);
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Room code/ }));
+  fireEvent.click(share);
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Room code/ }));
+  expect(FakeRecognition.instances).toHaveLength(0);
+});
+
 describe('ConversationMode Lecture mode', () => {
   it('switches into Lecture mode, streams live English -> multi-language columns, keeps full history, and persists locally', async () => {
     const translate = vi.fn(async (text: string, target: string, source: string) => {
@@ -65,11 +79,12 @@ describe('ConversationMode Lecture mode', () => {
     // Switch to Lecture sub-mode
     fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
     expect(screen.queryByLabelText('Side A name')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Languages (es, pt)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Languages: Spanish, Portuguese' })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Languages (es, pt)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Languages: Spanish, Portuguese' }));
     expect(onOpenLanguages).toHaveBeenCalledTimes(1);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
     // Start continuous English lecture
     fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
     expect(FakeRecognition.instances).toHaveLength(1);
@@ -176,6 +191,7 @@ describe('ConversationMode Lecture mode', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
     const rec = FakeRecognition.instances[0];
 
@@ -202,6 +218,7 @@ it('does not pair a late interim translation with newer English speech', async (
   render(<ConversationMode active fontSize={32} isDark translate={translate}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   const rec = FakeRecognition.instances[0];
   await act(async () => rec.onresult?.({ resultIndex: 0,
@@ -255,6 +272,7 @@ it('suspends teacher lecture speech recognition while reading a cell aloud and r
   );
 
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.change(screen.getByLabelText('Playback language'), { target: { value: 'pt' } });
   fireEvent.change(screen.getByLabelText('Voice'), { target: { value: 'pt_BR-cadu-medium' } });
   expect(JSON.parse(localStorage.getItem('overheard.voices')!).pt).toBe('pt_BR-cadu-medium');
@@ -301,6 +319,7 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
   );
 
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   const rec = FakeRecognition.instances[0];
   expect(rec).toBeTruthy();
@@ -331,6 +350,7 @@ it('streams live translations through a long run-on sentence without a pause', a
   render(<ConversationMode active fontSize={32} isDark translate={translate}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   const rec = FakeRecognition.instances[0];
   const words = Array.from({ length: 120 }, (_, i) => `word${i}`);
@@ -352,6 +372,7 @@ it('offers reading while the teacher talks only once Read aloud is on', () => {
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
   expect(live.checked).toBe(false);
   expect(live.disabled).toBe(true);
@@ -362,7 +383,7 @@ it('offers reading while the teacher talks only once Read aloud is on', () => {
   expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(true);
 });
 
-it('pops the teacher lecture out into a floating window next to Start lecture', async () => {
+it('pops the teacher lecture out into a floating window from the full toolbar', async () => {
   const pipDocument = document.implementation.createHTMLDocument('PiP');
   const win = { document: pipDocument, addEventListener: vi.fn(), close: vi.fn(), closed: false };
   const requestWindow = vi.fn(async () => win);
@@ -370,9 +391,8 @@ it('pops the teacher lecture out into a floating window next to Start lecture', 
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => 'Hola clase')}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
-  const start = screen.getByRole('button', { name: 'Start lecture' });
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   const pop = screen.getByRole('button', { name: 'Pop out lecture' });
-  expect(start.nextElementSibling).toBe(pop);
 
   fireEvent.change(screen.getByLabelText('Lecture line text'), { target: { value: 'Hello class' } });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
@@ -393,6 +413,7 @@ it('clears "While I talk" when Read aloud is turned off, instead of leaving it g
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   const readAloud = screen.getByRole('checkbox', { name: 'Read aloud' });
   const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
   fireEvent.click(readAloud);

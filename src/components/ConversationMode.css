@@ -19,6 +19,20 @@
 .room-controls { padding: 10px; border: 1px solid #64748b; border-radius: 8px; }
 .room-controls input[readonly] { flex: 1; min-width: 180px; }
 .room-controls small { opacity: .75; }
+.conversation-mode button.room-show-join {
+  border-color: #5843a5;
+  color: #443180;
+  background: #ede9fe;
+  font-weight: 650;
+}
+.conversation-dark button.room-show-join {
+  border-color: #8b78cf;
+  color: #ede9fe;
+  background: #302350;
+}
+.conversation-mode button.room-show-join:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
 .room-pin-field {
   display: inline-flex;
   align-items: center;
@@ -288,6 +302,37 @@
   flex-wrap: wrap;
   font-size: 12px;
 }
+.lecture-toolbar {
+  column-gap: 8px;
+}
+.lecture-teaching-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.conversation-mode .lecture-toolbar .conversation-exit {
+  color: inherit;
+  background: transparent;
+  border-color: #64748b;
+  font-weight: inherit;
+}
+.conversation-mode .lecture-toolbar .conversation-exit:hover:not(:disabled) {
+  background: rgb(100 116 139 / 15%);
+}
+.lecture-tools {
+  border: 1px solid rgb(100 116 139 / 45%);
+  border-radius: 8px;
+  padding: 8px;
+}
+.lecture-translator-warning {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .conversation-brand,
 .conversation-mode button.conversation-brand,
 .conversation-mode a.conversation-brand {
@@ -538,8 +583,8 @@
   color: #f8fafc;
 }
 .conversation-submode button.is-active {
-  background: #5843a5;
-  color: #ffffff;
+  background: #fff;
+  color: #443180;
 }
 .conversation-langs-btn {
   font-weight: 600;

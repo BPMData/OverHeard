@@ -270,7 +270,7 @@ describe('TeacherRoomControls class codes', () => {
     expect((screen.getByLabelText('Student room link') as HTMLInputElement).value)
       .toBe(`${window.location.origin}/murphy-p3`);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show join info' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show join code' }));
     const card = screen.getByRole('dialog', { name: 'Join this room' });
     expect(card.textContent).toContain(`${window.location.host}/murphy-p3`);
     fireEvent.keyDown(window, { key: 'Escape' });
