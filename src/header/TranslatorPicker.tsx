@@ -1,5 +1,5 @@
 import type { DisplayMode, LanguageCode } from '../types';
-import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
+import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
 import { prepareOnDeviceTranslators } from '../onDevice';
 
 interface TranslatorPickerProps {
@@ -102,13 +102,23 @@ export function TranslatorPicker({
           ⚠ On-device translation failing
         </span>
       )}
-      {lastUsedProvider &&
-        effectiveMtPreference !== 'auto' &&
-        lastUsedProvider !== effectiveMtPreference && (
-          <span className="text-amber-600 dark:text-amber-400 font-mono">
-            ↪ {MT_PROVIDER_LABELS[lastUsedProvider]}
-          </span>
-        )}
+      {lastUsedProvider && <TranslatedByBadge provider={lastUsedProvider} />}
     </label>
+  );
+}
+
+const TONE_CLASSES = {
+  local: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+  free: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  paid: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
+} as const;
+
+/** Always-visible answer to "which translator just ran?" */
+export function TranslatedByBadge({ provider }: { provider: TranslatorId }) {
+  const info = TRANSLATED_BY[provider];
+  return (
+    <span className={`px-1.5 py-0.5 rounded font-semibold ${TONE_CLASSES[info.tone]}`} title={info.title}>
+      Last translation: {info.label}
+    </span>
   );
 }
