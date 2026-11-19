@@ -65,6 +65,7 @@ export default function App() {
   const {
     effectiveMtPreference, setMtPreference, mtPreferenceRef, onDeviceSupported,
     lastUsedProvider, lastTranslateMs, fetchMT, fetchTranslationWithRetry, getMtProvider,
+    onDeviceFailing,
   } = useTranslator(availableProviders);
 
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
@@ -145,6 +146,7 @@ export default function App() {
       lastTranslateMs={lastTranslateMs} lastUsedProvider={lastUsedProvider}
       availableProviders={availableProviders} effectiveMtPreference={effectiveMtPreference}
       setMtPreference={setMtPreference} reportPack={reportPack}
+      onDeviceFailing={onDeviceFailing}
     />
   );
 

@@ -131,6 +131,20 @@ it('translates on this device without sending the caption to /api/mt', async () 
   expect(mt).not.toHaveBeenCalled();
 });
 
+it('never falls back to the server in "On this device" mode, and says so on the page', async () => {
+  vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
+  vi.mocked(translateOnDevice).mockRejectedValue(new Error('InvalidStateError'));
+  await act(async () => { render(<App />); });
+  const option = screen.getByRole('option', { name: 'On this device (speech too)' }) as HTMLOptionElement;
+  fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
+  await act(async () => { click(/Start Listening/); });
+  await say(true);
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 400)); });
+  expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('On-device translation failing');
+  expect(mt).not.toHaveBeenCalled();
+});
+
 it('clears the English and translated captions after confirmation', async () => {
   await listen();
   await say(true);

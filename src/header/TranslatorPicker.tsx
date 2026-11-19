@@ -13,11 +13,14 @@ interface TranslatorPickerProps {
   effectiveMtPreference: MtPreference;
   setMtPreference: (preference: MtPreference) => void;
   reportPack: (key: string, fraction: number | null) => void;
+  /** "On this device" translation failed most recently (it never falls back to the server) */
+  onDeviceFailing?: boolean;
 }
 
 export function TranslatorPicker({
   displayMode, selectedLangs, onDeviceSupported, speechIsLocal, lastTranslateMs,
   lastUsedProvider, availableProviders, effectiveMtPreference, setMtPreference, reportPack,
+  onDeviceFailing = false,
 }: TranslatorPickerProps) {
   return (
     <label
@@ -88,6 +91,15 @@ export function TranslatorPicker({
           }
         >
           🎙 {speechIsLocal ? 'local' : 'cloud'}
+        </span>
+      )}
+      {effectiveMtPreference === 'on-device' && onDeviceFailing && (
+        <span
+          role="status"
+          className="px-1.5 py-0.5 rounded bg-red-600 text-white font-semibold"
+          title="Translation on this device failed. On this device never uses online translators, so these lines stay untranslated. Choose Auto or another translator to use one."
+        >
+          ⚠ On-device translation failing
         </span>
       )}
       {lastUsedProvider &&

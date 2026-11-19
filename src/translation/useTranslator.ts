@@ -31,6 +31,9 @@ export function useTranslator(availableProviders: MtProviderId[]) {
   const [lastUsedProvider, setLastUsedProvider] = useState<TranslatorId | null>(null);
   // How long the most recent translation took, end to end, as measured in the browser
   const [lastTranslateMs, setLastTranslateMs] = useState<number | null>(null);
+  // "On this device" never falls back to the server, so a failure there must be visible.
+  // True after an on-device failure in that mode, false again after the next success.
+  const [onDeviceFailing, setOnDeviceFailing] = useState(false);
   const onDeviceSupported = isOnDeviceTranslationSupported();
 
   useEffect(() => {
@@ -140,11 +143,13 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         return data.translation;
       };
 
-      // On this device first: always in "On this device" mode, and in Auto whenever the language
-      // pack is already installed. Anything it can't do falls back to the server's chain
-      // (free endpoint, then Cloud Translation, then Gemini).
+      // "On this device" is strict: it never sends text to the server, so it can't spend money
+      // or quietly use an online translator. Auto uses this device whenever the language pack
+      // is already installed, and the server's chain (free endpoint, then Cloud Translation,
+      // then Gemini) for anything it can't do. A browser without the Translator API treats
+      // "On this device" as Auto, matching `effectiveMtPreference`.
       const attempt = async (): Promise<string> => {
-        const forced = preference === 'on-device';
+        const forced = preference === 'on-device' && isOnDeviceTranslationSupported();
         const useOnDevice =
           forced || (preference === 'auto' && (await isOnDeviceUsable(lang, source)));
         if (useOnDevice) {
@@ -160,6 +165,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
             setLastUsedProvider('on-device');
             rememberProvider('on-device');
+            if (forced) setOnDeviceFailing(false);
             recordTiming();
             return translation;
           } catch (error) {
@@ -167,9 +173,11 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             if (forced) {
               const ms = Math.round(performance.now() - t0);
               console.warn(
-                `[on-device] ${lang}: gave up after ${ms} ms, using online translation —`,
+                `[on-device] ${lang}: failed after ${ms} ms; not using online translation —`,
                 error instanceof Error ? error.message : error
               );
+              setOnDeviceFailing(true);
+              throw error;
             }
           }
         }
@@ -214,5 +222,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
   return {
     fetchMT, fetchTranslationWithRetry, mtPreference, effectiveMtPreference, setMtPreference,
     mtPreferenceRef, onDeviceSupported, lastUsedProvider, lastTranslateMs, getMtProvider,
+    onDeviceFailing,
   };
 }
