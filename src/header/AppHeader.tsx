@@ -188,7 +188,7 @@ export function AppHeader({
             type="button"
             onClick={() => setIsVoiceSettingsOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-            title="Open voice and translation refinement settings"
+            title="Open voice and privacy settings"
           >
             <Volume2 className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
             <span>Settings</span>

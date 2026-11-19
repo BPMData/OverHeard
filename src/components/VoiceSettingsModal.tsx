@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Sparkles, Square, Volume2, X } from 'lucide-react';
+import { ShieldCheck, Square, Volume2, X } from 'lucide-react';
 import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/piperClient';
 import { VoiceSelect } from '../tts/VoiceSelect';
 import {
@@ -10,22 +10,13 @@ import {
   type PiperLanguage,
 } from '../tts/voices';
 
-export type ServerRefineStatus = 'loading' | 'available' | 'unavailable' | 'unreachable';
-
-export interface GeminiRefineSettings {
-  enabled: boolean;
-  onChange: (next: boolean) => void;
-  serverAvailable: boolean;
-  serverStatus?: ServerRefineStatus;
-  mtPreference?: string;
-}
-
 interface VoiceSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDark?: boolean;
   client?: SpeechClient;
-  geminiRefine?: GeminiRefineSettings;
+  /** Show the privacy note about keeping everything on this device */
+  showPrivacy?: boolean;
 }
 
 const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
@@ -65,7 +56,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   onClose,
   isDark,
   client = piperClient,
-  geminiRefine,
+  showPrivacy = false,
 }) => {
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
@@ -154,11 +145,6 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     typeof isDark === 'boolean'
       ? isDark
       : typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-
-  const isOnDeviceTranslator = geminiRefine?.mtPreference === 'on-device';
-  const serverStatus: ServerRefineStatus | undefined = geminiRefine
-    ? geminiRefine.serverStatus ?? (geminiRefine.serverAvailable ? 'available' : 'unavailable')
-    : undefined;
 
   return (
     <div
@@ -301,80 +287,13 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
             </div>
           </section>
 
-          {/* Translation Refinement & On-Device Privacy */}
-          {geminiRefine && (
+          {/* On-device privacy */}
+          {showPrivacy && (
             <section
               className={`pt-5 border-t space-y-3 ${
                 darkMode ? 'border-[#1E293B]' : 'border-slate-200'
               }`}
             >
-              <div className="flex items-center gap-2 font-semibold text-sm">
-                <Sparkles className="w-4 h-4 text-[#5843A5] dark:text-[#A78BFA]" />
-                <h3>Translation Refinement &amp; Privacy</h3>
-              </div>
-
-              <div
-                className={`p-4 rounded-lg border space-y-3 ${
-                  darkMode
-                    ? 'border-[#1E293B] bg-[#090D16]/60'
-                    : 'border-slate-200 bg-slate-50/70'
-                }`}
-              >
-                <label className="flex items-start justify-between gap-4 cursor-pointer select-none">
-                  <div className="space-y-1">
-                    <span className="font-semibold text-sm block">
-                      Refine statements with Gemini after speaking
-                    </span>
-                    <span
-                      className={`text-xs block leading-relaxed ${
-                        darkMode ? 'text-[#94A3B8]' : 'text-slate-600'
-                      }`}
-                    >
-                      When you finish a sentence in <strong>Columns</strong> or{' '}
-                      <strong>Subtitle</strong> mode, OverHeard first displays an instant initial
-                      machine translation, then sends your statement (plus the prior two sentences
-                      for context) to <strong>Gemini</strong> to improve grammar, idioms, and
-                      classroom terminology. Keep this <strong>on</strong> for the most natural,
-                      context-aware captions. <em>(Two-way and Lecture modes already skip this pass.)</em>
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    aria-label="Refine statements with Gemini after speaking"
-                    checked={geminiRefine.enabled}
-                    onChange={(event) => geminiRefine.onChange(event.target.checked)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded accent-[#5843A5] cursor-pointer"
-                  />
-                </label>
-
-                <p
-                  className={`text-xs font-medium ${
-                    isOnDeviceTranslator
-                      ? darkMode
-                        ? 'text-emerald-300'
-                        : 'text-emerald-700'
-                      : serverStatus === 'unavailable' || serverStatus === 'unreachable'
-                        ? darkMode
-                          ? 'text-amber-300'
-                          : 'text-amber-700'
-                        : darkMode
-                          ? 'text-[#94A3B8]'
-                          : 'text-slate-600'
-                  }`}
-                >
-                  {isOnDeviceTranslator
-                    ? 'Current status: Skipped automatically because Translator is set to On this device.'
-                    : serverStatus === 'loading'
-                      ? 'Checking server configuration for Gemini refinement…'
-                      : serverStatus === 'unreachable'
-                        ? 'Could not reach the server to verify Gemini refinement status (offline or reconnecting).'
-                        : serverStatus === 'unavailable'
-                          ? 'Server status: Gemini post-translation refinement is disabled on this server (GEMINI_API_KEY unset, REFINE_WITH_GEMINI=false, or Gemini is already the primary translator).'
-                          : geminiRefine.enabled
-                            ? 'Current status: On — completed Columns/Subtitle sentences are refined with Gemini after initial translation.'
-                            : 'Current status: Off — statements stay on fast initial translation only, with no Gemini refinement calls.'}
-                </p>
-
                 <div
                   className={`p-3 rounded-lg border text-xs leading-relaxed space-y-1 ${
                     darkMode
@@ -391,8 +310,8 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     <span>Zero-Cloud / On-Device Guarantee</span>
                   </div>
                   <p>
-                    If you turn <strong>Gemini refinement off</strong> and select{' '}
-                    <strong>On this device</strong> in the <strong>Translator</strong> menu (with
+                    If you select <strong>On this device</strong> in the <strong>Translator</strong>{' '}
+                    menu (with
                     supported browser speech and language packs installed, plus local Piper reader
                     voices), speech recognition, translation, and playback all stay inside your
                     browser —{' '}
@@ -401,10 +320,11 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     </strong>{' '}
                     unless you actively host a live <strong>Student Room</strong> (which relays the
                     lecture JSON through server memory to connected students without saving it to
-                    disk or a database) or click <strong>Save to Drive</strong>.
+                    disk or a database) or click <strong>Save to Drive</strong>. That mode never uses
+                    an online translator: if on-device translation fails, the header says so and the
+                    line stays untranslated.
                   </p>
                 </div>
-              </div>
             </section>
           )}
         </div>

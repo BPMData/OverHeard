@@ -1,10 +1,13 @@
 // Fast machine translation for live captions: providers, fallback chain, cooldowns and cache.
-// Kept free of Express/Gemini setup so it can be unit-tested with a fake fetch and clock.
+// Kept free of Express setup so it can be unit-tested with a fake fetch and clock.
 
-export type MtProvider = 'google-cloud' | 'gtx' | 'gemini';
+export type MtProvider = 'google-cloud' | 'gtx';
+
+/** Providers that cost nothing to call. A free-only request never falls back to the others. */
+export const FREE_MT_PROVIDERS: readonly MtProvider[] = ['gtx'];
 
 export const isMtProvider = (value: unknown): value is MtProvider =>
-  value === 'google-cloud' || value === 'gtx' || value === 'gemini';
+  value === 'google-cloud' || value === 'gtx';
 
 export class ProviderError extends Error {
   readonly status?: number;
@@ -16,18 +19,16 @@ export class ProviderError extends Error {
 
 /**
  * Order to try providers in. Default: the free gtx endpoint first, then Google Cloud
- * Translation (when it has a key), then Gemini (when it has a key) as the last resort.
+ * Translation (when it has a key).
  * MT_PROVIDER can move "google-cloud" to the front; the others keep their order as fallbacks.
  */
 export function buildProviderChain(opts: {
   googleKey?: string;
-  geminiKey?: string;
   requested?: string;
 }): MtProvider[] {
   const available: MtProvider[] = [
     'gtx',
     ...(opts.googleKey ? (['google-cloud'] as const) : []),
-    ...(opts.geminiKey ? (['gemini'] as const) : []),
   ];
   const requested = opts.requested?.trim();
   const primary =
@@ -141,7 +142,7 @@ export interface MachineTranslatorOptions {
   cooldownMs?: number;
   /**
    * How long to wait for a provider before moving on to the next one. Default 2.5 s.
-   * Not applied to the last provider tried, so the slow last resort (Gemini) can finish.
+   * Not applied to the last provider tried, so the last resort can always finish.
    */
   timeoutMs?: number;
   cacheMax?: number;
@@ -150,12 +151,17 @@ export interface MachineTranslatorOptions {
 }
 
 export interface MachineTranslator {
-  /** `preferred` (chosen in the UI) jumps to the front of the chain; the rest stay as fallbacks. */
+  /**
+   * `preferred` (chosen in the UI) jumps to the front of the chain; the rest stay as fallbacks.
+   * `freeOnly` limits the chain to free providers and skips them while they're benched, so
+   * live captions and student pages can never spend money or keep hitting a blocked endpoint.
+   */
   translate(
     text: string,
     code: string,
     preferred?: MtProvider,
-    source?: string
+    source?: string,
+    freeOnly?: boolean
   ): Promise<{ translation: string; provider: MtProvider | 'cache' }>;
   /** Providers currently skipped, with the time they'll be retried. */
   cooldowns(): ReadonlyMap<MtProvider, number>;
@@ -195,13 +201,16 @@ export function createMachineTranslator({
   return {
     cooldowns: () => cooldownUntil,
 
-    async translate(text, code, preferred, source = 'en') {
-      const chain =
+    async translate(text, code, preferred, source = 'en', freeOnly = false) {
+      const ordered =
         preferred && defaultChain.includes(preferred)
           ? [preferred, ...defaultChain.filter((p) => p !== preferred)]
           : defaultChain;
+      const chain = freeOnly ? ordered.filter((p) => FREE_MT_PROVIDERS.includes(p)) : ordered;
+      if (chain.length === 0) throw new ProviderError('No free translator is configured', 503);
       // Keyed by the first-choice provider so switching translators in the UI gives fresh results.
-      const key = `${chain[0]}\u0000${source}\u0000${code}\u0000${text}`;
+      // Free-only requests get their own in-flight entries, so a paid request never waits on one.
+      const key = `${freeOnly ? 'free:' : ''}${chain[0]}\u0000${source}\u0000${code}\u0000${text}`;
       const cached = cacheGet(key);
       if (cached !== undefined) return { translation: cached, provider: 'cache' };
       const pending = inFlight.get(key);
@@ -210,6 +219,10 @@ export function createMachineTranslator({
       const work = (async () => {
         const start = now();
         const ready = chain.filter((p) => (cooldownUntil.get(p) ?? 0) <= start);
+        // Free-only: a benched free endpoint is left alone until its cooldown ends.
+        if (freeOnly && ready.length === 0) {
+          throw new ProviderError('The free translator is cooling down', 503);
+        }
         // If everything is cooling down, try them all anyway rather than fail outright.
         const order = ready.length > 0 ? ready : chain;
 

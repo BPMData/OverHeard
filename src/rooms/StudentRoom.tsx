@@ -6,6 +6,7 @@ import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { SUPPORTED_LANGUAGES } from '../constants';
 import { prepareOnDeviceTranslators } from '../onDevice';
 import { piperClient } from '../tts/piperClient';
+import { TranslatedByBadge } from '../header/TranslatorPicker';
 import { useLecturePlayback } from '../tts/useSpeechPlayback';
 import {
   BROWSER_VOICE_ID,
@@ -160,6 +161,9 @@ export function StudentRoom({ code }: { code: string }) {
     <p className="conversation-help">Follow your teacher’s captions in your language. Pop them out to keep reading while you work.</p>
     <p aria-live="polite">{error || (snapshot?.ended ? 'This lecture has ended.' : !snapshot?.teacherOnline
       ? 'Teacher disconnected. Waiting for them to reconnect…' : state.isListening ? 'Connected · Lecture live' : 'Connected · Teacher paused')}</p>
+    {translations.translatedBy && language !== 'en' && (
+      <p className="text-xs"><TranslatedByBadge provider={translations.translatedBy} /></p>
+    )}
     {waiting && <p className="room-waiting">This page joins automatically when your teacher starts. Keep it open.</p>}
     {error && !snapshot && <JoinRoomForm />}
     {translations.hasFailures && <button type="button" onClick={translations.retry}>Retry unavailable translations</button>}

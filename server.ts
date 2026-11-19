@@ -2,7 +2,6 @@ import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ThinkingLevel } from '@google/genai';
 import { createApp } from './server/app.ts';
 import { intFromEnv } from './server/config.ts';
 import { buildProviderChain } from './server/mt.ts';
@@ -21,7 +20,6 @@ const PORT = 3000;
 // The fast MT endpoint is hit once per language per interim chunk, so it gets a much larger budget.
 // All of these can be changed with environment variables, without rebuilding the app.
 const IP_LIMIT_MULTIPLIER = Math.max(1, intFromEnv(process.env.RATE_LIMIT_IP_MULTIPLIER, 10));
-const REFINE_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_REFINE_PER_SESSION, 60));
 const MT_PER_SESSION = Math.max(1, intFromEnv(process.env.RATE_LIMIT_MT_PER_SESSION, 900));
 const SHORT_LINK_BASE = shortLinkBase();
 // How many proxies sit in front of this server and can be trusted to report the real client
@@ -29,7 +27,6 @@ const SHORT_LINK_BASE = shortLinkBase();
 const TRUST_PROXY_HOPS = intFromEnv(process.env.TRUST_PROXY_HOPS, 1);
 
 const CLOUD_DAILY_CHARS = intFromEnv(process.env.CLOUD_TRANSLATE_DAILY_CHARS, 1_000_000);
-const GEMINI_DAILY_CALLS = intFromEnv(process.env.GEMINI_DAILY_CALLS, 5_000);
 
 // ---------------------------------------------------------------------------
 // Fast machine translation (the live caption path)
@@ -38,29 +35,16 @@ const GEMINI_DAILY_CALLS = intFromEnv(process.env.GEMINI_DAILY_CALLS, 5_000);
 //   1. gtx: the free, unofficial translate.googleapis.com endpoint Google Translate's
 //      web widget uses. No key, but undocumented and can be throttled or blocked.
 //   2. google-cloud: Google Cloud Translation API (needs GOOGLE_TRANSLATE_API_KEY) — official, paid.
-//   3. gemini: minimal-thinking Gemini — slowest, last resort (needs GEMINI_API_KEY).
 // A provider that errors, hits a quota, or takes over 2.5 s is skipped; quota errors and
 // slow responses bench it for 10 minutes. MT_PROVIDER="google-cloud" moves Cloud to the front.
 const GOOGLE_TRANSLATE_API_KEY = process.env.GOOGLE_TRANSLATE_API_KEY?.trim();
 
 const MT_CHAIN = buildProviderChain({
   googleKey: GOOGLE_TRANSLATE_API_KEY,
-  geminiKey: process.env.GEMINI_API_KEY,
   requested: process.env.MT_PROVIDER,
 });
 const MT_PROVIDER = MT_CHAIN[0];
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-4-hydrogen';
-const GEMINI_THINKING_LEVEL = /gemini-4-/.test(GEMINI_MODEL)
-  ? ThinkingLevel.LOW
-  : ThinkingLevel.MINIMAL;
-
-// Gemini refinement replaces the fast MT text with a context-aware translation
-// once a sentence is final. It never delays the first caption.
-const REFINE_ENABLED =
-  Boolean(process.env.GEMINI_API_KEY) &&
-  MT_PROVIDER !== 'gemini' &&
-  process.env.REFINE_WITH_GEMINI !== 'false';
 
 async function startServer() {
   const distPath = path.join(__dirname, 'dist');
@@ -75,16 +59,10 @@ async function startServer() {
     distPath: serveBuiltApp ? distPath : undefined,
     mt: {
       ipLimitMultiplier: IP_LIMIT_MULTIPLIER,
-      refinePerSession: REFINE_PER_SESSION,
       mtPerSession: MT_PER_SESSION,
       cloudDailyChars: CLOUD_DAILY_CHARS,
-      geminiDailyCalls: GEMINI_DAILY_CALLS,
       googleTranslateApiKey: GOOGLE_TRANSLATE_API_KEY,
-      geminiApiKey: process.env.GEMINI_API_KEY,
       mtChain: MT_CHAIN,
-      geminiModel: GEMINI_MODEL,
-      geminiThinkingLevel: GEMINI_THINKING_LEVEL,
-      refineEnabled: REFINE_ENABLED,
       shortLinkBase: SHORT_LINK_BASE,
     },
   });
@@ -97,12 +75,11 @@ async function startServer() {
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`OverHeard server running on http://0.0.0.0:${PORT}`);
     console.log(
-      `[limits] per tab/min: ${MT_PER_SESSION} translations, ${REFINE_PER_SESSION} refinements; per IP: ${IP_LIMIT_MULTIPLIER}x; ` +
-        `trusted proxy hops: ${TRUST_PROXY_HOPS}; daily caps: ${CLOUD_DAILY_CHARS || 'unlimited'} Cloud Translation chars, ` +
-        `${GEMINI_DAILY_CALLS || 'unlimited'} Gemini calls`
+      `[limits] per tab/min: ${MT_PER_SESSION} translations; per IP: ${IP_LIMIT_MULTIPLIER}x; ` +
+        `trusted proxy hops: ${TRUST_PROXY_HOPS}; daily cap: ${CLOUD_DAILY_CHARS || 'unlimited'} Cloud Translation chars`
     );
     console.log(
-      `[translate] live MT providers: ${MT_CHAIN.join(' → ')}; Gemini refine: ${REFINE_ENABLED ? `on (${GEMINI_MODEL})` : 'off'}`
+      `[translate] live MT providers: ${MT_CHAIN.join(' → ')}`
     );
     if (MT_PROVIDER === 'gtx') {
       console.warn(

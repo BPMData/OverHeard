@@ -5,7 +5,8 @@ import { createStudentTranslator } from './translateStudent';
 import type { RoomSnapshot } from './protocol';
 
 export function useStudentTranslations(snapshot: RoomSnapshot | null, language: LanguageCode | 'en') {
-  const translate = useMemo(createStudentTranslator, []);
+  const [translatedBy, setTranslatedBy] = useState<'on-device' | 'gtx' | null>(null);
+  const translate = useMemo(() => createStudentTranslator(setTranslatedBy), []);
   const results = useRef(new Map<string, string | null>());
   const pending = useRef(new Set<string>());
   const [version, refresh] = useState(0);
@@ -48,7 +49,7 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
   }) || [], [snapshot?.entries, language, version]);
   const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] ||
     studentLive[language] || '';
-  return { translate, entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
+  return { translate, translatedBy, entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
     hasFailures: language !== 'en' && entries.some(entry => !entry.translations[language] && entry.failedLangs[language]),
     retry: () => { for (const [key, result] of results.current) if (result === null) results.current.delete(key); refresh(value => value + 1); } };
 }

@@ -58,13 +58,10 @@ export default function App() {
   const [micPermissionDenied, setMicPermissionDenied] = useState<boolean>(false);
   const [micInsecure, setMicInsecure] = useState(false);
 
-  const {
-    availableProviders, refineEnabledRef, serverRefineAvailable, serverRefineStatus,
-    geminiRefineEnabled, geminiRefineEnabledRef, setGeminiRefineEnabled,
-  } = useServerConfig(isVoiceSettingsOpen);
+  const { availableProviders } = useServerConfig();
   const {
     effectiveMtPreference, setMtPreference, mtPreferenceRef, onDeviceSupported,
-    lastUsedProvider, lastTranslateMs, fetchMT, fetchTranslationWithRetry, getMtProvider,
+    lastUsedProvider, lastTranslateMs, fetchMT, onDeviceFailing,
   } = useTranslator(availableProviders);
 
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
@@ -81,8 +78,7 @@ export default function App() {
     confirmClear, setConfirmClear, handleClearConfirm, handleExportJson,
     manualInput, setManualInput, handleManualSubmit, handleBurstTest,
   } = useCaptionTranscript({
-    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT, getMtProvider,
-    fetchTranslationWithRetry, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef,
+    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT,
   });
 
   const { isListening, speechIsLocal, speechStatusNotice, stopListening, toggleListening } = useCaptionSpeech({
@@ -94,8 +90,10 @@ export default function App() {
   useCaptionHotkey(displayMode, toggleListening);
 
   const translateConversation = useCallback(
-    (text: string, target: ConversationLanguage, source: ConversationLanguage) =>
-      translateConversationMessage(text, target, source, fetchMT),
+    (text: string, target: ConversationLanguage, source: ConversationLanguage, options?: { live?: boolean }) =>
+      options?.live
+        ? fetchMT(text, target, source, options)
+        : translateConversationMessage(text, target, source, fetchMT),
     [fetchMT]
   );
 
@@ -145,6 +143,7 @@ export default function App() {
       lastTranslateMs={lastTranslateMs} lastUsedProvider={lastUsedProvider}
       availableProviders={availableProviders} effectiveMtPreference={effectiveMtPreference}
       setMtPreference={setMtPreference} reportPack={reportPack}
+      onDeviceFailing={onDeviceFailing}
     />
   );
 
@@ -229,13 +228,6 @@ export default function App() {
             setMicPermissionDenied(false);
             setDisplayMode('columns');
           }}
-          geminiRefine={{
-            enabled: geminiRefineEnabled,
-            onChange: setGeminiRefineEnabled,
-            serverAvailable: serverRefineAvailable,
-            serverStatus: serverRefineStatus,
-            mtPreference: effectiveMtPreference,
-          }}
         />
       )}
 
@@ -251,13 +243,7 @@ export default function App() {
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
-        geminiRefine={{
-          enabled: geminiRefineEnabled,
-          onChange: setGeminiRefineEnabled,
-          serverAvailable: serverRefineAvailable,
-          serverStatus: serverRefineStatus,
-          mtPreference: effectiveMtPreference,
-        }}
+        showPrivacy
       />
 
       <AboutModal

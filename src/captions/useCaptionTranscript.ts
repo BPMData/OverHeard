@@ -5,22 +5,16 @@ import { formatLectureFilename } from '../rooms/LectureFiles';
 import { roomJson } from '../rooms/protocol';
 import type { CaptionSegment, LanguageCode } from '../types';
 import { useLiveTranslations } from '../useLiveTranslations';
-import { refineCaption } from '../translation/refine';
 import type { useTranslator } from '../translation/useTranslator';
 
-type TranscriptOptions = Pick<ReturnType<typeof useTranslator>,
-  'fetchMT' | 'getMtProvider' | 'fetchTranslationWithRetry' | 'mtPreferenceRef'
-> & {
+type TranscriptOptions = Pick<ReturnType<typeof useTranslator>, 'fetchMT'> & {
   selectedLangs: LanguageCode[];
   selectedLangsRef: RefObject<LanguageCode[]>;
   stopColumnPlayback: () => void;
-  refineEnabledRef: RefObject<boolean>;
-  geminiRefineEnabledRef: RefObject<boolean>;
 };
 
 export function useCaptionTranscript({
-  selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT, getMtProvider,
-  fetchTranslationWithRetry, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef,
+  selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT,
 }: TranscriptOptions) {
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
@@ -39,25 +33,22 @@ export function useCaptionTranscript({
   // Interim speech: translate the in-progress sentence so captions appear while the teacher is
   // still talking, even through a long run-on sentence with no pause
   const clearLiveTranslation = useCallback(() => setLiveSegment((value) => value + 1), []);
+  const fetchLive = useCallback(
+    (text: string, lang: LanguageCode) => fetchMT(text, lang, 'en', { live: true }),
+    [fetchMT],
+  );
   const liveTranslations: Partial<Record<string, string>> = useLiveTranslations(
     LIVE_INTERIM_TRANSLATION ? interimTranscript : '',
     selectedLangs,
-    fetchMT,
+    fetchLive,
     String(liveSegment),
   );
 
-  // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands),
-  // then an optional Gemini pass quietly upgrades the text with context.
+  // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands)
   const handleFinalizedPhrase = useCallback(
     (rawPhrase: string) => {
       const phrase = rawPhrase.trim().slice(0, 500);
       if (!phrase) return;
-
-      const contextSnapshot = finalizedHistoryRef.current.slice(-2);
-      finalizedHistoryRef.current = [
-        ...finalizedHistoryRef.current.slice(-20),
-        phrase,
-      ];
 
       const segmentId = nextIdRef.current++;
       const langs = [...selectedLangsRef.current];
@@ -99,20 +90,14 @@ export function useCaptionTranscript({
         )
       );
 
-      void Promise.all(mtJobs).then(async () => {
+      void Promise.all(mtJobs).then(() => {
         patch((seg) => ({
           ...seg,
           status: failures === langs.length ? 'error' : 'done',
         }));
-
-        await refineCaption({
-          phrase, langs, contextSnapshot, preference: mtPreferenceRef.current,
-          refineEnabled: refineEnabledRef.current && geminiRefineEnabledRef.current,
-          getMtProvider, fetchTranslationWithRetry, patch,
-        });
       });
     },
-    [fetchMT, fetchTranslationWithRetry, getMtProvider, mtPreferenceRef, refineEnabledRef, geminiRefineEnabledRef, selectedLangsRef]
+    [fetchMT, selectedLangsRef]
   );
 
   // Lecture-compatible JSON Transcript Export

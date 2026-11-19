@@ -51,17 +51,34 @@ export const mtCacheKey = (preference: string, source: string, lang: string, tex
 export const overBy = (ms: number) =>
   ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
 
-export type MtProviderId = 'google-cloud' | 'gtx' | 'gemini';
+export type MtProviderId = 'google-cloud' | 'gtx';
 export type TranslatorId = MtProviderId | 'on-device';
 export type MtPreference = 'auto' | TranslatorId;
 export const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
-export const GEMINI_REFINE_STORAGE_KEY = 'overheard.geminiRefine';
 export const PIP_LINES_STORAGE_KEY = 'overheard.pipLines';
 export const PIP_SIZE_STORAGE_KEY = 'overheard.pipSize';
+/** Who did the most recent translation, shown so nobody has to guess whether text left the device. */
+export const TRANSLATED_BY: Record<TranslatorId, { label: string; tone: 'local' | 'free' | 'paid'; title: string }> = {
+  'on-device': {
+    label: 'this device',
+    tone: 'local',
+    title: 'Translated by Chrome on this device. The text did not leave this computer.',
+  },
+  gtx: {
+    label: 'Google, free',
+    tone: 'free',
+    title: 'Translated online by Google’s free translator. The text was sent to Google.',
+  },
+  'google-cloud': {
+    label: 'Google Cloud, paid',
+    tone: 'paid',
+    title: 'Translated online by Google Cloud Translation, which costs money. The text was sent to Google.',
+  },
+};
+
 export const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   auto: 'Auto',
   'google-cloud': 'Google Cloud',
   gtx: 'Free (unofficial)',
-  gemini: 'Gemini (slow)',
   'on-device': 'On this device',
 };

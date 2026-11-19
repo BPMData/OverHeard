@@ -40,10 +40,10 @@ Rules for every step:
 ```
 server.ts               Reads the environment, calls createApp(), and listens on 0.0.0.0:3000
 server/app.ts           Express middleware, room routes, static files and SPA fallback
-server/routes/mt.ts     /api/config, /api/mt, /api/translate, rate limits and usage
+server/routes/mt.ts     /api/config, /api/mt, rate limits and usage
 server/development.ts   Vite middleware and development-only WASM file routes
 server/                 mt.ts (provider chain + request coalescing), rooms.ts (live rooms, SSE),
-                        rateLimit, usage, clientKeys, shortLink, geminiSingle
+                        rateLimit, usage, clientKeys, shortLink
 src/main.tsx            Picks StudentRoom (?room= or /<code>) or App
 src/App.tsx             Wires caption hooks and views, mode changes, lecture import, modals and
                         the Conversation host (288 lines)
@@ -52,7 +52,7 @@ src/app/                Settings and URL sync, browser support, pack progress, m
 src/speech/             Caption recognition lifecycle, Space shortcut, Web Speech types
 src/captions/           Transcript state and export, column playback, ColumnsView, SubtitleBar,
                         TestInputBar
-src/translation/        Server config, translation cache and retries, finalized-line refinement
+src/translation/        Server config (provider list), translation cache and retries
 src/pip/usePipWindow.ts Pop-out lifecycle, line/layout/size preferences and pop-out theme sync
 src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch,
                         TranslatorPicker and ClearTranscriptButton

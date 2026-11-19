@@ -40,7 +40,7 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/?langs=es');
   vi.stubGlobal('SpeechRecognition', FakeRecognition);
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
-    if (url === '/api/config') return Response.json({ refine: false, providers: ['gtx'] });
+    if (url === '/api/config') return Response.json({ providers: ['gtx'] });
     if (url === '/api/mt' && init?.method === 'POST') return mt(JSON.parse(String(init.body)));
     throw new Error('Unexpected request to ' + url);
   });
@@ -88,6 +88,17 @@ it('fills the English and selected language columns from a final speech result',
   expect(mt).toHaveBeenCalledTimes(2);
 });
 
+it('sends live text as free-only and a finished line as an ordinary request', async () => {
+  await listen();
+  await say(false);
+  expect(mt).toHaveBeenLastCalledWith({ text: phrase, lang: 'es', source: 'en', freeOnly: true });
+  const finished = phrase + ' sharp';
+  await act(async () => {
+    FakeRecognition.active.onresult!({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: finished } }] });
+  });
+  expect(mt).toHaveBeenLastCalledWith({ text: finished, lang: 'es', source: 'en' });
+});
+
 it('shows the interim English and translation before the speaker finishes', async () => {
   await listen();
   await say(false);
@@ -128,6 +139,27 @@ it('translates on this device without sending the caption to /api/mt', async () 
   await act(async () => { click(/Start Listening/); });
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
+  expect(mt).not.toHaveBeenCalled();
+  expect(screen.getByText('Last translation: this device')).toBeTruthy();
+});
+
+it('labels a server translation so it is clear the text left the device', async () => {
+  await listen();
+  await say(true);
+  expect(screen.getByText('Last translation: Google, free')).toBeTruthy();
+});
+
+it('never falls back to the server in "On this device" mode, and says so on the page', async () => {
+  vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
+  vi.mocked(translateOnDevice).mockRejectedValue(new Error('InvalidStateError'));
+  await act(async () => { render(<App />); });
+  const option = screen.getByRole('option', { name: 'On this device (speech too)' }) as HTMLOptionElement;
+  fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
+  await act(async () => { click(/Start Listening/); });
+  await say(true);
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 400)); });
+  expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('On-device translation failing');
   expect(mt).not.toHaveBeenCalled();
 });
 
