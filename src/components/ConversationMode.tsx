@@ -412,33 +412,35 @@ export function ConversationMode({
     >
       {permissionBanner}
       <div className={`conversation-settings${isLecture ? ' lecture-toolbar' : ''}`}>
-        <button
-          type="button"
-          className="conversation-brand"
-          onClick={goHome}
-          aria-label="OverHeard — Go to Columns view"
-          title="Back to main Columns view"
-        >
-          <WhiteboatIcon app="overheard" size={22} />
-          <span>OverHeard</span>
-        </button>
-        <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
+        <div className="conversation-control-group" role="group" aria-label="Workspace">
           <button
             type="button"
-            aria-pressed={!isLecture}
-            className={!isLecture ? 'is-active' : ''}
-            onClick={() => switchSubMode('two-way')}
+            className="conversation-brand"
+            onClick={goHome}
+            aria-label="OverHeard — Go to Columns view"
+            title="Back to main Columns view"
           >
-            Two-way
+            <WhiteboatIcon app="overheard" size={22} />
+            <span>OverHeard</span>
           </button>
-          <button
-            type="button"
-            aria-pressed={isLecture}
-            className={isLecture ? 'is-active' : ''}
-            onClick={() => switchSubMode('lecture')}
-          >
-            Lecture
-          </button>
+          <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
+            <button
+              type="button"
+              aria-pressed={!isLecture}
+              className={!isLecture ? 'is-active' : ''}
+              onClick={() => switchSubMode('two-way')}
+            >
+              Two-way
+            </button>
+            <button
+              type="button"
+              aria-pressed={isLecture}
+              className={isLecture ? 'is-active' : ''}
+              onClick={() => switchSubMode('lecture')}
+            >
+              Lecture
+            </button>
+          </div>
         </div>
         {isLecture ? (
           <div className="lecture-teaching-controls" role="group" aria-label="Teaching controls">
@@ -481,28 +483,30 @@ export function ConversationMode({
             fileInput={fileInput}
           />
         )}
-        {!isLecture && voiceSettingsButton}
-        <button
-          onClick={() => {
-            if (fullscreen) void document.exitFullscreen();
-            else
-              void root.current
-                ?.requestFullscreen?.()
-                .catch(() => setUiError('Full screen is unavailable in this browser.'));
-          }}
-        >
-          {fullscreen ? 'Exit full screen' : 'Full screen'}
-        </button>
-        {onAdjustFont && (
-          <div className="conversation-font-controls" role="group" aria-label="Text size">
-            <button type="button" aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
-              A−
-            </button>
-            <button type="button" aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
-              A+
-            </button>
-          </div>
-        )}
+        <div className="conversation-control-group" role="group" aria-label="Display settings">
+          {!isLecture && voiceSettingsButton}
+          <button
+            onClick={() => {
+              if (fullscreen) void document.exitFullscreen();
+              else
+                void root.current
+                  ?.requestFullscreen?.()
+                  .catch(() => setUiError('Full screen is unavailable in this browser.'));
+            }}
+          >
+            {fullscreen ? 'Exit full screen' : 'Full screen'}
+          </button>
+          {onAdjustFont && (
+            <div className="conversation-font-controls" role="group" aria-label="Text size">
+              <button type="button" aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
+                A−
+              </button>
+              <button type="button" aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
+                A+
+              </button>
+            </div>
+          )}
+        </div>
         {!isLecture && (
           <TwoWayReadAloud
             settings={settings}
@@ -512,7 +516,7 @@ export function ConversationMode({
             twoWayPlayback={twoWayPlayback}
           />
         )}
-        <div className="conversation-toolbar-navigation">
+        <div className="conversation-control-group" role="group" aria-label="Navigation">
           {isLecture && (
             <button
               type="button"

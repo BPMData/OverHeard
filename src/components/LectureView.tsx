@@ -49,80 +49,88 @@ export function LectureTools({
 }: LectureToolsProps) {
   return (
     <>
-      {translatorPicker && <div className="lecture-translator-control">{translatorPicker}</div>}
-      <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
-        onAdjustFont={onAdjustFont ?? (() => {})} active={active} />
-      <button
-        type="button"
-        onClick={lecture.clear}
-        disabled={lecture.entries.length === 0 && !lecture.speech.interim}
-      >
-        Clear lecture
-      </button>
-      <LectureFiles
-        state={lectureState}
-        roomCode={activeRoomCode}
-        onImport={value => {
-          lecture.replace(value.entries);
-          onSetLanguages?.(value.selectedLangs);
-        }}
-      />
-      <label>
-        Voice for
-        <select
-          aria-label="Playback language"
-          value={effectiveLectureLang}
-          onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
+      {translatorPicker && <div className="conversation-lecture-translator">{translatorPicker}</div>}
+      <div className="conversation-control-group" role="group" aria-label="Lecture actions">
+        <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
+          onAdjustFont={onAdjustFont ?? (() => {})} active={active} />
+        <button
+          type="button"
+          onClick={lecture.clear}
+          disabled={lecture.entries.length === 0 && !lecture.speech.interim}
         >
-          {lectureLangs.map((code) => (
-            <option key={code} value={code}>
-              {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Voice
-        <VoiceSelect
-          lang={effectiveLectureLang}
-          ariaLabel="Voice"
-          value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
-          onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
+          Clear lecture
+        </button>
+      </div>
+      <div className="conversation-control-group" role="group" aria-label="Transcript files">
+        <LectureFiles
+          state={lectureState}
+          roomCode={activeRoomCode}
+          onImport={value => {
+            lecture.replace(value.entries);
+            onSetLanguages?.(value.selectedLangs);
+          }}
         />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={lectureReadAloud}
-          onChange={(e) => {
-            const checked = e.target.checked;
-            setLectureReadAloud(checked);
-            // "While I talk" only applies while reading aloud: clear it rather than leave it
-            // greyed out but still ticked
-            if (!checked) setSettings((s) => ({ ...s, lectureLiveReadAloud: false }));
-            if (checked) {
-              piperClient.unlockAudio();
-              const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
-              if (activeVoice !== BROWSER_VOICE_ID) {
-                piperClient.preloadVoice(activeVoice);
+      </div>
+      <div className="conversation-control-group conversation-voice-controls" role="group" aria-label="Voice selection">
+        <label>
+          Voice for
+          <select
+            aria-label="Playback language"
+            value={effectiveLectureLang}
+            onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
+          >
+            {lectureLangs.map((code) => (
+              <option key={code} value={code}>
+                {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Voice
+          <VoiceSelect
+            lang={effectiveLectureLang}
+            ariaLabel="Voice"
+            value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
+            onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
+          />
+        </label>
+      </div>
+      <div className="conversation-control-group" role="group" aria-label="Read aloud controls">
+        <label>
+          <input
+            type="checkbox"
+            checked={lectureReadAloud}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setLectureReadAloud(checked);
+              // "While I talk" only applies while reading aloud: clear it rather than leave it
+              // greyed out but still ticked
+              if (!checked) setSettings((s) => ({ ...s, lectureLiveReadAloud: false }));
+              if (checked) {
+                piperClient.unlockAudio();
+                const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
+                if (activeVoice !== BROWSER_VOICE_ID) {
+                  piperClient.preloadVoice(activeVoice);
+                }
               }
-            }
-          }}
-        />
-        Read aloud
-      </label>
-      <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
-        <input
-          type="checkbox"
-          checked={lectureReadAloud && settings.lectureLiveReadAloud}
-          disabled={!lectureReadAloud}
-          onChange={(e) => {
-            const checked = e.target.checked;
-            setSettings((s) => ({ ...s, lectureLiveReadAloud: checked }));
-          }}
-        />
-        While I talk (headphones)
-      </label>
+            }}
+          />
+          Read aloud
+        </label>
+        <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
+          <input
+            type="checkbox"
+            checked={lectureReadAloud && settings.lectureLiveReadAloud}
+            disabled={!lectureReadAloud}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setSettings((s) => ({ ...s, lectureLiveReadAloud: checked }));
+            }}
+          />
+          While I talk (headphones)
+        </label>
+      </div>
     </>
   );
 }
