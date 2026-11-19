@@ -112,6 +112,11 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
   what it receives to improve Google's products. If an LLM clean-up of finished lines comes back,
   use the owner's OpenRouter key with a small, fast model (the owner suggested Claude Haiku or
   GLM Flash), server-side only, with its own daily cap, and never in "On this device" mode.
+  **Tested and dropped (November 2026):** a bake-off on a real 492-line lecture transcript asked
+  Claude Haiku 5.5 and GLM 5.3 Flash (via OpenRouter) to fix misheard English only, with guards
+  (no number or name changes, at most 3 words). About a quarter of the accepted fixes were wrong
+  but plausible ("please definitely taxes" became "take notes"), and only 3–8% of lines improved.
+  Not worth the privacy exception. A better microphone is the fix for recognition errors.
 - Set a characters-per-day quota on the Cloud Translation API in Google Cloud (the "v2 and v3
   general model characters per day" row). `CLOUD_TRANSLATE_DAILY_CHARS` is counted in server
   memory and starts over on every restart, so it is not a hard cap on its own.
