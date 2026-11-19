@@ -88,6 +88,17 @@ it('fills the English and selected language columns from a final speech result',
   expect(mt).toHaveBeenCalledTimes(2);
 });
 
+it('sends live text as free-only and a finished line as an ordinary request', async () => {
+  await listen();
+  await say(false);
+  expect(mt).toHaveBeenLastCalledWith({ text: phrase, lang: 'es', source: 'en', freeOnly: true });
+  const finished = phrase + ' sharp';
+  await act(async () => {
+    FakeRecognition.active.onresult!({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: finished } }] });
+  });
+  expect(mt).toHaveBeenLastCalledWith({ text: finished, lang: 'es', source: 'en' });
+});
+
 it('shows the interim English and translation before the speaker finishes', async () => {
   await listen();
   await say(false);

@@ -44,10 +44,12 @@ interface Props {
   active: boolean;
   fontSize: number;
   isDark: boolean;
+  /** `live` marks text still being spoken: it only uses this device or the free translator */
   translate: (
     text: string,
     target: ConversationLanguage,
     source: ConversationLanguage,
+    options?: { live?: boolean },
   ) => Promise<string>;
   onExit: () => void;
   onHome?: () => void;
@@ -156,7 +158,7 @@ export function ConversationMode({
     onPackProgress,
   });
   const translateLiveSpeech = useCallback(
-    (text: string, lang: ConversationLanguage) => translate(text, lang, 'en'),
+    (text: string, lang: ConversationLanguage) => translate(text, lang, 'en', { live: true }),
     [translate],
   );
   const lectureLangs: ConversationLanguage[] = ['en', ...targetLangs];

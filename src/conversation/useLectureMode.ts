@@ -25,6 +25,7 @@ export interface UseLectureModeOptions {
     text: string,
     target: ConversationLanguage,
     source: ConversationLanguage,
+    options?: { live?: boolean },
   ) => Promise<string>;
   onStartAttempt?: () => void;
   onPermissionDenied: (reason?: MicBlock) => void;
@@ -60,7 +61,7 @@ export function useLectureMode({
     onPermissionDenied,
   });
   const translateLive = useCallback(
-    (text: string, code: LanguageCode) => translate(text, code, 'en'),
+    (text: string, code: LanguageCode) => translate(text, code, 'en', { live: true }),
     [translate],
   );
   const lastEntryId = entries.length ? entries[entries.length - 1].id : '';

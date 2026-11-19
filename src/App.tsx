@@ -90,8 +90,10 @@ export default function App() {
   useCaptionHotkey(displayMode, toggleListening);
 
   const translateConversation = useCallback(
-    (text: string, target: ConversationLanguage, source: ConversationLanguage) =>
-      translateConversationMessage(text, target, source, fetchMT),
+    (text: string, target: ConversationLanguage, source: ConversationLanguage, options?: { live?: boolean }) =>
+      options?.live
+        ? fetchMT(text, target, source, options)
+        : translateConversationMessage(text, target, source, fetchMT),
     [fetchMT]
   );
 

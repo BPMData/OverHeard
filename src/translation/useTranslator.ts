@@ -44,13 +44,25 @@ export function useTranslator(availableProviders: MtProviderId[]) {
 
   // Fast single-language machine translation (deduped + cached, one quick retry)
   const fetchMT = useCallback(
-    (text: string, lang: ConversationLanguage, source: ConversationLanguage = 'en'): Promise<string> => {
+    (
+      text: string,
+      lang: ConversationLanguage,
+      source: ConversationLanguage = 'en',
+      options: { live?: boolean } = {},
+    ): Promise<string> => {
       if (source === lang) return Promise.resolve(text);
       const preference = mtPreferenceRef.current;
-      const key = mtCacheKey(preference, source, lang, text);
+      // Live (still-being-spoken) text only ever uses this device or the free endpoint, so it
+      // can't spend money. It has its own cache entries; a finished line still reuses a matching
+      // live request, and makes its own full request only if that one fails.
+      const live = options.live === true;
+      const finishedKey = mtCacheKey(preference, source, lang, text);
+      const liveKey = 'live\u0000' + finishedKey;
+      const key = live ? liveKey : finishedKey;
       const cache = mtCacheRef.current;
       const existing = cache.get(key);
       if (existing) return existing;
+      const reusableLive = live ? undefined : cache.get(liveKey);
 
       const started = performance.now();
       const recordTiming = () => setLastTranslateMs(Math.round(performance.now() - started));
@@ -69,6 +81,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             ...(preference === 'auto' || preference === 'on-device'
               ? {}
               : { provider: preference }),
+            ...(live ? { freeOnly: true } : {}),
           }),
         });
         if (res.status === 429) throw new RateLimitedError();
@@ -125,12 +138,14 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         return attemptServer();
       };
 
-      const promise = attempt().catch(async (error) => {
-        // Throttled: retrying straight away would only add load
-        if (error instanceof RateLimitedError) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        return attempt();
-      });
+      const run = () =>
+        attempt().catch(async (error) => {
+          // Throttled: retrying straight away would only add load
+          if (error instanceof RateLimitedError) throw error;
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          return attempt();
+        });
+      const promise = reusableLive ? reusableLive.catch(run) : run();
       cache.set(key, promise);
       promise.catch(() => cache.delete(key));
       if (cache.size > MT_CLIENT_CACHE_MAX) {

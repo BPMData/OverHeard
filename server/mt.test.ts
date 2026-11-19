@@ -319,6 +319,29 @@ describe('createMachineTranslator', () => {
   });
 });
 
+describe('free-only requests', () => {
+  it('never falls back to a paid provider, and leaves a benched free one alone', async () => {
+    let clock = 1_000_000;
+    const callProvider = vi.fn(async (provider: MtProvider) => {
+      if (provider === 'gtx') throw new ProviderError('gtx HTTP 429', 429);
+      return 'Hola (cloud)';
+    });
+    const translator = createMachineTranslator({
+      chain: ['gtx', 'google-cloud'], callProvider, cooldownMs: 60_000, now: () => clock, log: quietLog,
+    });
+    await expect(translator.translate('Hello', 'es', 'gtx', 'en', true)).rejects.toThrow('429');
+    expect(callProvider.mock.calls.map((c) => c[0])).toEqual(['gtx']);
+    // gtx is benched now: a free-only request fails without calling anything
+    await expect(translator.translate('Bye', 'es', undefined, 'en', true)).rejects.toThrow('cooling down');
+    expect(callProvider).toHaveBeenCalledTimes(1);
+    // An ordinary request may still use the paid provider
+    await expect(translator.translate('Bye', 'es')).resolves.toMatchObject({ provider: 'google-cloud' });
+    clock += 61_000;
+    callProvider.mockResolvedValueOnce('Adiós (gtx)');
+    await expect(translator.translate('Later', 'es', undefined, 'en', true)).resolves.toMatchObject({ provider: 'gtx' });
+  });
+});
+
 describe('bidirectional translation', () => {
   it('sends the source language to GTX and Cloud', async () => {
     const gtxFetch = vi.fn(async () => jsonResponse([[['Hello', 'Hola']]]));

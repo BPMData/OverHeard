@@ -14,11 +14,12 @@ export function createStudentTranslator() {
       if (await isOnDeviceUsable(lang, 'en')) {
         try {
           return await translateOnDevice(text, lang, 'en', 2500);
-        } catch { /* Fall through to the same online chain as teacher Auto mode. */ }
+        } catch { /* Fall through to the free online translator. */ }
       }
       const response = await fetch('/api/mt', { method: 'POST',
         headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },
-        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx' }), signal: AbortSignal.timeout(30_000) });
+        // Students never use the paid translator: on-device first, then the free endpoint only
+        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx', freeOnly: true }), signal: AbortSignal.timeout(30_000) });
       if (!response.ok) throw new Error('Translation unavailable.');
       const data = await response.json();
       if (typeof data.translation !== 'string' || !data.translation) throw new Error('Missing translation.');

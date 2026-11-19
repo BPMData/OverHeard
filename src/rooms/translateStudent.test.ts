@@ -18,6 +18,6 @@ describe('student automatic translation', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await createStudentTranslator()('Hello', 'es')).toBe('Hola');
     const args = (fetch.mock.calls[0] as unknown[]) as [string, RequestInit];
-    expect(JSON.parse(args[1].body as string)).toEqual({ text: 'Hello', lang: 'es', source: 'en', provider: 'gtx' });
+    expect(JSON.parse(args[1].body as string)).toEqual({ text: 'Hello', lang: 'es', source: 'en', provider: 'gtx', freeOnly: true });
   });
 });

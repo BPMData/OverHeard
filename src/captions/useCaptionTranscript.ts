@@ -33,10 +33,14 @@ export function useCaptionTranscript({
   // Interim speech: translate the in-progress sentence so captions appear while the teacher is
   // still talking, even through a long run-on sentence with no pause
   const clearLiveTranslation = useCallback(() => setLiveSegment((value) => value + 1), []);
+  const fetchLive = useCallback(
+    (text: string, lang: LanguageCode) => fetchMT(text, lang, 'en', { live: true }),
+    [fetchMT],
+  );
   const liveTranslations: Partial<Record<string, string>> = useLiveTranslations(
     LIVE_INTERIM_TRANSLATION ? interimTranscript : '',
     selectedLangs,
-    fetchMT,
+    fetchLive,
     String(liveSegment),
   );
 

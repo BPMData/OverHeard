@@ -137,7 +137,7 @@ export function registerMtRoutes(app: Express, {
   app.post('/api/mt', async (req: Request, res: Response) => {
     if (rejectIfLimited(req, res, mtIpLimiter, mtSessionLimiter, 'Rate limit exceeded.')) return;
 
-    const { text, lang, source = 'en', provider: requestedProvider } = req.body ?? {};
+    const { text, lang, source = 'en', provider: requestedProvider, freeOnly } = req.body ?? {};
     if (typeof text !== 'string' || text.trim().length === 0) {
       res.status(400).json({ error: 'Text must be a non-empty string.' });
       return;
@@ -162,7 +162,8 @@ export function registerMtRoutes(app: Express, {
         text.trim().slice(0, 500),
         lang,
         isMtProvider(requestedProvider) ? requestedProvider : undefined,
-        source
+        source,
+        freeOnly === true
       );
       usage.mtOk(provider, text.trim().slice(0, 500).length);
       res.json({ translation, provider, ms: Date.now() - started });
