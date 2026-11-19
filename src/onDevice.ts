@@ -203,12 +203,69 @@ export async function isOnDeviceUsable(code: string, source = 'en'): Promise<boo
 
 export class OnDeviceUnavailableError extends Error {}
 
-export async function translateOnDevice(text: string, code: string, source = 'en'): Promise<string> {
+/**
+ * Forget the cached translator for `source` → `code` and destroy it (which also cancels its
+ * queued work), so the next call creates a fresh one. A translator can stop working while the
+ * page stays open (e.g. Chrome restarts its translation service); a cached dead instance would
+ * otherwise fail every later request in this tab, while other tabs that create a new one work.
+ */
+export function discardOnDeviceTranslator(code: string, source = 'en'): void {
+  const key = `${source}>${code}`;
+  const cached = translators.get(key);
+  if (!cached) return;
+  translators.delete(key);
+  readyPairs.delete(key);
+  void cached.then(
+    (translator) => {
+      try {
+        translator?.destroy?.();
+      } catch {
+        // Already gone
+      }
+    },
+    () => {},
+  );
+}
+
+/**
+ * Translate on this device. On an error, or when `timeoutMs` passes first, the translator is
+ * discarded (see `discardOnDeviceTranslator`) and the promise rejects; callers fall back online.
+ */
+export async function translateOnDevice(
+  text: string,
+  code: string,
+  source = 'en',
+  timeoutMs?: number,
+): Promise<string> {
   const translator = await getOnDeviceTranslator(code, source);
   if (!translator) {
     throw new OnDeviceUnavailableError(`No on-device translator for ${code}`);
   }
-  return translator.translate(text);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const work = translator.translate(text);
+    if (timeoutMs === undefined) return await work;
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`On-device translation timed out after ${timeoutMs} ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } catch (error) {
+    // Only discard the instance that failed, not a fresh one another call already made
+    const key = `${source}>${code}`;
+    const current = translators.get(key);
+    if (current) {
+      const instance = await current.catch(() => null);
+      if (instance === translator) discardOnDeviceTranslator(code, source);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

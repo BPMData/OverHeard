@@ -52,6 +52,41 @@ describe('on-device translation', () => {
   });
 });
 
+describe('recovering from a translator that stops working', () => {
+  it('discards a translator whose translate() fails and creates a fresh one next time', async () => {
+    const destroy = vi.fn();
+    const dead = { translate: vi.fn(async () => { throw new Error('InvalidStateError'); }), destroy };
+    const fresh = { translate: async (t: string) => `es:${t}` };
+    const create = vi.fn().mockResolvedValueOnce(dead).mockResolvedValue(fresh);
+    g.Translator = { availability: async () => 'available', create };
+    const m = await load();
+    await expect(m.translateOnDevice('Hello', 'es')).rejects.toThrow('InvalidStateError');
+    await expect(m.translateOnDevice('Hello', 'es')).resolves.toBe('es:Hello');
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('discards a translator that stalls past the timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const destroy = vi.fn();
+      const stuck = { translate: () => new Promise<string>(() => {}), destroy };
+      const fresh = { translate: async (t: string) => `pt:${t}` };
+      const create = vi.fn().mockResolvedValueOnce(stuck).mockResolvedValue(fresh);
+      g.Translator = { availability: async () => 'available', create };
+      const m = await load();
+      const first = m.translateOnDevice('Hello', 'pt', 'en', 100);
+      const check = expect(first).rejects.toThrow('timed out');
+      await vi.advanceTimersByTimeAsync(150);
+      await check;
+      expect(destroy).toHaveBeenCalledTimes(1);
+      await expect(m.translateOnDevice('Hello', 'pt', 'en', 100)).resolves.toBe('pt:Hello');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('download progress', () => {
   it('reads fractions, byte counts, and clamps', async () => {
     const m = await load();

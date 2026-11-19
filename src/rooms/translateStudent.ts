@@ -12,13 +12,9 @@ export function createStudentTranslator() {
     if (existing) return existing;
     const pending = (async () => {
       if (await isOnDeviceUsable(lang, 'en')) {
-        let timer: ReturnType<typeof setTimeout> | undefined;
         try {
-          return await Promise.race([translateOnDevice(text, lang, 'en'), new Promise<never>((_, reject) => {
-            timer = setTimeout(() => reject(new Error('On-device translation timed out.')), 2500);
-          })]);
+          return await translateOnDevice(text, lang, 'en', 2500);
         } catch { /* Fall through to the same online chain as teacher Auto mode. */ }
-        finally { clearTimeout(timer); }
       }
       const response = await fetch('/api/mt', { method: 'POST',
         headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },

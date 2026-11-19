@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AUTO_ON_DEVICE_TIMEOUT_MS, MT_CLIENT_CACHE_MAX, MT_PREFERENCE_STORAGE_KEY, MT_PROVIDER_LABELS,
-  ON_DEVICE_TIMEOUT_MS, mtCacheKey, overBy, rejectAfter,
+  ON_DEVICE_TIMEOUT_MS, mtCacheKey, overBy,
   type MtPreference, type MtProviderId, type TranslatorId,
 } from '../app/settings';
 import { RateLimitedError } from '../http';
@@ -150,8 +150,10 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         if (useOnDevice) {
           const t0 = performance.now();
           try {
-            const translation = await rejectAfter(
-              translateOnDevice(text, lang, source),
+            const translation = await translateOnDevice(
+              text,
+              lang,
+              source,
               forced ? ON_DEVICE_TIMEOUT_MS : AUTO_ON_DEVICE_TIMEOUT_MS
             );
             const ms = Math.round(performance.now() - t0);
