@@ -1,7 +1,8 @@
 import { useWakeLock } from '../wakeLock';
 import { withMicAccess, type MicBlock } from '../micPermission';
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { DEFAULT_LANGUAGES, SUPPORTED_LANGUAGES } from '../constants';
+import React, { useCallback, useEffect, useId, useReducer, useRef, useState } from 'react';
+import { PlaybackToolbar } from '../tts/VoiceSelect';
+import { DEFAULT_LANGUAGES, LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import {
   createMessage,
@@ -24,7 +25,8 @@ import {
   type ConversationSubMode,
 } from './conversationSettings';
 import { AboutModal } from './AboutModal';
-import { LectureSettings, LectureView } from './LectureView';
+import { LectureTools, LectureView } from './LectureView';
+import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import { TwoWayReadAloud, TwoWaySettings, TwoWayView } from './TwoWayView';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { WhiteboatIcon } from './WhiteboatIcon';
@@ -61,6 +63,7 @@ interface Props {
   onSetLanguages?: (languages: LanguageCode[]) => void;
   mtPreference: string;
   translatorPicker?: React.ReactNode;
+  onDeviceTranslationFailing?: boolean;
   onAdjustFont?: (delta: number) => void;
   permissionBanner?: React.ReactNode;
   /** Receives on-device download progress, for the panel below */
@@ -85,6 +88,7 @@ export function ConversationMode({
   onSetLanguages,
   mtPreference,
   translatorPicker,
+  onDeviceTranslationFailing = false,
   onAdjustFont,
   permissionBanner,
   onPackProgress,
@@ -107,6 +111,17 @@ export function ConversationMode({
   const [uiError, setUiError] = useState('');
   const [driveStatus, setDriveStatus] = useState<{ message: string; link?: string } | null>(null);
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
+  const [shareSetupOpen, setShareSetupOpen] = useState(false);
+  const roomControlsId = useId();
+  const roomCodeRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (shareSetupOpen) roomCodeRef.current?.focus();
+  }, [shareSetupOpen]);
+  const lectureToolsId = useId();
+  const handleRoomCodeChange = useCallback((code: string | null) => {
+    setActiveRoomCode(code);
+    if (code) setShareSetupOpen(false);
+  }, []);
   const [voicePrefs, persistVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -370,6 +385,25 @@ export function ConversationMode({
       setUiError(err instanceof Error ? err.message : 'Could not import JSON.');
     }
   };
+  const startLecture = () => {
+    if (!settings.showAllLectureControls && !activeRoomCode) {
+      if (shareSetupOpen) roomCodeRef.current?.focus();
+      else setShareSetupOpen(true);
+      return;
+    }
+    lecture.start();
+  };
+  const voiceSettingsButton = (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1.5"
+      onClick={() => setIsVoiceSettingsOpen(true)}
+      title="Open voice and privacy settings"
+    >
+      <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+      <span>Settings</span>
+    </button>
+  );
   return (
     <div
       ref={root}
@@ -377,7 +411,7 @@ export function ConversationMode({
       hidden={!active}
     >
       {permissionBanner}
-      <div className="conversation-settings">
+      <div className={`conversation-settings${isLecture ? ' lecture-toolbar' : ''}`}>
         <button
           type="button"
           className="conversation-brand"
@@ -407,31 +441,31 @@ export function ConversationMode({
           </button>
         </div>
         {isLecture ? (
-          <LectureSettings
-            active={active && isLecture}
-            targetLangs={targetLangs}
-            onOpenLanguages={onOpenLanguages}
-            onSetLanguages={onSetLanguages}
-            translatorPicker={translatorPicker}
-            lecture={lecture}
-            lectureState={lectureState}
-            isDark={isDark}
-            fontSize={fontSize}
-            onAdjustFont={onAdjustFont}
-            activeRoomCode={activeRoomCode}
-            setUiError={setUiError}
-            setDriveStatus={setDriveStatus}
-            effectiveLectureLang={effectiveLectureLang}
-            setLecturePlaybackLang={setLecturePlaybackLang}
-            lectureLangs={lectureLangs}
-            voicePrefs={voicePrefs}
-            updateVoicePref={updateVoicePref}
-            lectureReadAloud={lectureReadAloud}
-            setLectureReadAloud={setLectureReadAloud}
-            settings={settings}
-            setSettings={setSettings}
-            lecturePlayback={lecturePlayback}
-          />
+          <div className="lecture-teaching-controls" role="group" aria-label="Teaching controls">
+            <button
+              type="button"
+              className={`conversation-start ${lecture.speech.isListening ? 'is-listening' : ''}`}
+              onClick={lecture.speech.isListening ? lecture.stop : startLecture}
+              disabled={!lecture.speech.supported}
+            >
+              {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
+            </button>
+            {onOpenLanguages && (
+              <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
+                Languages{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}
+              </button>
+            )}
+            {!settings.showAllLectureControls && !activeRoomCode && (
+              <button
+                type="button"
+                aria-expanded={shareSetupOpen}
+                aria-controls={roomControlsId}
+                onClick={() => setShareSetupOpen(open => !open)}
+              >
+                Share room code with students
+              </button>
+            )}
+          </div>
         ) : (
           <TwoWaySettings
             settings={settings}
@@ -447,15 +481,7 @@ export function ConversationMode({
             fileInput={fileInput}
           />
         )}
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5"
-          onClick={() => setIsVoiceSettingsOpen(true)}
-          title="Open voice and privacy settings"
-        >
-          <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Settings</span>
-        </button>
+        {!isLecture && voiceSettingsButton}
         <button
           onClick={() => {
             if (fullscreen) void document.exitFullscreen();
@@ -468,14 +494,14 @@ export function ConversationMode({
           {fullscreen ? 'Exit full screen' : 'Full screen'}
         </button>
         {onAdjustFont && (
-          <>
-            <button aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
+          <div className="conversation-font-controls" role="group" aria-label="Text size">
+            <button type="button" aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
               A−
             </button>
-            <button aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
+            <button type="button" aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
               A+
             </button>
-          </>
+          </div>
         )}
         {!isLecture && (
           <TwoWayReadAloud
@@ -486,9 +512,27 @@ export function ConversationMode({
             twoWayPlayback={twoWayPlayback}
           />
         )}
-        <span className="inline-flex items-center gap-2" style={{ marginLeft: 'auto' }}>
-          <button type="button" className="conversation-exit" onClick={exit}>
-            <span aria-hidden="true">← </span>Back to Listening Mode
+        <div className="conversation-toolbar-navigation">
+          {isLecture && (
+            <button
+              type="button"
+              aria-controls={lectureToolsId}
+              aria-expanded={settings.showAllLectureControls}
+              onClick={() => setSettings(current => ({
+                ...current,
+                showAllLectureControls: !current.showAllLectureControls,
+              }))}
+            >
+              {settings.showAllLectureControls ? 'Use simple controls' : 'Show all controls'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="conversation-exit"
+            onClick={exit}
+            aria-label="Back to Listening Mode"
+          >
+            <span aria-hidden="true">← </span>{isLecture ? 'Listening mode' : 'Back to Listening Mode'}
           </button>
           <button
             type="button"
@@ -498,14 +542,104 @@ export function ConversationMode({
             title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Guide &amp; FAQ</span>
+            <span>{isLecture ? 'Help' : 'Guide & FAQ'}</span>
           </button>
-        </span>
+        </div>
       </div>
+      {isLecture && (
+        <>
+          {!settings.showAllLectureControls && onDeviceTranslationFailing && (
+            <p className="lecture-translator-warning" role="alert">
+              On-device translation failed. Open all controls to choose another translator.
+            </p>
+          )}
+          <div
+            id={lectureToolsId}
+            className="conversation-settings lecture-tools"
+            role="group"
+            aria-label="Additional lecture controls"
+            hidden={!settings.showAllLectureControls}
+          >
+            <LectureTools
+              active={active && isLecture}
+              onSetLanguages={onSetLanguages}
+              translatorPicker={translatorPicker}
+              lecture={lecture}
+              lectureState={lectureState}
+              isDark={isDark}
+              fontSize={fontSize}
+              onAdjustFont={onAdjustFont}
+              activeRoomCode={activeRoomCode}
+              effectiveLectureLang={effectiveLectureLang}
+              setLecturePlaybackLang={setLecturePlaybackLang}
+              lectureLangs={lectureLangs}
+              voicePrefs={voicePrefs}
+              updateVoicePref={updateVoicePref}
+              lectureReadAloud={lectureReadAloud}
+              setLectureReadAloud={setLectureReadAloud}
+              settings={settings}
+              setSettings={setSettings}
+            />
+            {voiceSettingsButton}
+          </div>
+          {lecturePlayback.status !== 'idle' && (
+            <div className="conversation-settings" role="group" aria-label="Active audio playback">
+              <PlaybackToolbar
+                status={lecturePlayback.status}
+                downloadProgress={lecturePlayback.downloadProgress}
+                onTogglePause={lecturePlayback.togglePause}
+                onStop={lecturePlayback.stop}
+              />
+            </div>
+          )}
+        </>
+      )}
       <TeacherRoomControls
+        id={roomControlsId}
+        roomCodeRef={roomCodeRef}
+        guideSetup={!settings.showAllLectureControls}
+        showSetup={settings.showAllLectureControls || shareSetupOpen}
+        archiveControls={isLecture && (
+          <>
+            <SaveLectureToDriveControl
+              label="Save room archive to Drive"
+              state={lectureState}
+              roomCode={activeRoomCode}
+              className="inline-flex items-center gap-1.5"
+              onSaved={(result) => {
+                setUiError('');
+                setDriveStatus({
+                  message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
+                  link: result.file.webViewLink,
+                });
+              }}
+              onError={(msg) => {
+                if (msg) setDriveStatus(null);
+                setUiError(msg);
+              }}
+            />
+            <OpenFromDriveButton
+              label="Open room archive from Drive"
+              className="inline-flex items-center gap-1.5"
+              hasExistingEntries={() => lecture.entries.length > 0}
+              onImport={(imported, file) => {
+                setUiError('');
+                lecture.replace(imported.entries);
+                onSetLanguages?.(imported.selectedLangs);
+                setDriveStatus({
+                  message: `Opened "${file.name}" from Google Drive.`,
+                });
+              }}
+              onError={(msg) => {
+                if (msg) setDriveStatus(null);
+                setUiError(msg);
+              }}
+            />
+          </>
+        )}
         state={lectureState}
         visible={isLecture}
-        onRoomCodeChange={setActiveRoomCode}
+        onRoomCodeChange={handleRoomCodeChange}
         onRestore={restored => {
           lecture.replace(restored.entries, { preserveIds: true });
           if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);

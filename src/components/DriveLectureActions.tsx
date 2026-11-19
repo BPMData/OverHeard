@@ -86,6 +86,7 @@ export const OpenFromDriveButton: React.FC<OpenFromDriveButtonProps> = ({
 };
 
 interface SaveLectureToDriveControlProps {
+  label?: string;
   state: Pick<LectureState, 'entries' | 'selectedLangs'>;
   roomCode?: string | null;
   onSaved?: (result: SaveLectureToDriveResult) => void;
@@ -94,6 +95,7 @@ interface SaveLectureToDriveControlProps {
 }
 
 export const SaveLectureToDriveControl: React.FC<SaveLectureToDriveControlProps> = ({
+  label = 'Save to Drive',
   state,
   roomCode,
   onSaved,
@@ -210,7 +212,7 @@ export const SaveLectureToDriveControl: React.FC<SaveLectureToDriveControlProps>
         title="Save this lecture JSON to Google Drive"
       >
         <Cloud className="w-3.5 h-3.5" />
-        <span>{openingAuth ? 'Connecting...' : 'Save to Drive'}</span>
+        <span>{openingAuth ? 'Connecting...' : label}</span>
       </button>
 
       <DriveSaveModal
