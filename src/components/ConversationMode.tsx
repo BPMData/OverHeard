@@ -378,33 +378,35 @@ export function ConversationMode({
     >
       {permissionBanner}
       <div className="conversation-settings">
-        <button
-          type="button"
-          className="conversation-brand"
-          onClick={goHome}
-          aria-label="OverHeard — Go to Columns view"
-          title="Back to main Columns view"
-        >
-          <WhiteboatIcon app="overheard" size={22} />
-          <span>OverHeard</span>
-        </button>
-        <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
+        <div className="conversation-control-group" role="group" aria-label="Workspace">
           <button
             type="button"
-            aria-pressed={!isLecture}
-            className={!isLecture ? 'is-active' : ''}
-            onClick={() => switchSubMode('two-way')}
+            className="conversation-brand"
+            onClick={goHome}
+            aria-label="OverHeard — Go to Columns view"
+            title="Back to main Columns view"
           >
-            Two-way
+            <WhiteboatIcon app="overheard" size={22} />
+            <span>OverHeard</span>
           </button>
-          <button
-            type="button"
-            aria-pressed={isLecture}
-            className={isLecture ? 'is-active' : ''}
-            onClick={() => switchSubMode('lecture')}
-          >
-            Lecture
-          </button>
+          <div className="conversation-submode" role="group" aria-label="Conversation workspace mode">
+            <button
+              type="button"
+              aria-pressed={!isLecture}
+              className={!isLecture ? 'is-active' : ''}
+              onClick={() => switchSubMode('two-way')}
+            >
+              Two-way
+            </button>
+            <button
+              type="button"
+              aria-pressed={isLecture}
+              className={isLecture ? 'is-active' : ''}
+              onClick={() => switchSubMode('lecture')}
+            >
+              Lecture
+            </button>
+          </div>
         </div>
         {isLecture ? (
           <LectureSettings
@@ -447,36 +449,38 @@ export function ConversationMode({
             fileInput={fileInput}
           />
         )}
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5"
-          onClick={() => setIsVoiceSettingsOpen(true)}
-          title="Open voice and privacy settings"
-        >
-          <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Settings</span>
-        </button>
-        <button
-          onClick={() => {
-            if (fullscreen) void document.exitFullscreen();
-            else
-              void root.current
-                ?.requestFullscreen?.()
-                .catch(() => setUiError('Full screen is unavailable in this browser.'));
-          }}
-        >
-          {fullscreen ? 'Exit full screen' : 'Full screen'}
-        </button>
-        {onAdjustFont && (
-          <>
-            <button aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
-              A−
-            </button>
-            <button aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
-              A+
-            </button>
-          </>
-        )}
+        <div className="conversation-control-group" role="group" aria-label="Display settings">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5"
+            onClick={() => setIsVoiceSettingsOpen(true)}
+            title="Open voice and privacy settings"
+          >
+            <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Settings</span>
+          </button>
+          <button
+            onClick={() => {
+              if (fullscreen) void document.exitFullscreen();
+              else
+                void root.current
+                  ?.requestFullscreen?.()
+                  .catch(() => setUiError('Full screen is unavailable in this browser.'));
+            }}
+          >
+            {fullscreen ? 'Exit full screen' : 'Full screen'}
+          </button>
+          {onAdjustFont && (
+            <div className="conversation-font-controls" role="group" aria-label="Text size">
+              <button type="button" aria-label="Smaller conversation text" onClick={() => onAdjustFont(-4)}>
+                A−
+              </button>
+              <button type="button" aria-label="Larger conversation text" onClick={() => onAdjustFont(4)}>
+                A+
+              </button>
+            </div>
+          )}
+        </div>
         {!isLecture && (
           <TwoWayReadAloud
             settings={settings}
@@ -486,7 +490,7 @@ export function ConversationMode({
             twoWayPlayback={twoWayPlayback}
           />
         )}
-        <span className="inline-flex items-center gap-2" style={{ marginLeft: 'auto' }}>
+        <div className="conversation-control-group" role="group" aria-label="Navigation">
           <button type="button" className="conversation-exit" onClick={exit}>
             <span aria-hidden="true">← </span>Back to Listening Mode
           </button>
@@ -500,7 +504,7 @@ export function ConversationMode({
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Guide &amp; FAQ</span>
           </button>
-        </span>
+        </div>
       </div>
       <TeacherRoomControls
         state={lectureState}
