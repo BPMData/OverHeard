@@ -283,7 +283,7 @@
 }
 .conversation-settings {
   display: flex;
-  gap: 8px;
+  gap: 8px 12px;
   align-items: center;
   flex-wrap: wrap;
   font-size: 12px;
@@ -743,4 +743,46 @@
 }
 .lecture-pip-btn.is-open svg {
   color: currentColor;
+}
+
+.conversation-control-group,
+.conversation-font-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conversation-control-group {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.conversation-control-group button,
+.conversation-font-controls {
+  white-space: nowrap;
+}
+
+.conversation-font-controls {
+  flex: none;
+}
+
+.conversation-lecture-translator,
+.conversation-control-group label,
+.conversation-control-group select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.conversation-lecture-translator > label {
+  flex-wrap: wrap;
+  padding: 3px 7px;
+}
+
+.conversation-lecture-translator select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.conversation-voice-controls select {
+  max-width: min(15rem, 65vw);
 }
