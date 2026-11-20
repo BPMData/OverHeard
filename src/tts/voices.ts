@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt';
+export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn';
 
 export interface PiperVoiceOption {
   id: string;
@@ -178,12 +178,82 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     hfPath: 'en/en_GB/semaine/medium/en_GB-semaine-medium.onnx',
     speakerId: 2,
   },
+
+  // Vietnamese
+  {
+    id: 'vi_VN-vais1000-medium',
+    lang: 'vi',
+    label: 'VAIS (VN)',
+    shortName: 'VAIS',
+    modelId: 'vi_VN-vais1000-medium',
+    hfPath: 'vi/vi_VN/vais1000/medium/vi_VN-vais1000-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'vi_VN-25hours_single-low',
+    lang: 'vi',
+    label: '25 Hours (VN · smaller)',
+    shortName: '25 Hours',
+    modelId: 'vi_VN-25hours_single-low',
+    hfPath: 'vi/vi_VN/25hours_single/low/vi_VN-25hours_single-low.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Hindi (India)
+  {
+    id: 'hi_IN-rohan-medium',
+    lang: 'hi',
+    label: 'Rohan (Male · IN)',
+    shortName: 'Rohan',
+    gender: 'male',
+    modelId: 'hi_IN-rohan-medium',
+    hfPath: 'hi/hi_IN/rohan/medium/hi_IN-rohan-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'hi_IN-priyamvada-medium',
+    lang: 'hi',
+    label: 'Priyamvada (IN)',
+    shortName: 'Priyamvada',
+    modelId: 'hi_IN-priyamvada-medium',
+    hfPath: 'hi/hi_IN/priyamvada/medium/hi_IN-priyamvada-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'hi_IN-pratham-medium',
+    lang: 'hi',
+    label: 'Pratham (IN)',
+    shortName: 'Pratham',
+    modelId: 'hi_IN-pratham-medium',
+    hfPath: 'hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Bengali (Bangladesh). One 16-speaker model; speaker 0 for now.
+  {
+    id: 'bn_BD-google-medium:0',
+    lang: 'bn',
+    label: 'Google (BD)',
+    shortName: 'Google',
+    modelId: 'bn_BD-google-medium',
+    hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
 ];
 
 export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   en: 'en_US-hfc_female-medium',
   es: 'es_MX-claude-high',
   pt: 'pt_BR-faber-medium',
+  vi: 'vi_VN-vais1000-medium',
+  hi: 'hi_IN-rohan-medium',
+  bn: 'bn_BD-google-medium:0',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -191,7 +261,7 @@ const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.i
 export type VoicePreferences = Partial<Record<ConversationLanguage, string>>;
 
 export function hasPiperVoices(lang: ConversationLanguage): lang is PiperLanguage {
-  return lang === 'en' || lang === 'es' || lang === 'pt';
+  return Object.prototype.hasOwnProperty.call(DEFAULT_PIPER_VOICE_ID, lang);
 }
 
 export function voicesForLanguage(lang: ConversationLanguage): PiperVoiceOption[] {
@@ -226,6 +296,24 @@ export function voicePreviewText(
       return {
         spoken: `Olá, eu sou ${shortName}. Devo ser o seu leitor de português?`,
         englishHint: `Hi, I'm ${shortName}. Should I be your reader for Portuguese?`,
+      };
+    }
+    case 'vi': {
+      return {
+        spoken: `Xin chào, tôi là ${shortName}. Tôi có thể đọc tiếng Việt cho bạn không?`,
+        englishHint: `Hi, I'm ${shortName}. Can I read Vietnamese for you?`,
+      };
+    }
+    case 'hi': {
+      return {
+        spoken: `नमस्ते, मैं ${shortName} हूँ। क्या मैं आपके लिए हिन्दी पढ़ूँ?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Hindi for you?`,
+      };
+    }
+    case 'bn': {
+      return {
+        spoken: `হ্যালো, আমি ${shortName}। আমি কি আপনার জন্য বাংলা পড়ব?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Bengali for you?`,
       };
     }
   }

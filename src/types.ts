@@ -10,7 +10,9 @@ export type LanguageCode =
   | 'ru'
   | 'so'
   | 'prs'
-  | 'ps';
+  | 'ps'
+  | 'hi'
+  | 'bn';
 
 export type ConversationLanguage = LanguageCode | 'en';
 

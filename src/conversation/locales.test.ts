@@ -16,6 +16,8 @@ describe('speech locales', () => {
       so: 'so-SO',
       prs: 'fa-AF',
       ps: 'ps-AF',
+  hi: 'hi-IN',
+  bn: 'bn-BD',
     });
     for (const [code, locale] of Object.entries(SPEECH_LOCALES))
       expect(speechLocale(code)).toBe(locale);

@@ -20,6 +20,8 @@ const samples: Record<ConversationLanguage, string[]> = {
   so: ['Salaan.', 'Fur buugga.', 'Mahadsanid.'],
   prs: ['سلام.', 'کتاب را باز کنید.', 'تشکر.'],
   ps: ['سلام.', 'کتاب خلاص کړئ.', 'مننه.'],
+  hi: ['नमस्ते।', 'किताब खोलो।', 'धन्यवाद।'],
+  bn: ['হ্যালো।', 'বইটি খোলো।', 'ধন্যবাদ।'],
 };
 
 interface Pair {

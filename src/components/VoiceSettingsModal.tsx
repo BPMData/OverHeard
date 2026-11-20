@@ -45,6 +45,24 @@ const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
     selectAriaLabel: 'Default Portuguese voice',
     previewAriaLabel: 'Preview Portuguese voice',
   },
+  {
+    code: 'vi',
+    title: 'Vietnamese · Tiếng Việt',
+    selectAriaLabel: 'Default Vietnamese voice',
+    previewAriaLabel: 'Preview Vietnamese voice',
+  },
+  {
+    code: 'hi',
+    title: 'Hindi · हिन्दी',
+    selectAriaLabel: 'Default Hindi voice',
+    previewAriaLabel: 'Preview Hindi voice',
+  },
+  {
+    code: 'bn',
+    title: 'Bengali · বাংলা',
+    selectAriaLabel: 'Default Bengali voice',
+    previewAriaLabel: 'Preview Bengali voice',
+  },
 ];
 
 interface PreviewState {
@@ -207,7 +225,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 <h3>Reader Voices</h3>
               </div>
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
-                Choose your default reader voice for English, Spanish, and Portuguese. Your choices
+                Choose your default reader voice for English, Spanish, Portuguese, Vietnamese, Hindi, and Bengali. Your choices
                 save automatically on this device and Piper neural voice models download on demand.
               </p>
             </div>
