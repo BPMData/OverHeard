@@ -12,7 +12,8 @@ import type { ConversationLanguage, LanguageCode } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
 import { saveLectureEntries, type LectureEntry } from './conversation/lectureState';
 import { ConversationMode } from './components/ConversationMode';
-import { loadConversationSettings, saveConversationSettings } from './components/conversationSettings';
+import { updateConversationSettings } from './components/useConversationSettings';
+import { LectureControlsSetting } from './components/LectureControlsSetting';
 import { LanguageModal } from './components/LanguageModal';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal';
 import { useServerConfig } from './translation/useServerConfig';
@@ -101,10 +102,10 @@ export default function App() {
     (imported: { entries: LectureEntry[]; selectedLangs: LanguageCode[] }) => {
       setImportError('');
       saveLectureEntries(imported.entries);
-      saveConversationSettings({
-        ...loadConversationSettings(selectedLangs[0] ?? 'es'),
-        mode: 'lecture',
-      });
+      updateConversationSettings(
+        (current) => (current.mode === 'lecture' ? current : { ...current, mode: 'lecture' }),
+        selectedLangs[0] ?? 'es',
+      );
       if (imported.selectedLangs.length > 0) {
         setSelectedLangs(imported.selectedLangs.slice(0, MAX_LANGUAGES));
       }
@@ -221,6 +222,7 @@ export default function App() {
             setMicInsecure(reason === 'insecure');
             setMicPermissionDenied(true);
           }}
+          returnView={previousMode.current}
           onExit={() => {
             setMicPermissionDenied(false);
             setDisplayMode(previousMode.current);
@@ -245,7 +247,9 @@ export default function App() {
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
         showPrivacy
-      />
+      >
+        <LectureControlsSetting initialLanguage={selectedLangs[0] ?? 'es'} />
+      </VoiceSettingsModal>
 
       <AboutModal
         isOpen={isAboutModalOpen}

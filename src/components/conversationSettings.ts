@@ -11,6 +11,8 @@ export type ConversationSubMode = 'two-way' | 'lecture';
 export interface ConversationSettings extends Participants {
   mode: ConversationSubMode;
   showAllLectureControls: boolean;
+  /** Set in Settings: keep every lecture control visible and hide the simple-controls toggle. */
+  alwaysShowAllLectureControls: boolean;
   manualTurns: boolean;
   switchAfterMs: number;
   readAloud: boolean;
@@ -24,12 +26,27 @@ export interface ConversationSettings extends Participants {
 }
 const validLanguage = (value: unknown): value is ConversationLanguage =>
   value === 'en' || SUPPORTED_LANGUAGES.some((l) => l.code === value);
+export const CONVERSATION_SETTINGS_KEY = 'overheard.conversation';
 export function loadConversationSettings(
+  initialLanguage: ConversationLanguage = 'es',
+): ConversationSettings {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(CONVERSATION_SETTINGS_KEY);
+  } catch {
+    /* Storage may be unavailable. */
+  }
+  return parseConversationSettings(raw, initialLanguage);
+}
+/** Settings from their saved JSON (or null), with anything missing or invalid set to the default. */
+export function parseConversationSettings(
+  raw: string | null,
   initialLanguage: ConversationLanguage = 'es',
 ): ConversationSettings {
   const defaults: ConversationSettings = {
     mode: 'two-way',
     showAllLectureControls: false,
+    alwaysShowAllLectureControls: false,
     a: { name: 'Me', lang: 'en' },
     b: { name: 'Student', lang: initialLanguage },
     manualTurns: false,
@@ -39,10 +56,11 @@ export function loadConversationSettings(
     lectureLiveReadAloud: false,
   };
   try {
-    const saved = JSON.parse(localStorage.getItem('overheard.conversation') || 'null');
+    const saved = JSON.parse(raw || 'null');
     if (!saved) return defaults;
     defaults.mode = saved.mode === 'lecture' ? 'lecture' : 'two-way';
     defaults.showAllLectureControls = saved.showAllLectureControls === true;
+    defaults.alwaysShowAllLectureControls = saved.alwaysShowAllLectureControls === true;
     for (const side of ['a', 'b'] as const) {
       if (typeof saved[side]?.name === 'string') defaults[side].name = saved[side].name;
       if (validLanguage(saved[side]?.lang)) defaults[side].lang = saved[side].lang;
@@ -54,13 +72,13 @@ export function loadConversationSettings(
     defaults.placement = saved.placement === 'reader' ? 'reader' : 'speaker';
     defaults.lectureLiveReadAloud = saved.lectureLiveReadAloud === true;
   } catch {
-    /* Storage may be unavailable. */
+    /* Ignore unreadable saved settings. */
   }
   return defaults;
 }
 export function saveConversationSettings(settings: ConversationSettings) {
   try {
-    localStorage.setItem('overheard.conversation', JSON.stringify(settings));
+    localStorage.setItem(CONVERSATION_SETTINGS_KEY, JSON.stringify(settings));
   } catch {
     /* Keep the session usable. */
   }

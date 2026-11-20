@@ -6,7 +6,7 @@ Real-time classroom speech transcription, multi-language translation, neural rea
 
 ## Key Features
 
-- **Listening Mode (`Columns` & `Subtitle`)**: Live English speech-to-text captions alongside 1–3 target languages from 12 supported languages (Spanish, Portuguese, Arabic, Simplified Chinese, Vietnamese, Haitian Creole, French, Ukrainian, Russian, Somali, Dari, and Pashto), with RTL support, bookmarkable `?langs=...` URLs, `A-` / `A+` font controls, `Prev Line`, silent `Test Input` (including subject samples and 5x burst testing), and **JSON export**.
+- **Caption views (`Columns` & `Subtitle`)**: Live English speech-to-text captions alongside 1–3 target languages from 12 supported languages (Spanish, Portuguese, Arabic, Simplified Chinese, Vietnamese, Haitian Creole, French, Ukrainian, Russian, Somali, Dari, and Pashto), with RTL support, bookmarkable `?langs=...` URLs, `A-` / `A+` font controls, `Prev Line`, silent `Test Input` (including subject samples and 5x burst testing), and **JSON export**.
 - **Always-On-Top Floating Captions (`Pop out captions`)**: Opens a Chrome Document Picture-in-Picture strip that floats over everything on your screen (Google Slides, PowerPoint, PDFs, browser tabs, and other desktop windows, aside from exclusive fullscreen apps like some games), with selectable lines and stacked or side-by-side layout.
 - **Conversation & Lecture Mode**:
   - **Lecture Mode + Live Student Rooms**: Records continuous timestamped English + multi-language transcripts. Create a PIN-protected room (`4–20` characters) to share a live `?room=CODE` stream with up to 200 students on their own devices (`Create room`, `Rejoin room`, `End room`). Students customize their language, dark/light theme, voice settings, read-aloud playback, and export readable lecture JSON (`Lecture for [room] on [date].json`).
@@ -77,7 +77,7 @@ server/
   mt.ts                       # Translation provider chain + pending request coalescing
   budget.ts / rateLimit.ts    # Daily caps and sliding-window session/IP rate limiters
 src/
-  App.tsx                     # Listening Mode (Columns/Subtitle), header controls, Guide/Voice modals, PiP portal
+  App.tsx                     # Caption views (Columns/Subtitle), header controls, Guide/Voice modals, PiP portal
   onDevice.ts                 # Chrome on-device Translator integration
   components/
     AboutModal.tsx            # How to Use OverHeard — Guide, FAQ & Privacy modal
