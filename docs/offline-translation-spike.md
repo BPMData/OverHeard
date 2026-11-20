@@ -92,3 +92,7 @@ Urdu, Swahili and Dari before shipping. Sample sentences, e.g.
    a 50–100 MB Bergamot-style student with a permissive licence, or the permissively-licensed
    M2M100-418M, MIT, ~similar size to NLLB so still too slow) before giving up on on-device.
 3. Build the real integration for ur/sw/prs behind the existing Auto mode.
+
+**Decision (owner):** include Dari via Bergamot en-fa as an option alongside Urdu, since the
+Bergamot engine is being added anyway. It costs only ~21 MB more. It stays opt-in with online
+fallback, and no native-speaker review is available, so label it as approximate Persian.
