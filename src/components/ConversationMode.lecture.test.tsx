@@ -54,6 +54,40 @@ it('opens and focuses room setup before starting a lecture with simple controls'
   expect(FakeRecognition.instances).toHaveLength(0);
 });
 
+it('shows Clear lecture in simple controls only after the room is ended', async () => {
+  vi.useRealTimers();
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === '/api/rooms' && init?.method === 'POST') {
+      return new Response(JSON.stringify({ code: 'bio-p2', token: 'tok' }), { status: 201 });
+    }
+    return new Response(JSON.stringify({ revision: 1, ok: true }), { status: 200 });
+  }));
+  vi.stubGlobal('confirm', vi.fn(() => true));
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async (text: string) => `es:${text}`)}
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Share room code with students' }));
+  fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+  await waitFor(() => expect(screen.getByText('Room: bio-p2')).toBeTruthy());
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Share room code with students' })).toBeNull());
+
+  fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+  await waitFor(() => expect(FakeRecognition.instances.length).toBeGreaterThan(0));
+  act(() => FakeRecognition.instances[0].onresult?.({ resultIndex: 0,
+    results: [{ isFinal: true, 0: { transcript: 'Cells divide by mitosis' } }] }));
+  await waitFor(() => expect(screen.getByText('Cells divide by mitosis')).toBeTruthy());
+  fireEvent.click(screen.getByRole('button', { name: 'Pause lecture' }));
+  // While the room is live, simple controls keep Clear lecture hidden
+  expect(screen.queryByRole('button', { name: 'Clear lecture' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'End room' }));
+  const clear = await screen.findByRole('button', { name: 'Clear lecture' });
+  fireEvent.click(clear);
+  await waitFor(() => expect(screen.queryByText('Cells divide by mitosis')).toBeNull());
+  expect(screen.queryByRole('button', { name: 'Clear lecture' })).toBeNull();
+});
+
 describe('ConversationMode Lecture mode', () => {
   it('switches into Lecture mode, streams live English -> multi-language columns, keeps full history, and persists locally', async () => {
     const translate = vi.fn(async (text: string, target: string, source: string) => {
