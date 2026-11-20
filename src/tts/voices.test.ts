@@ -46,7 +46,6 @@ describe('Piper voice catalog and preferences', () => {
       'vi_VN-25hours_single-low',
     ]);
     expect(voicesForLanguage('hi').map((v) => v.id)).toEqual([
-      'hi_IN-rohan-medium',
       'hi_IN-priyamvada-medium',
       'hi_IN-pratham-medium',
     ]);
@@ -62,7 +61,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(27);
+    expect(PIPER_VOICES).toHaveLength(26);
     expect(voicesForLanguage('fr')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -106,7 +105,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('en')).toBe(DEFAULT_PIPER_VOICE_ID.en);
     expect(resolveVoiceId('es')).toBe(DEFAULT_PIPER_VOICE_ID.es);
     expect(resolveVoiceId('pt')).toBe(DEFAULT_PIPER_VOICE_ID.pt);
-    expect(resolveVoiceId('hi')).toBe('hi_IN-rohan-medium');
+    expect(resolveVoiceId('hi')).toBe('hi_IN-priyamvada-medium');
     expect(resolveVoiceId('bn')).toBe('bn_BD-google-medium:0');
     expect(resolveVoiceId('vi')).toBe('vi_VN-vais1000-medium');
     expect(resolveVoiceId('ur')).toBe('ur_PK-aegis_female-medium');
@@ -165,7 +164,7 @@ describe('Piper voice catalog and preferences', () => {
       spoken: 'Olá, eu sou Cadu. Devo ser o seu leitor de português?',
       englishHint: "Hi, I'm Cadu. Should I be your reader for Portuguese?",
     });
-    expect(voicePreviewText('hi', 'hi_IN-rohan-medium').spoken).toContain('मैं Rohan हूँ');
+    expect(voicePreviewText('hi', 'hi_IN-pratham-medium').spoken).toContain('मैं Pratham हूँ');
     expect(voicePreviewText('bn', 'bn_BD-google-medium:0').englishHint).toContain('Bengali');
     expect(voicePreviewText('vi', 'vi_VN-vais1000-medium').spoken).toContain('tiếng Việt');
     expect(voicePreviewText('ur', 'ur_PK-fasih-medium').spoken).toContain('میں Fasih ہوں');

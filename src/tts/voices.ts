@@ -203,21 +203,11 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
 
   // Hindi (India)
   {
-    id: 'hi_IN-rohan-medium',
-    lang: 'hi',
-    label: 'Rohan (Male · IN)',
-    shortName: 'Rohan',
-    gender: 'male',
-    modelId: 'hi_IN-rohan-medium',
-    hfPath: 'hi/hi_IN/rohan/medium/hi_IN-rohan-medium.onnx',
-    speakerId: 0,
-    useRhasspyRepo: true,
-  },
-  {
     id: 'hi_IN-priyamvada-medium',
     lang: 'hi',
-    label: 'Priyamvada (IN)',
+    label: 'Priyamvada (Female · IN)',
     shortName: 'Priyamvada',
+    gender: 'female',
     modelId: 'hi_IN-priyamvada-medium',
     hfPath: 'hi/hi_IN/priyamvada/medium/hi_IN-priyamvada-medium.onnx',
     speakerId: 0,
@@ -226,8 +216,9 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'hi_IN-pratham-medium',
     lang: 'hi',
-    label: 'Pratham (IN)',
+    label: 'Pratham (Male · IN)',
     shortName: 'Pratham',
+    gender: 'male',
     modelId: 'hi_IN-pratham-medium',
     hfPath: 'hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx',
     speakerId: 0,
@@ -323,7 +314,7 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   es: 'es_MX-claude-high',
   pt: 'pt_BR-faber-medium',
   vi: 'vi_VN-vais1000-medium',
-  hi: 'hi_IN-rohan-medium',
+  hi: 'hi_IN-priyamvada-medium',
   bn: 'bn_BD-google-medium:0',
   ur: 'ur_PK-aegis_female-medium',
   id: 'id_ID-news_tts-medium',
