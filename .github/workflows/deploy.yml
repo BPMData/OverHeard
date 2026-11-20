@@ -3,6 +3,10 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: [main]
+    # Docs-only pushes (TODO.md, ROOMS.md, ...) don't redeploy: a deploy restarts the server and
+    # ends every live room. Run the workflow by hand (workflow_dispatch) if one ever must.
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 concurrency:
