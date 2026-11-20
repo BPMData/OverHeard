@@ -14,9 +14,11 @@ import { useConversationSpeech } from '../conversation/useConversationSpeech';
 import { useLectureMode } from '../conversation/useLectureMode';
 import {
   isOnDeviceTranslationSupported,
+  prepareOfflineSpeechIfTranslatorsReady,
   prepareOnDeviceConversation,
   type PackProgress,
 } from '../onDevice';
+import { speechLocale } from '../conversation/locales';
 import { speechLocality } from '../offline';
 import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 import {
@@ -363,8 +365,16 @@ export function ConversationMode({
       prepareOnDeviceConversation(langs, onPackProgress);
     } else if (mtPreference === 'auto' && isOnDeviceTranslationSupported()) {
       // Auto translates on this device once packs are ready. Speech stays on Google's free
-      // service while online; its packs are fetched too so it can switch over when offline.
-      prepareOnDeviceConversation(langs, onPackProgress);
+      // service while online; its packs are fetched once no translation pack needs the click,
+      // so speech can switch over when offline.
+      prepareOnDeviceConversation(langs, onPackProgress, { speech: false });
+      if (langs.a !== langs.b) {
+        prepareOfflineSpeechIfTranslatorsReady(
+          [{ code: langs.b, source: langs.a }, { code: langs.a, source: langs.b }],
+          [...new Set([langs.a, langs.b])].map((code) => ({ key: `speech:${code}`, locale: speechLocale(code) })),
+          onPackProgress
+        );
+      }
     }
     withMicAccess(
       () => speech.start(speechLocality(mtPreference)),
