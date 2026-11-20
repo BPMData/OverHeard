@@ -1,8 +1,8 @@
 import express from 'express';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Server } from 'node:http';
-import { createRoomRouter } from './rooms';
-import { emptyLecture } from '../src/rooms/protocol';
+import { createRoomRouter, formatEvent, writeEvent, type EventWriter } from './rooms';
+import { emptyLecture, MAX_ROOM_FILE_BYTES } from '../src/rooms/protocol';
 
 let server: Server;
 let service: ReturnType<typeof createRoomRouter>;
@@ -57,7 +57,43 @@ async function stream(code: string) {
   };
 }
 
+// Reads raw SSE bytes until the first complete block for `event`, so tests can compare the
+// exact wire format (field order, blank-line terminator) rather than the parsed JSON.
+async function rawStream(code: string) {
+  const controller = new AbortController(); streams.push(controller);
+  const response = await fetch(`${base}/${code}/events`, { signal: controller.signal });
+  expect(response.status).toBe(200);
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder(); let buffer = '';
+  return async (event: string) => {
+    while (true) {
+      const start = buffer.indexOf(`event: ${event}\n`);
+      const end = start >= 0 ? buffer.indexOf('\n\n', start) : -1;
+      if (end >= 0) { const block = buffer.slice(start, end + 2); buffer = buffer.slice(end + 2); return block; }
+      const { value, done } = await reader.read();
+      if (done) throw new Error('Unexpected closed stream');
+      buffer += decoder.decode(value, { stream: true });
+    }
+  };
+}
+
 describe('live classroom rooms', () => {
+  it('sends every student byte-identical, correctly framed patch and snapshot events', async () => {
+    const { code, token } = await create();
+    const readers = [await rawStream(code), await rawStream(code), await rawStream(code)];
+    for (const read of readers) await read('snapshot');
+    await request(`/${code}`, 'PUT', patch(), token);
+    const patches = await Promise.all(readers.map(read => read('patch')));
+    expect(new Set(patches).size).toBe(1);
+    expect(patches[0]).toMatch(/^event: patch\ndata: [^\n]+\n\n$/);
+    const sent = JSON.parse(patches[0].slice('event: patch\ndata: '.length));
+    expect(sent).toMatchObject({ revision: 1, teacherOnline: true, ended: false, interim: 'Our next topic' });
+    await request(`/${code}`, 'DELETE', undefined, token);
+    const ended = await Promise.all(readers.map(read => read('snapshot')));
+    expect(new Set(ended).size).toBe(1);
+    expect(ended[0]).toMatch(/^event: snapshot\ndata: [^\n]+\n\n$/);
+    expect(JSON.parse(ended[0].slice('event: snapshot\ndata: '.length))).toMatchObject({ ended: true, revision: 2 });
+  });
   it('requires a valid PIN, issues private teacher credentials, and rejects unauthorized writes or collisions', async () => {
     expect((await request('', 'POST', { code: 'science-101' })).status).toBe(400);
     expect((await request('', 'POST', { code: 'science-101', pin: '12' })).status).toBe(400);
@@ -159,5 +195,47 @@ describe('live classroom rooms', () => {
     expect(wakeUp.data.teacherOnline).toBe(true);
     expect((await request(`/${code}`, 'PUT', patch('After restart'), rejoined.token)).status).toBe(403);
     expect((await request(`/${code}`, 'PUT', patch('After restart'), restarted.token)).status).toBe(200);
+  });
+});
+
+describe('school-network limits', () => {
+  it('limits joins per room, so one busy class behind a shared IP does not block another', async () => {
+    service.close();
+    service = createRoomRouter({ now: () => clock, joinsPerMinute: 2 });
+    server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
+    const app = express(); app.use('/api/rooms', service.router);
+    server = await new Promise<Server>(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+    base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/rooms`;
+    const a = await create('room-a'); const b = await create('room-b');
+    await stream(a.code); await stream(a.code);
+    expect((await request(`/${a.code}/events`)).status).toBe(429);
+    await stream(b.code);
+  });
+  it('lets a whole department create rooms from one IP at the same bell', async () => {
+    for (let i = 0; i < 30; i++) expect((await request('', 'POST', { code: `teacher-${i}`, pin: '1234' })).status).toBe(201);
+  });
+});
+
+describe('event writing', () => {
+  const fakeReader = (writableLength = 0, destroyed = false) => {
+    const written: string[] = []; let ended = false;
+    const res = { destroyed, writableLength, write: (chunk: string) => { written.push(chunk); return true; },
+      end: () => { ended = true; } } as unknown as EventWriter;
+    return { res, written, isEnded: () => ended };
+  };
+  it('formats events exactly as the SSE wire format', () => {
+    expect(formatEvent('patch', { a: 1 })).toBe('event: patch\ndata: {"a":1}\n\n');
+  });
+  it('checks each reader on its own: slow readers are dropped, closed ones skipped, the rest written', () => {
+    const frame = formatEvent('patch', { revision: 3 });
+    const healthy = fakeReader();
+    const atLimit = fakeReader(MAX_ROOM_FILE_BYTES * 2);
+    const slow = fakeReader(MAX_ROOM_FILE_BYTES * 2 + 1);
+    const closed = fakeReader(0, true);
+    for (const reader of [slow, healthy, closed, atLimit]) writeEvent(reader.res, frame);
+    expect(healthy.written).toEqual([frame]);
+    expect(atLimit.written).toEqual([frame]);
+    expect(slow.written).toEqual([]); expect(slow.isEnded()).toBe(true);
+    expect(closed.written).toEqual([]); expect(closed.isEnded()).toBe(false);
   });
 });
