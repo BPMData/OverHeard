@@ -318,11 +318,9 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
                       {isThisLangActive && previewState?.status === 'downloading' && (
                         <p role="status" className="text-xs font-medium text-[#A78BFA]">
-                          Downloading voice
                           {typeof previewState.progress === 'number'
-                            ? ` (${previewState.progress}%)`
-                            : ''}
-                          …
+                            ? `Downloading voice (${previewState.progress}%)…`
+                            : 'Loading voice…'}
                         </p>
                       )}
 

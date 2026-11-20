@@ -5,6 +5,7 @@ import { withMicAccess } from '../micPermission';
 import { isFailedSession, restartDelay } from '../speechRestart';
 import { isOnDeviceTranslationSupported, prepareOnDeviceSpeech, prepareOnDeviceTranslators } from '../onDevice';
 import type { MtPreference } from '../app/settings';
+import { isOffline, speechLocality, wantsLocalSpeech } from '../offline';
 import type { LanguageCode } from '../types';
 import type { SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionInstance } from './types';
 
@@ -128,11 +129,33 @@ export function useCaptionSpeech({
           const restart = () => {
             restartTimerRef.current = null;
             if (userStoppedRef.current) return;
-            try {
-              recognition.start();
-            } catch {
-              // Ignore InvalidStateError when already running
+            const startNow = () => {
+              if (userStoppedRef.current) return;
+              try {
+                recognition.start();
+              } catch {
+                // Ignore InvalidStateError when already running
+              }
+            };
+            // Auto: run speech on this device while offline, and go back to Google's
+            // service once the network returns. 'On this device' never changes here.
+            if (mtPreferenceRef.current !== 'auto') return startNow();
+            const wantLocal = isOffline();
+            if (wantLocal === Boolean(recognition.processLocally)) return startNow();
+            if (!wantLocal) {
+              recognition.processLocally = false;
+              setSpeechIsLocal(false);
+              setSpeechStatusNotice(null);
+              return startNow();
             }
+            void prepareOnDeviceSpeech('en-US').then((local) => {
+              recognition.processLocally = local;
+              setSpeechIsLocal(local);
+              setSpeechStatusNotice(
+                local ? null : 'Offline, and on-device speech isn’t installed on this device.'
+              );
+              startNow();
+            });
           };
           const delay = restartDelay(restartFailuresRef.current);
           if (delay === 0) {
@@ -165,23 +188,34 @@ export function useCaptionSpeech({
       setIsListening(true);
     };
 
-    if (mtPreferenceRef.current === 'on-device') {
-      // Both downloads need a click, and this runs inside the Start click
+    if (wantsLocalSpeech(speechLocality(mtPreferenceRef.current))) {
+      // 'On this device', or Auto while offline. Both downloads need a click, and this runs
+      // inside the Start click.
       prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
       setIsListening(true);
       void prepareOnDeviceSpeech('en-US', () => reportPack('speech', -1)).then((local) => {
         reportPack('speech', null);
         setSpeechStatusNotice(
-          local ? null : 'On-device speech not available here — using Google’s speech service.'
+          local
+            ? null
+            : isOffline()
+              ? 'Offline, and on-device speech isn’t installed on this device.'
+              : 'On-device speech not available here — using Google’s speech service.'
         );
         begin(local);
       });
     } else {
       // Auto: fetch the translation packs now (this click is the gesture Chrome requires) so
       // on-device translation takes over as soon as they're ready. Captions keep flowing
-      // through the online translators in the meantime. Speech stays on Google's service.
-      if (mtPreferenceRef.current === 'auto' && isOnDeviceTranslationSupported()) {
-        prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
+      // through the online translators in the meantime. Speech stays on Google's free
+      // service while online; its pack is fetched too so it can take over when offline.
+      if (mtPreferenceRef.current === 'auto') {
+        if (isOnDeviceTranslationSupported()) {
+          prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
+        }
+        void prepareOnDeviceSpeech('en-US', () => reportPack('speech', -1)).then(() =>
+          reportPack('speech', null)
+        );
       }
       begin(false);
     }

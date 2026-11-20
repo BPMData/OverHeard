@@ -1,6 +1,7 @@
 import type { DisplayMode, LanguageCode } from '../types';
 import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
 import { prepareOnDeviceTranslators } from '../onDevice';
+import { useOnline } from '../app/useOnline';
 
 interface TranslatorPickerProps {
   displayMode: DisplayMode;
@@ -22,6 +23,7 @@ export function TranslatorPicker({
   lastUsedProvider, availableProviders, effectiveMtPreference, setMtPreference, reportPack,
   onDeviceFailing = false,
 }: TranslatorPickerProps) {
+  const online = useOnline();
   return (
     <label
       className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
@@ -59,8 +61,9 @@ export function TranslatorPicker({
           {onDeviceSupported ? ' (speech too)' : ' (needs desktop Chrome 138+)'}
         </option>
         {availableProviders.map((p) => (
-          <option key={p} value={p}>
+          <option key={p} value={p} disabled={!online}>
             {MT_PROVIDER_LABELS[p]}
+            {online ? '' : ' (needs internet)'}
           </option>
         ))}
       </select>

@@ -7,6 +7,10 @@ import { ConversationMode } from './ConversationMode';
 class Recognition {
   static available = vi.fn(async () => 'downloadable');
   static install = vi.fn(async () => true);
+  static instances: Recognition[] = [];
+  constructor() {
+    Recognition.instances.push(this);
+  }
   lang = '';
   continuous = false;
   interimResults = false;
@@ -26,6 +30,7 @@ beforeEach(() => {
   localStorage.clear();
   Recognition.available.mockClear();
   Recognition.install.mockClear();
+  Recognition.instances = [];
   translator.availability.mockClear();
   vi.stubGlobal('SpeechRecognition', Recognition);
   vi.stubGlobal('Translator', translator);
@@ -33,6 +38,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function mount(mtPreference: string, onPackProgress = vi.fn()) {
@@ -73,7 +79,7 @@ describe('conversation with On this device', () => {
     expect(screen.getByTestId('packs')).toBeTruthy();
   });
 
-  it('Auto fetches only the translation packs and leaves speech on the online service', async () => {
+  it('Auto also fetches speech packs for offline use but keeps speech online while connected', async () => {
     // French, not the default Spanish: the previous test left Spanish translators cached
     localStorage.setItem(
       'overheard.conversation',
@@ -89,7 +95,24 @@ describe('conversation with On this device', () => {
       sourceLanguage: 'fr',
       targetLanguage: 'en',
     });
-    expect(Recognition.install).not.toHaveBeenCalled();
+    // Packs are fetched during the click so speech can move to the device if the network drops
+    await vi.waitFor(() =>
+      expect(Recognition.install).toHaveBeenCalledWith({ langs: ['fr-FR'], processLocally: true }),
+    );
+    expect(Recognition.install).toHaveBeenCalledWith({ langs: ['en-US'], processLocally: true });
+  });
+
+  it('Auto runs speech on this device while offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    mount('auto');
+    await vi.waitFor(() => expect(Recognition.instances.at(-1)?.start).toHaveBeenCalled());
+    expect(Recognition.instances.at(-1)?.processLocally).toBe(true);
+  });
+
+  it('Auto keeps speech on the online service while connected', async () => {
+    mount('auto');
+    await vi.waitFor(() => expect(Recognition.instances.at(-1)?.start).toHaveBeenCalled());
+    expect(Recognition.instances.at(-1)?.processLocally).toBe(false);
   });
 
   it('downloads nothing when an online translator is chosen', async () => {

@@ -60,7 +60,9 @@ export function PlaybackToolbar({
     <>
       {status === 'downloading' && (
         <span className="tts-status-badge" role="status">
-          Downloading voice{typeof downloadProgress === 'number' ? ` (${downloadProgress}%)` : ''}…
+          {typeof downloadProgress === 'number'
+            ? `Downloading voice (${downloadProgress}%)…`
+            : 'Loading voice…'}
         </span>
       )}
       {status !== 'downloading' && (

@@ -22,6 +22,7 @@ import {
   type SaveLectureToDriveResult,
 } from '../lib/googleDrive';
 import { DriveSaveModal } from './DriveSaveModal';
+import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 
 type ParsedLecture = Pick<LectureState, 'entries' | 'selectedLangs'>;
 
@@ -43,6 +44,7 @@ export const OpenFromDriveButton: React.FC<OpenFromDriveButtonProps> = ({
   label = 'Open from Drive',
 }) => {
   const [busy, setBusy] = useState(false);
+  const online = useOnline();
   if (!isGoogleDriveConfigured()) return null;
 
   const handleClick = async () => {
@@ -75,9 +77,9 @@ export const OpenFromDriveButton: React.FC<OpenFromDriveButtonProps> = ({
     <button
       type="button"
       onClick={() => void handleClick()}
-      disabled={busy}
+      disabled={busy || !online}
       className={className}
-      title="Open a saved OverHeard lecture JSON file from Google Drive"
+      title={online ? 'Open a saved OverHeard lecture JSON file from Google Drive' : OFFLINE_TITLE}
     >
       <CloudDownload className={iconClassName ?? 'w-3.5 h-3.5'} />
       <span>{busy ? 'Opening...' : label}</span>
@@ -105,6 +107,7 @@ export const SaveLectureToDriveControl: React.FC<SaveLectureToDriveControlProps>
   const [modalOpen, setModalOpen] = useState(false);
   const [openingAuth, setOpeningAuth] = useState(false);
   const [busy, setBusy] = useState(false);
+  const online = useOnline();
   const [modalError, setModalError] = useState<string | null>(null);
   const [account, setAccount] = useState<DriveAccount | null>(null);
   const [folder, setFolder] = useState<DriveFolderRef>(() => getDefaultDriveFolderSelection(null));
@@ -207,9 +210,9 @@ export const SaveLectureToDriveControl: React.FC<SaveLectureToDriveControlProps>
       <button
         type="button"
         onClick={() => void handleOpenModal()}
-        disabled={openingAuth || state.entries.length === 0}
+        disabled={openingAuth || state.entries.length === 0 || !online}
         className={className}
-        title="Save this lecture JSON to Google Drive"
+        title={online ? 'Save this lecture JSON to Google Drive' : OFFLINE_TITLE}
       >
         <Cloud className="w-3.5 h-3.5" />
         <span>{openingAuth ? 'Connecting...' : label}</span>

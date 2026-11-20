@@ -2,9 +2,11 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { withMicAccess, type MicBlock } from '../micPermission';
 import {
   isOnDeviceTranslationSupported,
+  prepareOnDeviceSpeech,
   prepareOnDeviceTranslators,
   type PackProgress,
 } from '../onDevice';
+import { speechLocality } from '../offline';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import type { LectureEntry } from './lectureState';
 import {
@@ -116,8 +118,15 @@ export function useLectureMode({
     if (mtPreference === 'on-device' || (mtPreference === 'auto' && isOnDeviceTranslationSupported())) {
       prepareOnDeviceTranslators(selectedLangs, onPackProgress);
     }
+    if (mtPreference === 'auto') {
+      // Speech stays on Google's free service while online. Fetch the on-device pack during
+      // this click (installs need one) so speech can switch over if the network drops.
+      void prepareOnDeviceSpeech('en-US', () => onPackProgress?.('speech', -1)).then(() =>
+        onPackProgress?.('speech', null)
+      );
+    }
     withMicAccess(
-      () => speech.start(mtPreference === 'on-device'),
+      () => speech.start(speechLocality(mtPreference)),
       (reason) => onPermissionDenied(reason),
     );
   }, [mtPreference, selectedLangs, onPackProgress, onStartAttempt, onPermissionDenied, speech]);
