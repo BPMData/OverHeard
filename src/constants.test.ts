@@ -19,4 +19,9 @@ describe('supported languages', () => {
     expect(SPEECH_LOCALES.hi).toBe('hi-IN');
     expect(SPEECH_LOCALES.bn).toBe('bn-BD');
   });
+
+  it('includes Urdu as right-to-left and the other new languages as left-to-right', () => {
+    expect(LANGUAGE_MAP.ur.dir).toBe('rtl');
+    for (const code of ['id', 'ja', 'sw', 'tr'] as const) expect(LANGUAGE_MAP[code].dir).toBe('ltr');
+  });
 });

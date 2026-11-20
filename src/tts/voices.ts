@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn';
+export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr';
 
 export interface PiperVoiceOption {
   id: string;
@@ -245,6 +245,66 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     speakerId: 0,
     useRhasspyRepo: true,
   },
+
+  // Urdu (Pakistan)
+  {
+    id: 'ur_PK-aegis_female-medium',
+    lang: 'ur',
+    label: 'Aegis (Female · PK)',
+    shortName: 'Aegis',
+    gender: 'female',
+    modelId: 'ur_PK-aegis_female-medium',
+    hfPath: 'ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'ur_PK-fasih-medium',
+    lang: 'ur',
+    label: 'Fasih (Male · PK)',
+    shortName: 'Fasih',
+    gender: 'male',
+    modelId: 'ur_PK-fasih-medium',
+    hfPath: 'ur/ur_PK/fasih/medium/ur_PK-fasih-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Indonesian
+  {
+    id: 'id_ID-news_tts-medium',
+    lang: 'id',
+    label: 'News (ID)',
+    shortName: 'News',
+    modelId: 'id_ID-news_tts-medium',
+    hfPath: 'id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Swahili
+  {
+    id: 'sw_CD-lanfrica-medium',
+    lang: 'sw',
+    label: 'Lanfrica (CD)',
+    shortName: 'Lanfrica',
+    modelId: 'sw_CD-lanfrica-medium',
+    hfPath: 'sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Turkish
+  {
+    id: 'tr_TR-dfki-medium',
+    lang: 'tr',
+    label: 'DFKI (TR)',
+    shortName: 'DFKI',
+    modelId: 'tr_TR-dfki-medium',
+    hfPath: 'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
 ];
 
 export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
@@ -254,6 +314,10 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   vi: 'vi_VN-vais1000-medium',
   hi: 'hi_IN-rohan-medium',
   bn: 'bn_BD-google-medium:0',
+  ur: 'ur_PK-aegis_female-medium',
+  id: 'id_ID-news_tts-medium',
+  sw: 'sw_CD-lanfrica-medium',
+  tr: 'tr_TR-dfki-medium',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -314,6 +378,30 @@ export function voicePreviewText(
       return {
         spoken: `হ্যালো, আমি ${shortName}। আমি কি আপনার জন্য বাংলা পড়ব?`,
         englishHint: `Hi, I'm ${shortName}. Shall I read Bengali for you?`,
+      };
+    }
+    case 'ur': {
+      return {
+        spoken: `السلام علیکم، میں ${shortName} ہوں۔ کیا میں آپ کے لیے اردو پڑھوں؟`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Urdu for you?`,
+      };
+    }
+    case 'id': {
+      return {
+        spoken: `Halo, saya ${shortName}. Boleh saya bacakan bahasa Indonesia untuk Anda?`,
+        englishHint: `Hi, I'm ${shortName}. May I read Indonesian for you?`,
+      };
+    }
+    case 'sw': {
+      return {
+        spoken: `Habari, mimi ni ${shortName}. Nikusomee Kiswahili?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Swahili for you?`,
+      };
+    }
+    case 'tr': {
+      return {
+        spoken: `Merhaba, ben ${shortName}. Sizin için Türkçe okuyayım mı?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Turkish for you?`,
       };
     }
   }

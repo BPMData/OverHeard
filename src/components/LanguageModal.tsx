@@ -67,7 +67,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
 
         <div className="p-6 space-y-5">
           <p className="text-sm text-slate-600 dark:text-[#94A3B8]">
-            Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto) render automatically in RTL layout.
+            Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">

@@ -85,14 +85,23 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
 
 ### More international languages and reader voices
 
-The first twelve languages came from the languages most spoken at home in the U.S.; Hindi and
-Bengali are the first international additions. Candidates for the next round are other widely
-spoken languages Chrome's on-device Translator and Google MT both cover (for example Urdu,
-Indonesian, Japanese, Swahili, Turkish). Piper reader voices exist for English, Spanish,
-Portuguese, Vietnamese, Hindi and Bengali. The rhasspy/piper-voices catalog also has models for
-Arabic (`ar_JO`), Simplified Chinese (`zh_CN`), French, Ukrainian, Russian and Persian (`fa_IR`,
-a possible Dari voice); add them to `src/tts/voices.ts` after listening to each one.
+The first twelve languages came from the languages most spoken at home in the U.S. The
+international additions so far are Hindi, Bengali, Urdu, Indonesian, Japanese, Swahili and
+Turkish. Piper reader voices exist for English, Spanish, Portuguese, Vietnamese, Hindi, Bengali,
+Urdu, Indonesian, Swahili and Turkish.
 
+- [ ] **Pick voices for Arabic, Chinese, French, Ukrainian, Russian and Dari.** The
+      rhasspy/piper-voices catalog has `ar_JO` (1 voice), `zh_CN` (huayan, xiao_ya; chaowen
+      uses the pinyin phonemizer, which the bundled phonemizer lacks), `fr_FR` (7 models),
+      `uk_UA` (5), `ru_RU` (4) and `fa_IR` (6, a possible stand-in for Dari). Listen at
+      rhasspy.github.io/piper-samples and add the keepers to `src/tts/voices.ts`.
+- [ ] **Bengali has 16 speakers in one model.** Only speaker 0 is offered; listen to the rest.
+- [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
+      phonemizer, not eSpeak, so Japanese uses the browser voice.
+- [ ] **Japanese kanji use Chinese glyph shapes.** Captions don't set `lang`, so Noto Sans SC
+      draws shared Han characters before Noto Sans JP. Set `lang` on caption text to fix it.
+
+### Small cleanups
 
 - `getOnDeviceTranslator`, `prepareOnDeviceTranslators` and `translateGoogleCloud` / `translateGtx`
   take an argument that can be a language code *or* a helper function. It works but is
@@ -292,7 +301,7 @@ scrollable, so anyone can scroll back up to reread earlier messages at any time.
   - While translating: the original shown large, with a pulsing "Translating…" label. When
     the translation arrives it replaces the large text.
   - On failure: the original large, plus a small amber "translation unavailable" note.
-- Right-to-left languages (`ar`, `prs`, `ps`) must render their text with `dir="rtl"`, using
+- Right-to-left languages (`ar`, `prs`, `ps`, `ur`) must render their text with `dir="rtl"`, using
   `LANGUAGE_MAP[code].dir`.
 - **Nothing is ever removed automatically.** Keep every message for the whole session, and
   keep the thread scrollable all the way back to the first message.
@@ -357,6 +366,11 @@ back to the bare code when a language isn't in it:
 | `ps` | `ps-AF` | **Unverified** |
 | `hi` | `hi-IN` | |
 | `bn` | `bn-BD` | Bangladesh; `bn-IN` is the alternative |
+| `ur` | `ur-PK` | `ur-IN` is the alternative |
+| `id` | `id-ID` | |
+| `ja` | `ja-JP` | |
+| `sw` | `sw-KE` | Kenya; `sw-TZ` is the alternative |
+| `tr` | `tr-TR` | |
 
 The unverified ones rely on the `language-not-supported` handling in 1.2, which sends the
 user to the text box. Do not hide them from the picker.

@@ -1,7 +1,7 @@
 import type { LectureEntry } from '../conversation/lectureState.ts';
 import type { LanguageCode } from '../types.ts';
 
-export const ROOM_LANGUAGES = ['es', 'pt', 'ar', 'zh', 'vi', 'ht', 'fr', 'uk', 'ru', 'so', 'prs', 'ps', 'hi', 'bn'] as const;
+export const ROOM_LANGUAGES = ['es', 'pt', 'ar', 'zh', 'vi', 'ht', 'fr', 'uk', 'ru', 'so', 'prs', 'ps', 'hi', 'bn', 'ur', 'id', 'ja', 'sw', 'tr'] as const;
 export const MAX_ROOM_ENTRIES = 2000;
 export const MAX_ROOM_FILE_BYTES = 8 * 1024 * 1024;
 export const normalizeRoomCode = (value: string) => value.trim().toLowerCase();

@@ -12,7 +12,12 @@ export type LanguageCode =
   | 'prs'
   | 'ps'
   | 'hi'
-  | 'bn';
+  | 'bn'
+  | 'ur'
+  | 'id'
+  | 'ja'
+  | 'sw'
+  | 'tr';
 
 export type ConversationLanguage = LanguageCode | 'en';
 

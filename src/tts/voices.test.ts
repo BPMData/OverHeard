@@ -51,7 +51,15 @@ describe('Piper voice catalog and preferences', () => {
       'hi_IN-pratham-medium',
     ]);
     expect(voicesForLanguage('bn').map((v) => v.id)).toEqual(['bn_BD-google-medium:0']);
-    expect(PIPER_VOICES).toHaveLength(21);
+    expect(voicesForLanguage('ur').map((v) => v.id)).toEqual([
+      'ur_PK-aegis_female-medium',
+      'ur_PK-fasih-medium',
+    ]);
+    expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['id_ID-news_tts-medium']);
+    expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
+    expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
+    expect(voicesForLanguage('ja')).toEqual([]);
+    expect(PIPER_VOICES).toHaveLength(26);
     expect(voicesForLanguage('fr')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -74,7 +82,9 @@ describe('Piper voice catalog and preferences', () => {
       speakerId: 0,
       useRhasspyRepo: true,
     });
-    for (const voice of PIPER_VOICES.filter((v) => ['vi', 'hi', 'bn'].includes(v.lang))) {
+    for (const voice of PIPER_VOICES.filter((v) =>
+      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr'].includes(v.lang)
+    )) {
       // These models are newer than the default mirror, so they load from rhasspy.
       expect(voice.useRhasspyRepo).toBe(true);
       expect(voice.hfPath).toBe(
@@ -95,6 +105,8 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('hi')).toBe('hi_IN-rohan-medium');
     expect(resolveVoiceId('bn')).toBe('bn_BD-google-medium:0');
     expect(resolveVoiceId('vi')).toBe('vi_VN-vais1000-medium');
+    expect(resolveVoiceId('ur')).toBe('ur_PK-aegis_female-medium');
+    expect(resolveVoiceId('ja')).toBe(BROWSER_VOICE_ID);
     expect(resolveVoiceId('fr')).toBe(BROWSER_VOICE_ID);
 
     expect(resolveVoiceId('es', { es: 'es_MX-ald-medium' })).toBe('es_MX-ald-medium');
@@ -152,5 +164,9 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicePreviewText('hi', 'hi_IN-rohan-medium').spoken).toContain('मैं Rohan हूँ');
     expect(voicePreviewText('bn', 'bn_BD-google-medium:0').englishHint).toContain('Bengali');
     expect(voicePreviewText('vi', 'vi_VN-vais1000-medium').spoken).toContain('tiếng Việt');
+    expect(voicePreviewText('ur', 'ur_PK-fasih-medium').spoken).toContain('میں Fasih ہوں');
+    expect(voicePreviewText('id', 'id_ID-news_tts-medium').spoken).toContain('bahasa Indonesia');
+    expect(voicePreviewText('sw', 'sw_CD-lanfrica-medium').spoken).toContain('Kiswahili');
+    expect(voicePreviewText('tr', 'tr_TR-dfki-medium').spoken).toContain('Türkçe');
   });
 });
