@@ -63,6 +63,30 @@ const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
     selectAriaLabel: 'Default Bengali voice',
     previewAriaLabel: 'Preview Bengali voice',
   },
+  {
+    code: 'ur',
+    title: 'Urdu · اردو',
+    selectAriaLabel: 'Default Urdu voice',
+    previewAriaLabel: 'Preview Urdu voice',
+  },
+  {
+    code: 'id',
+    title: 'Indonesian · Bahasa Indonesia',
+    selectAriaLabel: 'Default Indonesian voice',
+    previewAriaLabel: 'Preview Indonesian voice',
+  },
+  {
+    code: 'sw',
+    title: 'Swahili · Kiswahili',
+    selectAriaLabel: 'Default Swahili voice',
+    previewAriaLabel: 'Preview Swahili voice',
+  },
+  {
+    code: 'tr',
+    title: 'Turkish · Türkçe',
+    selectAriaLabel: 'Default Turkish voice',
+    previewAriaLabel: 'Preview Turkish voice',
+  },
 ];
 
 interface PreviewState {
@@ -225,7 +249,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 <h3>Reader Voices</h3>
               </div>
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
-                Choose your default reader voice for English, Spanish, Portuguese, Vietnamese, Hindi, and Bengali. Your choices
+                Choose your default reader voice for each language that has one. Your choices
                 save automatically on this device and Piper neural voice models download on demand.
               </p>
             </div>

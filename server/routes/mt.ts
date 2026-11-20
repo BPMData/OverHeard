@@ -28,6 +28,11 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   ps: 'Pashto',
   hi: 'Hindi',
   bn: 'Bengali',
+  ur: 'Urdu',
+  id: 'Indonesian',
+  ja: 'Japanese',
+  sw: 'Swahili',
+  tr: 'Turkish',
 };
 
 const RATE_LIMIT_WINDOW_MS = 60_000;

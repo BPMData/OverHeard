@@ -269,6 +269,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             <div
               key={line}
               dir={cfg.dir}
+              lang={line}
               className={`flex-1 min-h-0 min-w-0 flex items-end gap-2.5 overflow-hidden ${columnDivider}`}
             >
               {/* Language tag only when several translations share the window */}

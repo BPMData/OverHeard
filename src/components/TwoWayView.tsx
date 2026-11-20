@@ -276,7 +276,11 @@ export function TwoWayView({
             </button>
           </span>
         </div>
-        <div style={{ fontSize }} dir={direction(done ? message.reader.lang : message.sender.lang)}>
+        <div
+          style={{ fontSize }}
+          dir={direction(done ? message.reader.lang : message.sender.lang)}
+          lang={done ? message.reader.lang : message.sender.lang}
+        >
           <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
             {done ? message.translated || message.original : message.original}
           </span>
@@ -292,6 +296,7 @@ export function TwoWayView({
             className="conversation-original"
             style={{ fontSize: fontSize * 0.6 }}
             dir={direction(message.sender.lang)}
+            lang={message.sender.lang}
           >
             {message.original}
           </div>
@@ -338,6 +343,7 @@ export function TwoWayView({
             <small>{settings[speech.turn].name} · speaking…</small>
             <div
               dir={direction(settings[speech.turn].lang)}
+              lang={settings[speech.turn].lang}
               style={{
                 fontSize,
                 ...captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark),

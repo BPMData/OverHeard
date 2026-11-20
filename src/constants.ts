@@ -1,7 +1,7 @@
 import { LanguageCode, LanguageConfig } from './types';
 
-// The first twelve came from the languages most spoken at home in the U.S. Hindi and Bengali
-// start the move to widely spoken international languages.
+// The first twelve came from the languages most spoken at home in the U.S. The rest are widely
+// spoken international languages, starting with Hindi and Bengali.
 export const SUPPORTED_LANGUAGES: LanguageConfig[] = [
   { code: 'es', name: 'Spanish', nativeName: 'Español', dir: 'ltr' },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português', dir: 'ltr' },
@@ -17,6 +17,11 @@ export const SUPPORTED_LANGUAGES: LanguageConfig[] = [
   { code: 'ps', name: 'Pashto', nativeName: 'پښتو', dir: 'rtl' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', dir: 'ltr' },
   { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', dir: 'ltr' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', dir: 'rtl' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', dir: 'ltr' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', dir: 'ltr' },
+  { code: 'sw', name: 'Swahili', nativeName: 'Kiswahili', dir: 'ltr' },
+  { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', dir: 'ltr' },
 ];
 
 export const LANGUAGE_MAP: Record<LanguageCode, LanguageConfig> = SUPPORTED_LANGUAGES.reduce(

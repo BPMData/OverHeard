@@ -88,6 +88,13 @@ it('fills the English and selected language columns from a final speech result',
   expect(mt).toHaveBeenCalledTimes(2);
 });
 
+it('marks translated captions with their language so Japanese gets Japanese glyphs', async () => {
+  window.history.replaceState({}, '', '/?langs=ja');
+  await listen();
+  await say(true);
+  expect(column('Japanese Translation').getByText('ja: ' + phrase).closest('[lang]')?.getAttribute('lang')).toBe('ja');
+});
+
 it('sends live text as free-only and a finished line as an ordinary request', async () => {
   await listen();
   await say(false);

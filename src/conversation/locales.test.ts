@@ -18,6 +18,11 @@ describe('speech locales', () => {
       ps: 'ps-AF',
   hi: 'hi-IN',
   bn: 'bn-BD',
+  ur: 'ur-PK',
+  id: 'id-ID',
+  ja: 'ja-JP',
+  sw: 'sw-KE',
+  tr: 'tr-TR',
     });
     for (const [code, locale] of Object.entries(SPEECH_LOCALES))
       expect(speechLocale(code)).toBe(locale);

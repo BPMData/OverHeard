@@ -15,5 +15,10 @@ export const SPEECH_LOCALES: Record<string, string> = {
   ps: 'ps-AF',
   hi: 'hi-IN',
   bn: 'bn-BD',
+  ur: 'ur-PK',
+  id: 'id-ID',
+  ja: 'ja-JP',
+  sw: 'sw-KE',
+  tr: 'tr-TR',
 };
 export const speechLocale = (code: string): string => SPEECH_LOCALES[code] ?? code;

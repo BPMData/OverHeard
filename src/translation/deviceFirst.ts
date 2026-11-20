@@ -22,6 +22,11 @@ const samples: Record<ConversationLanguage, string[]> = {
   ps: ['سلام.', 'کتاب خلاص کړئ.', 'مننه.'],
   hi: ['नमस्ते।', 'किताब खोलो।', 'धन्यवाद।'],
   bn: ['হ্যালো।', 'বইটি খোলো।', 'ধন্যবাদ।'],
+  ur: ['سلام۔', 'کتاب کھولیں۔', 'شکریہ۔'],
+  id: ['Halo.', 'Buka bukunya.', 'Terima kasih.'],
+  ja: ['こんにちは。', '本を開いてください。', 'ありがとう。'],
+  sw: ['Habari.', 'Fungua kitabu.', 'Asante.'],
+  tr: ['Merhaba.', 'Kitabı aç.', 'Teşekkürler.'],
 };
 
 interface Pair {

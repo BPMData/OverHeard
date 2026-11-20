@@ -82,6 +82,7 @@ export function SubtitleBar({
                 </span>
                 <span
                   dir={LANGUAGE_MAP[activeSubtitleLang].dir}
+                  lang={activeSubtitleLang}
                   className="text-[#5843A5] dark:text-[#C4B5FD]"
                 >
                   → {seg.translations[activeSubtitleLang] || '…'}
@@ -160,6 +161,7 @@ export function SubtitleBar({
           {/* Bottom Row: Chosen Target Language Translation */}
           <div
             dir={LANGUAGE_MAP[activeSubtitleLang].dir}
+            lang={activeSubtitleLang}
             className="border-t border-[#E2E8F0] dark:border-[#1E293B] pt-2"
           >
             {interimTranscript.trim().length > 0 &&

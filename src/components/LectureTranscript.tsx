@@ -142,7 +142,7 @@ export function LectureTranscript({
                 <div className="lecture-col-title">
                   <CaptionSwatch color={color} />
                   <span>{lang.name}</span>
-                  <span dir={lang.dir} className="lecture-col-sub">
+                  <span dir={lang.dir} lang={lang.code} className="lecture-col-sub">
                     {lang.nativeName}
                     {lang.dir === 'rtl' ? ' · RTL' : ''}
                   </span>
@@ -190,6 +190,7 @@ export function LectureTranscript({
                       key={`${entry.id}-${code}`}
                       className={`lecture-cell ${isCellActive ? 'lecture-cell-speaking' : ''}`}
                       dir={lang.dir}
+                      lang={code}
                     >
                       {translated ? (
                         <>
@@ -247,6 +248,7 @@ export function LectureTranscript({
                     key={`live-${code}`}
                     className="lecture-cell lecture-cell-live"
                     dir={lang.dir}
+                    lang={code}
                   >
                     {liveText ? (
                       <div
