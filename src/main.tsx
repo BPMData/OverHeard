@@ -11,5 +11,8 @@ createRoot(document.getElementById('root')!).render(room !== null
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+    // Ask the browser not to clear saved voices and the offline copy when space runs low.
+    // Chrome grants this quietly (no prompt) for installed or often-used sites.
+    void navigator.storage?.persist?.().catch(() => false);
   });
 }

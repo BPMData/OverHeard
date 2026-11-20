@@ -11,6 +11,7 @@ import {
 } from './roomHistory';
 import type { LectureState } from './protocol';
 import { displayRoomUrl, loadShortLinkBase, studentRoomUrl } from './roomLink';
+import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 
 const STATUS_RANK: Record<RoomLiveStatus, number> = {
   live: 0,
@@ -47,6 +48,7 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
   onRoomCodeChange?: (code: string | null) => void;
 }) {
   const { room, status, busy, unavailable, canRetry, create, rejoin, end, retryLast, clearRetry } = useTeacherRoom(state, onRestore);
+  const online = useOnline();
   useEffect(() => {
     onRoomCodeChange?.(room?.code ?? null);
   }, [room?.code, onRoomCodeChange]);
@@ -220,8 +222,8 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
           {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
         </button>
       </span>
-      <button type="submit" className="conversation-start" disabled={busy}>{busy ? 'Connecting…' : 'Create room'}</button>
-      <button type="button" disabled={busy} onClick={() => { setCopied(false); void rejoin(code, pin); }}>Rejoin room</button>
+      <button type="submit" className="conversation-start" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE}>{busy ? 'Connecting…' : 'Create room'}</button>
+      <button type="button" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE} onClick={() => { setCopied(false); void rejoin(code, pin); }}>Rejoin room</button>
       <div className="room-history-wrap" ref={historyRef}>
         <button
           type="button"
@@ -323,7 +325,9 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
         )}
       </span>
     )}
-    {!room && <small>{guideSetup
+    {!room && <small>{!online
+      ? 'You’re offline. Rooms need an internet connection; you can still start the lecture on this device.'
+      : guideSetup
       ? 'Create or rejoin a room, then click Start lecture. You can share the join code before you start.'
       : 'Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.'}</small>}
   </div>;

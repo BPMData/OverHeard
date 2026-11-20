@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MicBlock } from '../micPermission';
 import { prepareOnDeviceSpeech } from '../onDevice';
+import { wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { createFinalDeduper } from '../speechDedupe';
 import { isFailedSession, restartDelay } from '../speechRestart';
@@ -53,7 +54,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
   const session = useRef({
     active: false,
     suspended: false,
-    local: false,
+    local: false as SpeechLocality,
     generation: 0,
     failures: 0,
     startedAt: 0,
@@ -122,7 +123,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
       return;
     }
 
-    const local = current.local ? await prepareOnDeviceSpeech('en-US') : false;
+    const local = wantsLocalSpeech(current.local) ? await prepareOnDeviceSpeech('en-US') : false;
     if (token !== current.generation || !current.active || current.suspended) return;
     setLocal(local);
 
@@ -223,7 +224,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     }
   }
 
-  function start(local = false) {
+  function start(local: SpeechLocality = false) {
     stop();
     session.current.active = true;
     session.current.local = local;
@@ -241,7 +242,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
   latest.current = { start, stop, suspend, resume };
   const controls = useMemo(
     () => ({
-      start: (local = false) => latest.current.start(local),
+      start: (local: SpeechLocality = false) => latest.current.start(local),
       stop: () => latest.current.stop(),
       suspend: () => latest.current.suspend(),
       resume: () => latest.current.resume(),

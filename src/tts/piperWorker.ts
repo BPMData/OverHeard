@@ -1,4 +1,4 @@
-import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, type Progress } from '@mintplex-labs/piper-tts-web';
+import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, stored, type Progress } from '@mintplex-labs/piper-tts-web';
 import { PIPER_VOICES } from './voices';
 
 const PIPER_WASM_PATHS = {
@@ -23,6 +23,8 @@ for (const voice of PIPER_VOICES) {
 
 type IncomingMessage =
   | { type: 'preload'; modelId: string }
+  | { type: 'save'; requestId: number; modelId: string }
+  | { type: 'listStored'; requestId: number }
   | { type: 'cancelJob'; jobId: number }
   | { type: 'synthesize'; jobId: number; modelId: string; speakerId: number; text: string };
 
@@ -39,6 +41,9 @@ const sessionCache = new Map<string, TtsSession>();
 // the phonemizer and runs the slowest inference, so a preload does it ahead of real speech.
 const warmedModels = new Set<string>();
 const cancelledJobs = new Set<number>();
+// Failed loads of a voice that was already saved on this device. A saved voice is only deleted
+// after it fails twice: one failure is usually the environment (offline, low memory), not the file.
+const savedLoadFailures = new Map<string, number>();
 let ortPatched = false;
 let activeSpeakerId = 0;
 let queue: Promise<void> = Promise.resolve();
@@ -97,7 +102,15 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
   }
 
   (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
-  workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress: 0 });
+  // A voice saved on this device only loads from storage, so report no download percentage
+  // (the UI then says "Loading voice" instead of "Downloading voice").
+  const alreadySaved = await stored().then((ids) => ids.includes(modelId), () => false);
+  workerScope.postMessage({
+    type: 'status',
+    modelId,
+    status: 'downloading',
+    progress: alreadySaved ? undefined : 0,
+  });
 
   let loading = true;
   let lastReported = 0;
@@ -123,6 +136,7 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
       },
     });
     loading = false;
+    savedLoadFailures.delete(modelId);
     sessionCache.set(modelId, session);
     workerScope.postMessage({ type: 'status', modelId, status: 'ready', progress: 100 });
     return session;
@@ -130,7 +144,15 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
     loading = false;
     (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
     sessionCache.delete(modelId);
-    await remove(modelId).catch(() => undefined);
+    // A fresh download that fails to load is likely truncated, so drop it. A voice that was
+    // already saved is kept unless it fails again, so a brief offline error doesn't erase it.
+    const failures = alreadySaved ? (savedLoadFailures.get(modelId) ?? 0) + 1 : 0;
+    if (alreadySaved && failures < 2) {
+      savedLoadFailures.set(modelId, failures);
+    } else {
+      savedLoadFailures.delete(modelId);
+      await remove(modelId).catch(() => undefined);
+    }
     const message = error instanceof Error ? error.message : 'Failed to load Piper voice';
     workerScope.postMessage({ type: 'status', modelId, status: 'error', error: message });
     throw error;
@@ -147,6 +169,33 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
       const oldest = cancelledJobs.values().next().value;
       if (typeof oldest === 'number') cancelledJobs.delete(oldest);
     }
+    return;
+  }
+
+  if (data.type === 'listStored') {
+    void stored().then(
+      (modelIds) => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds }),
+      () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] }),
+    );
+    return;
+  }
+
+  if (data.type === 'save') {
+    // Save for offline: load the voice (downloading it if needed) and speak once, which also
+    // fetches the shared runtimes (/ort/, /piper/) so the service worker keeps them.
+    runSerialized(async () => {
+      try {
+        const session = await ensureSession(data.modelId);
+        if (!warmedModels.has(data.modelId)) {
+          warmedModels.add(data.modelId);
+          await session.predict('Hello.');
+        }
+        workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not save voice';
+        workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: false, error: message });
+      }
+    });
     return;
   }
 

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Settings, ShieldCheck, Square, Volume2, X } from 'lucide-react';
+import { CheckCircle2, CloudDownload, Settings, ShieldCheck, Square, Volume2, X } from 'lucide-react';
 import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/piperClient';
 import { VoiceSelect } from '../tts/VoiceSelect';
+import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 import {
   BROWSER_VOICE_ID,
+  findPiperVoice,
   resolveVoiceId,
   useVoicePreferences,
   voicePreviewText,
@@ -108,6 +110,24 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   const [previewError, setPreviewError] = useState('');
   const handleRef = useRef<PlaybackHandle | null>(null);
   const genRef = useRef(0);
+  const online = useOnline();
+  // Piper model ids already saved on this device (null until checked)
+  const [savedModels, setSavedModels] = useState<ReadonlySet<string> | null>(null);
+  // The voice being saved for offline use right now (one at a time)
+  const [savingVoice, setSavingVoice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ lang: PiperLanguage; message: string } | null>(null);
+
+  const refreshSaved = useCallback(() => {
+    if (!client.listSavedModels) return Promise.resolve();
+    return client.listSavedModels().then(
+      (ids) => setSavedModels(new Set(ids)),
+      () => setSavedModels(new Set()),
+    );
+  }, [client]);
+
+  useEffect(() => {
+    if (isOpen) void refreshSaved();
+  }, [isOpen, refreshSaved]);
 
   const stopPreview = useCallback(() => {
     genRef.current += 1;
@@ -184,6 +204,27 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     [client, stopPreview],
   );
 
+  const isSaved = (voiceId: string) => {
+    const voice = findPiperVoice(voiceId);
+    return Boolean(voice && savedModels?.has(voice.modelId));
+  };
+
+  // Save one language's voice for offline use. Only a click starts this, and only for the voice
+  // asked for, so nobody downloads every language's voice (or, on a student page, the ~40 MB
+  // voice runtime) without choosing to. The first save also stores that shared runtime.
+  const saveForOffline = async (lang: PiperLanguage, voiceId: string) => {
+    if (!client.saveForOffline || savingVoice) return;
+    setSaveError(null);
+    setSavingVoice(voiceId);
+    try {
+      await client.saveForOffline(voiceId);
+    } catch {
+      setSaveError({ lang, message: 'Could not save this voice. Check the connection and try again.' });
+    }
+    setSavingVoice(null);
+    await refreshSaved();
+  };
+
   if (!isOpen) return null;
 
   const darkMode =
@@ -251,6 +292,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
                 Choose your default reader voice for each language that has one. Your choices
                 save automatically on this device and Piper neural voice models download on demand.
+                To use read-aloud offline, click Save offline on a voice while you're online.
               </p>
             </div>
 
@@ -264,6 +306,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               {VOICE_SETTINGS_LANGUAGES.map(
                 ({ code, title, selectAriaLabel, previewAriaLabel }) => {
                   const selectedVoiceId = resolveVoiceId(code, voicePrefs);
+                  const canSave =
+                    Boolean(client.saveForOffline) &&
+                    savedModels !== null &&
+                    findPiperVoice(selectedVoiceId) !== undefined &&
+                    !isSaved(selectedVoiceId);
+                  const isSavingThis = savingVoice === selectedVoiceId;
                   const preview = voicePreviewText(code, selectedVoiceId);
                   const isThisLangActive = previewState?.lang === code;
 
@@ -277,7 +325,18 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <span className="font-semibold text-sm">{title}</span>
+                        <span className="inline-flex items-center gap-2 font-semibold text-sm">
+                          {title}
+                          {selectedVoiceId !== BROWSER_VOICE_ID && isSaved(selectedVoiceId) && (
+                            <span
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500"
+                              title="This voice is saved on this device and works offline"
+                            >
+                              <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                              Saved
+                            </span>
+                          )}
+                        </span>
                         <div className="flex flex-wrap items-center gap-2">
                           <VoiceSelect
                             lang={code}
@@ -293,6 +352,23 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                               playPreview(code, nextVoice);
                             }}
                           />
+                          {canSave && (
+                            <button
+                              type="button"
+                              aria-label={`Save ${title.split(' · ')[0]} voice for offline`}
+                              onClick={() => void saveForOffline(code, selectedVoiceId)}
+                              disabled={savingVoice !== null || !online}
+                              title={online ? 'Download this voice now so read-aloud works offline' : OFFLINE_TITLE}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-60 ${
+                                darkMode
+                                  ? 'border-[#1E293B] hover:bg-slate-800 text-[#F8FAFC]'
+                                  : 'border-slate-300 hover:bg-slate-100 text-slate-900'
+                              }`}
+                            >
+                              <CloudDownload className="w-3.5 h-3.5" />
+                              <span>{isSavingThis ? 'Saving…' : 'Save offline'}</span>
+                            </button>
+                          )}
                           {isThisLangActive ? (
                             <button
                               type="button"
@@ -316,13 +392,17 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                         </div>
                       </div>
 
+                      {saveError?.lang === code && (
+                        <p role="alert" className="text-xs font-medium text-amber-500">
+                          {saveError.message}
+                        </p>
+                      )}
+
                       {isThisLangActive && previewState?.status === 'downloading' && (
                         <p role="status" className="text-xs font-medium text-[#A78BFA]">
-                          Downloading voice
                           {typeof previewState.progress === 'number'
-                            ? ` (${previewState.progress}%)`
-                            : ''}
-                          …
+                            ? `Downloading voice (${previewState.progress}%)…`
+                            : 'Loading voice…'}
                         </p>
                       )}
 

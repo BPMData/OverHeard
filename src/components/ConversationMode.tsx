@@ -17,6 +17,8 @@ import {
   prepareOnDeviceConversation,
   type PackProgress,
 } from '../onDevice';
+import { speechLocality } from '../offline';
+import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 import {
   conversationJson,
   parseConversationJson,
@@ -116,6 +118,7 @@ export function ConversationMode({
   const [driveStatus, setDriveStatus] = useState<{ message: string; link?: string } | null>(null);
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [shareSetupOpen, setShareSetupOpen] = useState(false);
+  const online = useOnline();
   const roomControlsId = useId();
   const roomCodeRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -359,11 +362,12 @@ export function ConversationMode({
     if (mtPreference === 'on-device') {
       prepareOnDeviceConversation(langs, onPackProgress);
     } else if (mtPreference === 'auto' && isOnDeviceTranslationSupported()) {
-      // Auto translates on this device once packs are ready; speech stays on Google's service
-      prepareOnDeviceConversation(langs, onPackProgress, { speech: false });
+      // Auto translates on this device once packs are ready. Speech stays on Google's free
+      // service while online; its packs are fetched too so it can switch over when offline.
+      prepareOnDeviceConversation(langs, onPackProgress);
     }
     withMicAccess(
-      () => speech.start(mtPreference === 'on-device'),
+      () => speech.start(speechLocality(mtPreference)),
       (reason) => onPermissionDenied(reason),
     );
   };
@@ -395,7 +399,9 @@ export function ConversationMode({
     }
   };
   const startLecture = () => {
-    if (!showAllControls && !activeRoomCode) {
+    // Simple controls normally start from a room, but rooms need the server, so offline
+    // the lecture runs on this device only.
+    if (!showAllControls && !activeRoomCode && online) {
       if (shareSetupOpen) roomCodeRef.current?.focus();
       else setShareSetupOpen(true);
       return;
@@ -472,6 +478,8 @@ export function ConversationMode({
                 type="button"
                 aria-expanded={shareSetupOpen}
                 aria-controls={roomControlsId}
+                disabled={!online}
+                title={online ? undefined : OFFLINE_TITLE}
                 onClick={() => setShareSetupOpen(open => !open)}
               >
                 Share room code with students

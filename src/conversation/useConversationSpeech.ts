@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
 import { isFailedSession, restartDelay } from '../speechRestart';
 import { speechLocale } from './locales';
+import { wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { otherSide, type Side } from './state';
 
 interface ResultEvent {
@@ -57,7 +58,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     interim: '',
     generation: 0,
     failures: 0,
-    local: false,
+    local: false as SpeechLocality,
   });
   const recognizer = useRef<Recognizer | null>(null);
   const silence = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,7 +154,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     }
     const lang = opts.current.participants[current.side].lang;
     const locale = speechLocale(lang);
-    const local = current.local ? await prepareOnDeviceSpeech(locale) : false;
+    const local = wantsLocalSpeech(current.local) ? await prepareOnDeviceSpeech(locale) : false;
     if (token !== current.generation || !current.active || current.suspended) return;
     setLocal(local);
     const recognition = new Constructor();
@@ -245,7 +246,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     handoff(side);
   }
 
-  function start(local = false, side: Side = 'a') {
+  function start(local: SpeechLocality = false, side: Side = 'a') {
     stop();
     session.current.active = true;
     session.current.local = local;
@@ -282,7 +283,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   latestControls.current = { start, stop, setTurn, suspend, resume };
   const controls = useMemo(
     () => ({
-      start: (local = false, side: Side = 'a') => latestControls.current.start(local, side),
+      start: (local: SpeechLocality = false, side: Side = 'a') => latestControls.current.start(local, side),
       stop: () => latestControls.current.stop(),
       setTurn: (side: Side) => latestControls.current.setTurn(side),
       suspend: () => latestControls.current.suspend(),
