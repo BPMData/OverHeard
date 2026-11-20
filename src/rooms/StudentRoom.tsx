@@ -4,7 +4,7 @@ import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { SUPPORTED_LANGUAGES } from '../constants';
-import { prepareOnDeviceTranslators } from '../onDevice';
+import { getOnDeviceAvailability, prepareOnDeviceTranslators } from '../onDevice';
 import { piperClient } from '../tts/piperClient';
 import { TranslatedByBadge } from '../header/TranslatorPicker';
 import { useLecturePlayback } from '../tts/useSpeechPlayback';
@@ -48,6 +48,19 @@ export function StudentRoom({ code }: { code: string }) {
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [readAloud, setReadAloud] = useState(false);
+  // A direct room link can restore a language before Chrome has a download gesture.
+  const needsLocalPack = !!snapshot && language !== 'en' && (readAloud || !snapshot.selectedLangs.includes(language));
+  const [downloadOffer, setDownloadOffer] = useState<LanguageCode | null>(null);
+  useEffect(() => {
+    let active = true;
+    setDownloadOffer(null);
+    if (needsLocalPack) {
+      void getOnDeviceAvailability(language).then(status => {
+        if (active && status === 'downloadable') setDownloadOffer(language);
+      });
+    }
+    return () => { active = false; };
+  }, [language, needsLocalPack]);
   const translations = useStudentTranslations(snapshot, language);
   const studentTranslate = translations.translate;
   const translateLive = useCallback(
@@ -90,6 +103,14 @@ export function StudentRoom({ code }: { code: string }) {
           {SUPPORTED_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.name} · {lang.nativeName}</option>)}
         </select>
       </label>
+      {needsLocalPack && downloadOffer === language && (
+        <button type="button" onClick={() => {
+          setDownloadOffer(null);
+          prepareOnDeviceTranslators([language], (_code, progress) => {
+            if (progress === null) setDownloadOffer(language);
+          });
+        }}>Download language for this device</button>
+      )}
       <label>Voice
         <VoiceSelect
           lang={language}

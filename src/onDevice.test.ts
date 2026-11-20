@@ -156,7 +156,7 @@ describe('download progress', () => {
       status = 'available';
       await vi.advanceTimersByTimeAsync(2100);
       expect(onProgress).toHaveBeenLastCalledWith('es', 1);
-      await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+      await expect(m.getOnDeviceAvailability('es')).resolves.toBe('available');
     } finally {
       vi.useRealTimers();
     }
@@ -300,28 +300,44 @@ describe('sharing speech preparation', () => {
   });
 });
 
-describe('isOnDeviceUsable', () => {
+describe('getOnDeviceAvailability', () => {
   it('is true only once the language pack is installed', async () => {
     const availability = vi.fn(async () => 'available');
     g.Translator = { availability, create: vi.fn() };
     const m = await load();
-    await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('available');
     expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'en', targetLanguage: 'es' });
   });
 
-  it('is false while a pack still needs downloading, so Auto uses the online translators', async () => {
+  it('reports a pack that still needs a download gesture', async () => {
     g.Translator = { availability: async () => 'downloadable', create: vi.fn() };
     const m = await load();
-    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('downloadable');
   });
 
   it('remembers unsupported languages and stops asking the device', async () => {
     const availability = vi.fn(async () => 'unavailable');
     g.Translator = { availability, create: vi.fn() };
     const m = await load();
-    await expect(m.isOnDeviceUsable('ht')).resolves.toBe(false);
-    await expect(m.isOnDeviceUsable('ht')).resolves.toBe(false);
+    await expect(m.getOnDeviceAvailability('ht')).resolves.toBe('unavailable');
+    await expect(m.getOnDeviceAvailability('ht')).resolves.toBe('unavailable');
     expect(availability).toHaveBeenCalledTimes(1);
+  });
+
+  it('can use a previously unavailable pair after the browser enables it', async () => {
+    vi.useFakeTimers();
+    try {
+      const availability = vi.fn().mockResolvedValueOnce('unavailable').mockResolvedValue('available');
+      g.Translator = { availability, create: async () => ({ translate: async () => 'Hola' }) };
+      const m = await load();
+      await expect(m.getOnDeviceTranslator('es')).resolves.toBeNull();
+      await expect(m.getOnDeviceAvailability('es')).resolves.toBe('unavailable');
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(m.getOnDeviceAvailability('es')).resolves.toBe('available');
+      await expect(m.translateOnDevice('Hello', 'es')).resolves.toBe('Hola');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('is true without asking again once a translator has been created', async () => {
@@ -333,13 +349,13 @@ describe('isOnDeviceUsable', () => {
     const m = await load();
     await m.translateOnDevice('Hello', 'es');
     availability.mockClear();
-    await expect(m.isOnDeviceUsable('es')).resolves.toBe(true);
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('available');
     expect(availability).not.toHaveBeenCalled();
   });
 
   it('is false in browsers without the Translator API or when the check throws', async () => {
     let m = await load();
-    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('unavailable');
     vi.resetModules();
     g.Translator = {
       availability: async () => {
@@ -348,7 +364,7 @@ describe('isOnDeviceUsable', () => {
       create: vi.fn(),
     };
     m = await load();
-    await expect(m.isOnDeviceUsable('es')).resolves.toBe(false);
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('unavailable');
   });
 
   it('prepareOnDeviceConversation can skip speech packs', async () => {

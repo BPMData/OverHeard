@@ -2,6 +2,7 @@
 // Nothing here talks to a server. Callers fall back to the cloud path when something
 // isn't available (unsupported browser, unsupported language, blocked by policy).
 
+import { AUTO_ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
 import { speechLocale } from './conversation/locales';
 
 type Availability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
@@ -48,9 +49,10 @@ const TRANSLATOR_CODES: Record<string, string> = { prs: 'fa-AF' };
 const toTranslatorCode = (code: string) => TRANSLATOR_CODES[code] ?? code;
 
 const translators = new Map<string, Promise<TranslatorInstance | null>>();
-// Pairs (`source>target`) known to work on this device, and pairs it can't do at all
+// Remember ready models. Recheck unavailable pairs occasionally in case browser support changes.
 const readyPairs = new Set<string>();
-const unsupportedPairs = new Set<string>();
+const unavailableUntil = new Map<string, number>();
+const UNAVAILABLE_RECHECK_MS = 30_000;
 
 /** Download progress for a language: 0–1 while downloading, null when it ended without a pack. */
 export type PackProgress = (code: string, fraction: number | null) => void;
@@ -85,9 +87,9 @@ export function getOnDeviceTranslator(
   const promise: Promise<TranslatorInstance | null> = (async () => {
     if (!api) return null;
     const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
-    const availability = await api.availability(langs);
+    const availability = await rejectAfter(api.availability(langs), AUTO_ON_DEVICE_TIMEOUT_MS);
     if (availability === 'unavailable') return null;
-    if (availability === 'available') return api.create(langs);
+    if (availability === 'available') return rejectAfter(api.create(langs), AUTO_ON_DEVICE_TIMEOUT_MS);
 
     onProgress?.(code, 0);
     let sawProgress = false;
@@ -150,8 +152,17 @@ export function getOnDeviceTranslator(
   translators.set(key, promise);
   // Don't cache failures (e.g. a download that needed a user gesture); try again next time
   promise.then(
-    (translator) => void (translator ? readyPairs : unsupportedPairs).add(key),
-    () => translators.delete(key)
+    (translator) => {
+      if (translators.get(key) !== promise) return;
+      if (translator) {
+        readyPairs.add(key);
+        unavailableUntil.delete(key);
+      } else {
+        translators.delete(key);
+        unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
+      }
+    },
+    () => { if (translators.get(key) === promise) translators.delete(key); }
   );
   return promise;
 }
@@ -175,29 +186,25 @@ export function prepareOnDeviceTranslators(
   }
 }
 
-/**
- * Can on-device translation for `source` → `code` run right now, without waiting for a
- * download or needing a click? True once the language pack is installed. False while it is
- * still downloading, not installed yet, or unsupported on this device.
- */
-export async function isOnDeviceUsable(code: string, source = 'en'): Promise<boolean> {
+/** Reports an installation started in this tab even before Chrome updates its availability. */
+export async function getOnDeviceAvailability(code: string, source = 'en'): Promise<Availability> {
   const api = getTranslatorApi();
-  if (!api) return false;
+  if (!api) return 'unavailable';
   const key = `${source}>${code}`;
-  if (readyPairs.has(key)) return true;
-  if (unsupportedPairs.has(key)) return false;
+  if (readyPairs.has(key)) return 'available';
+  if ((unavailableUntil.get(key) ?? 0) > Date.now()) return 'unavailable';
   try {
     const availability = await api.availability({
       sourceLanguage: toTranslatorCode(source),
       targetLanguage: toTranslatorCode(code),
     });
     if (availability === 'unavailable') {
-      unsupportedPairs.add(key);
-      return false;
+      unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
+      return 'unavailable';
     }
-    return availability === 'available';
+    return availability === 'downloadable' && translators.has(key) ? 'downloading' : availability;
   } catch {
-    return false;
+    return 'unavailable';
   }
 }
 
@@ -236,35 +243,28 @@ export async function translateOnDevice(
   code: string,
   source = 'en',
   timeoutMs?: number,
+  { waitForSetup = true } = {},
 ): Promise<string> {
-  const translator = await getOnDeviceTranslator(code, source);
+  // Explicit local-only mode can wait for a user-initiated download. The automatic
+  // path already gave the pack a grace period, so setup counts toward its deadline.
+  const started = Date.now();
+  const pending = getOnDeviceTranslator(code, source);
+  const translator = waitForSetup || timeoutMs === undefined
+    ? await pending
+    : await rejectAfter(pending, timeoutMs);
   if (!translator) {
     throw new OnDeviceUnavailableError(`No on-device translator for ${code}`);
   }
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const work = translator.translate(text);
     if (timeoutMs === undefined) return await work;
-    return await Promise.race([
-      work,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`On-device translation timed out after ${timeoutMs} ms`)),
-          timeoutMs,
-        );
-      }),
-    ]);
+    const remaining = waitForSetup ? timeoutMs : Math.max(0, timeoutMs - (Date.now() - started));
+    return await rejectAfter(work, remaining);
   } catch (error) {
     // Only discard the instance that failed, not a fresh one another call already made
     const key = `${source}>${code}`;
-    const current = translators.get(key);
-    if (current) {
-      const instance = await current.catch(() => null);
-      if (instance === translator) discardOnDeviceTranslator(code, source);
-    }
+    if (translators.get(key) === pending) discardOnDeviceTranslator(code, source);
     throw error;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

@@ -3,12 +3,12 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
-import { isOnDeviceTranslationSupported, translateOnDevice } from './onDevice';
+import { getOnDeviceAvailability, isOnDeviceTranslationSupported, translateOnDevice } from './onDevice';
 
 vi.mock('./onDevice', async (importOriginal) => ({
   ...await importOriginal<typeof import('./onDevice')>(),
   isOnDeviceTranslationSupported: vi.fn(),
-  isOnDeviceUsable: vi.fn(async () => false),
+  getOnDeviceAvailability: vi.fn(async () => 'unavailable'),
   prepareOnDeviceTranslators: vi.fn(),
   prepareOnDeviceSpeech: vi.fn(async () => true),
   translateOnDevice: vi.fn(),
@@ -128,6 +128,18 @@ it('shows unavailable after HTTP 429 without retrying the request', async () => 
   await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
   expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
   expect(mt).toHaveBeenCalledTimes(1);
+});
+
+it('defaults to on-device first and gives an installed translator five seconds', async () => {
+  vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
+  vi.mocked(getOnDeviceAvailability).mockResolvedValueOnce('available');
+  vi.mocked(translateOnDevice).mockResolvedValue('La clase empieza al mediodía');
+  await listen();
+  expect(screen.getByRole('option', { name: 'On-device first (online fallback)', selected: true })).toBeTruthy();
+  await say(true);
+  expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
+  expect(translateOnDevice).toHaveBeenCalledWith(phrase, 'es', 'en', 5000, { waitForSetup: false });
+  expect(mt).not.toHaveBeenCalled();
 });
 
 it('translates on this device without sending the caption to /api/mt', async () => {

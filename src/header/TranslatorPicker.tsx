@@ -28,7 +28,7 @@ export function TranslatorPicker({
       title={
         lastUsedProvider
           ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
-          : 'Which translator powers live captions. Auto uses this device when it can, then the online translators in order.'
+          : 'Which translator powers live captions. On-device first uses online translation temporarily if the local model is unavailable.'
       }
     >
       <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
@@ -48,12 +48,11 @@ export function TranslatorPicker({
         className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
       >
         <option value="auto">
-          Auto
           {onDeviceSupported
-            ? ' (On this device first)'
+            ? 'On-device first (online fallback)'
             : availableProviders[0]
-              ? ` (${MT_PROVIDER_LABELS[availableProviders[0]]})`
-              : ''}
+              ? `Auto (${MT_PROVIDER_LABELS[availableProviders[0]]})`
+              : 'Auto'}
         </option>
         <option value="on-device" disabled={!onDeviceSupported}>
           {MT_PROVIDER_LABELS['on-device']}
@@ -97,7 +96,7 @@ export function TranslatorPicker({
         <span
           role="status"
           className="px-1.5 py-0.5 rounded bg-red-600 text-white font-semibold"
-          title="Translation on this device failed. On this device never uses online translators, so these lines stay untranslated. Choose Auto or another translator to use one."
+          title="Translation on this device failed. On this device never uses online translators, so these lines stay untranslated. Choose a translator with online fallback to use one."
         >
           ⚠ On-device translation failing
         </span>

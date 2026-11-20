@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LanguageCode } from '../types';
 import { useLiveTranslations } from '../useLiveTranslations';
+import { useDeviceFirstTranslator } from '../translation/useDeviceFirstTranslator';
 import { createStudentTranslator } from './translateStudent';
 import type { RoomSnapshot } from './protocol';
 
 export function useStudentTranslations(snapshot: RoomSnapshot | null, language: LanguageCode | 'en') {
   const [translatedBy, setTranslatedBy] = useState<'on-device' | 'gtx' | null>(null);
-  const translate = useMemo(() => createStudentTranslator(setTranslatedBy), []);
+  const tryDeviceFirst = useDeviceFirstTranslator(language);
+  const translate = useMemo(() => createStudentTranslator(tryDeviceFirst, setTranslatedBy), [tryDeviceFirst]);
   const results = useRef(new Map<string, string | null>());
   const pending = useRef(new Set<string>());
   const [version, refresh] = useState(0);
@@ -26,7 +28,10 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
       if (results.current.has(key) || pending.current.has(key)) continue;
       pending.current.add(key);
       void translate(entry.english, language).then(
-        value => results.current.set(key, value), () => results.current.set(key, null),
+        value => results.current.set(key, value),
+        error => {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) results.current.set(key, null);
+        },
       ).finally(() => {
         pending.current.delete(key);
         if (results.current.size > 3000) results.current.delete(results.current.keys().next().value!);
