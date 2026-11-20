@@ -104,6 +104,14 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
   list, so the guards become *per instance*. Divide the daily caps accordingly.
   Shared lecture rooms additionally require a shared room store and pub/sub before raising
   this limit; otherwise teachers and students can land on different instances.
+- [ ] **Prove room recovery across two instances in staging.** Give both instances access to
+  one room store and a pub/sub channel for teacher updates. Create a room on instance A,
+  connect students to instance B, and confirm they receive live captions. Restart A
+  mid-lecture, rejoin as the teacher with the same code and PIN, and publish another line.
+  Check that every student sees the full transcript in order, including the new line, with
+  no gaps or duplicates. Keep production at one instance until this passes and a capacity
+  test or planned rollout justifies raising the limit.
+  [Cloud Run guidance on synchronizing instances](https://docs.cloud.google.com/run/docs/triggering/websockets#synchronizing_data_between_instances)
 - Watch the `[usage]` lines in the Cloud Run logs: active tabs, requests per translator,
   throttling, and how much of today's spending guards are used.
 - If the link spreads beyond people you trust, add an access code. Anyone with the URL can
