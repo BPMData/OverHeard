@@ -64,8 +64,8 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
             )}
           </div>
           <div className="text-[#64748B] dark:text-[#94A3B8]">
-            First time only — can take 5–10 minutes. Chrome keeps them for next time. Tip: pick
-            languages a few minutes before class; choosing one starts its download.
+            First time only — usually about a minute. Chrome keeps them for next time. Tip: pick
+            languages before class; choosing one starts its download.
           </div>
           {downloading.map(([key, fraction]) => (
             <div key={key} className="flex items-center gap-2">

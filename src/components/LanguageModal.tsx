@@ -76,8 +76,8 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
           {downloadsPacks && (
             <p className="text-sm font-medium px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100">
               Choosing a language starts downloading its on-device translation pack (first time
-              only, about 5–10 minutes). Pick your languages a few minutes before class so
-              captions translate on this device, for free, from the first sentence.
+              only, usually about a minute). Pick your languages before class so captions
+              translate on this device, for free, from the first sentence.
             </p>
           )}
 
