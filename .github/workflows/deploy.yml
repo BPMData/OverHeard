@@ -53,6 +53,8 @@ jobs:
             --allow-unauthenticated \
             --port 3000 \
             --max-instances 1 \
+            --concurrency 1000 \
+            --timeout 3600 \
             --command "" \
             --args "" \
             --update-labels "managed-by=github-actions,commit-sha=${GITHUB_SHA}" \
