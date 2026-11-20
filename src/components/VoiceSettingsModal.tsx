@@ -113,8 +113,9 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   const online = useOnline();
   // Piper model ids already saved on this device (null until checked)
   const [savedModels, setSavedModels] = useState<ReadonlySet<string> | null>(null);
-  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null);
-  const [saveMessage, setSaveMessage] = useState('');
+  // The voice being saved for offline use right now (one at a time)
+  const [savingVoice, setSavingVoice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ lang: PiperLanguage; message: string } | null>(null);
 
   const refreshSaved = useCallback(() => {
     if (!client.listSavedModels) return Promise.resolve();
@@ -203,49 +204,25 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     [client, stopPreview],
   );
 
-  // The chosen Piper voice for each language (browser voices need no download)
-  const chosenModels = [
-    ...new Set(
-      VOICE_SETTINGS_LANGUAGES.map(({ code }) => findPiperVoice(resolveVoiceId(code, voicePrefs)))
-        .filter((voice) => voice !== undefined)
-        .map((voice) => voice.modelId),
-    ),
-  ];
   const isSaved = (voiceId: string) => {
     const voice = findPiperVoice(voiceId);
     return Boolean(voice && savedModels?.has(voice.modelId));
   };
-  const unsavedVoiceIds = VOICE_SETTINGS_LANGUAGES.map(({ code }) => resolveVoiceId(code, voicePrefs))
-    .filter((voiceId) => voiceId !== BROWSER_VOICE_ID && !isSaved(voiceId));
 
-  // Save the chosen voices one at a time. Only a click starts this, so student pages never
-  // download the ~40 MB voice runtime unless someone asks for it.
-  const saveForOffline = async () => {
-    if (!client.saveForOffline || saving) return;
-    const voiceIds = [...new Set(unsavedVoiceIds)];
-    // Nothing new to fetch: still run one voice so the shared runtime gets saved too
-    if (voiceIds.length === 0) {
-      const first = VOICE_SETTINGS_LANGUAGES.map(({ code }) => resolveVoiceId(code, voicePrefs))
-        .find((voiceId) => voiceId !== BROWSER_VOICE_ID);
-      if (first) voiceIds.push(first);
+  // Save one language's voice for offline use. Only a click starts this, and only for the voice
+  // asked for, so nobody downloads every language's voice (or, on a student page, the ~40 MB
+  // voice runtime) without choosing to. The first save also stores that shared runtime.
+  const saveForOffline = async (lang: PiperLanguage, voiceId: string) => {
+    if (!client.saveForOffline || savingVoice) return;
+    setSaveError(null);
+    setSavingVoice(voiceId);
+    try {
+      await client.saveForOffline(voiceId);
+    } catch {
+      setSaveError({ lang, message: 'Could not save this voice. Check the connection and try again.' });
     }
-    setSaveMessage('');
-    let failed = 0;
-    for (let i = 0; i < voiceIds.length; i += 1) {
-      setSaving({ done: i, total: voiceIds.length });
-      try {
-        await client.saveForOffline(voiceIds[i]);
-      } catch {
-        failed += 1;
-      }
-    }
-    setSaving(null);
+    setSavingVoice(null);
     await refreshSaved();
-    setSaveMessage(
-      failed === 0
-        ? 'Saved. These voices will read aloud without an internet connection.'
-        : `${failed} voice${failed === 1 ? '' : 's'} could not be saved. Check the connection and try again.`,
-    );
   };
 
   if (!isOpen) return null;
@@ -315,37 +292,9 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
                 Choose your default reader voice for each language that has one. Your choices
                 save automatically on this device and Piper neural voice models download on demand.
-                To use read-aloud offline, save the chosen voices while you're online.
+                To use read-aloud offline, click Save offline on a voice while you're online.
               </p>
             </div>
-
-            {client.saveForOffline && chosenModels.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void saveForOffline()}
-                  disabled={saving !== null || !online}
-                  title={online ? 'Download the chosen voices now so read-aloud works offline' : OFFLINE_TITLE}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-60 ${
-                    darkMode
-                      ? 'border-[#1E293B] hover:bg-slate-800 text-[#F8FAFC]'
-                      : 'border-slate-300 hover:bg-slate-100 text-slate-900'
-                  }`}
-                >
-                  <CloudDownload className="w-3.5 h-3.5" />
-                  <span>
-                    {saving
-                      ? `Saving voice ${saving.done + 1} of ${saving.total}…`
-                      : 'Save chosen voices for offline'}
-                  </span>
-                </button>
-                {saveMessage && (
-                  <span role="status" className={`text-xs ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
-                    {saveMessage}
-                  </span>
-                )}
-              </div>
-            )}
 
             {previewError && (
               <p role="alert" className="text-xs font-medium text-amber-500">
@@ -357,6 +306,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               {VOICE_SETTINGS_LANGUAGES.map(
                 ({ code, title, selectAriaLabel, previewAriaLabel }) => {
                   const selectedVoiceId = resolveVoiceId(code, voicePrefs);
+                  const canSave =
+                    Boolean(client.saveForOffline) &&
+                    savedModels !== null &&
+                    findPiperVoice(selectedVoiceId) !== undefined &&
+                    !isSaved(selectedVoiceId);
+                  const isSavingThis = savingVoice === selectedVoiceId;
                   const preview = voicePreviewText(code, selectedVoiceId);
                   const isThisLangActive = previewState?.lang === code;
 
@@ -397,6 +352,23 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                               playPreview(code, nextVoice);
                             }}
                           />
+                          {canSave && (
+                            <button
+                              type="button"
+                              aria-label={`Save ${title.split(' · ')[0]} voice for offline`}
+                              onClick={() => void saveForOffline(code, selectedVoiceId)}
+                              disabled={savingVoice !== null || !online}
+                              title={online ? 'Download this voice now so read-aloud works offline' : OFFLINE_TITLE}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-60 ${
+                                darkMode
+                                  ? 'border-[#1E293B] hover:bg-slate-800 text-[#F8FAFC]'
+                                  : 'border-slate-300 hover:bg-slate-100 text-slate-900'
+                              }`}
+                            >
+                              <CloudDownload className="w-3.5 h-3.5" />
+                              <span>{isSavingThis ? 'Saving…' : 'Save offline'}</span>
+                            </button>
+                          )}
                           {isThisLangActive ? (
                             <button
                               type="button"
@@ -419,6 +391,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                           )}
                         </div>
                       </div>
+
+                      {saveError?.lang === code && (
+                        <p role="alert" className="text-xs font-medium text-amber-500">
+                          {saveError.message}
+                        </p>
+                      )}
 
                       {isThisLangActive && previewState?.status === 'downloading' && (
                         <p role="status" className="text-xs font-medium text-[#A78BFA]">

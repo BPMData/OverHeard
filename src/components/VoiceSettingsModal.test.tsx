@@ -96,7 +96,7 @@ describe('VoiceSettingsModal', () => {
     expect(screen.queryByText(/Gemini/i)).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Refine statements/i })).toBeNull();
   });
-  it('saves the chosen voices for offline only when asked, then marks them saved', async () => {
+  it('saves one voice for offline only when asked, then marks it saved', async () => {
     const { client } = createMockClient();
     const saved = new Set<string>();
     const saveForOffline = vi.fn(async (voiceId: string) => {
@@ -106,20 +106,21 @@ describe('VoiceSettingsModal', () => {
     render(
       <VoiceSettingsModal isOpen onClose={vi.fn()} client={{ ...client, saveForOffline, listSavedModels }} />,
     );
-    await waitFor(() => expect(listSavedModels).toHaveBeenCalled());
+    const saveSpanish = await screen.findByRole('button', { name: 'Save Spanish voice for offline' });
     // Opening the settings downloads nothing
     expect(saveForOffline).not.toHaveBeenCalled();
     expect(screen.queryByText('Saved')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save chosen voices for offline' }));
-    await screen.findByText('Saved. These voices will read aloud without an internet connection.');
-    const chosen = new Set(['en', 'es', 'pt'].map((lang) => resolveVoiceId(lang as 'en')));
-    expect(saveForOffline).toHaveBeenCalledTimes(chosen.size);
-    for (const voiceId of chosen) expect(saveForOffline).toHaveBeenCalledWith(voiceId);
-    expect(screen.getAllByText('Saved')).toHaveLength(3);
+    fireEvent.click(saveSpanish);
+    await screen.findByText('Saved');
+    // Only the voice asked for, not every language's
+    expect(saveForOffline).toHaveBeenCalledTimes(1);
+    expect(saveForOffline).toHaveBeenCalledWith(resolveVoiceId('es'));
+    expect(screen.queryByRole('button', { name: 'Save Spanish voice for offline' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save English voice for offline' })).toBeTruthy();
   });
 
-  it('reports voices that could not be saved', async () => {
+  it('reports a voice that could not be saved', async () => {
     const { client } = createMockClient();
     const saveForOffline = vi.fn(async () => {
       throw new Error('offline');
@@ -131,7 +132,7 @@ describe('VoiceSettingsModal', () => {
         client={{ ...client, saveForOffline, listSavedModels: async () => [] }}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save chosen voices for offline' }));
-    await screen.findByText(/could not be saved/);
+    fireEvent.click(await screen.findByRole('button', { name: 'Save English voice for offline' }));
+    await screen.findByText(/Could not save this voice/);
   });
 });
