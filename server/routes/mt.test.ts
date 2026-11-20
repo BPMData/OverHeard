@@ -46,6 +46,17 @@ function post(route: string, body: unknown) {
 }
 
 describe('translation routes', () => {
+  it('accepts Hindi and Bengali as source and target languages', async () => {
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json([[['नमस्ते']]]),
+    );
+    const response = await post('/mt', { text: 'হ্যালো', source: 'bn', lang: 'hi', provider: 'gtx' });
+    expect(response.status).toBe(200);
+    const url = String((provider.mock.calls[0] as unknown[])[0]);
+    expect(url).toContain('sl=bn');
+    expect(url).toContain('tl=hi');
+  });
+
   it('publishes the translation config and the app security header', async () => {
     const response = await loopbackFetch(base + '/config');
     expect(response.status).toBe(200);

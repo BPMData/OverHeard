@@ -41,11 +41,24 @@ describe('Piper voice catalog and preferences', () => {
       'en_GB-semaine-medium:1',
       'en_GB-semaine-medium:2',
     ]);
-    expect(PIPER_VOICES).toHaveLength(15);
+    expect(voicesForLanguage('vi').map((v) => v.id)).toEqual([
+      'vi_VN-vais1000-medium',
+      'vi_VN-25hours_single-low',
+    ]);
+    expect(voicesForLanguage('hi').map((v) => v.id)).toEqual([
+      'hi_IN-rohan-medium',
+      'hi_IN-priyamvada-medium',
+      'hi_IN-pratham-medium',
+    ]);
+    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual(['bn_BD-google-medium:0']);
+    expect(PIPER_VOICES).toHaveLength(21);
     expect(voicesForLanguage('fr')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
     expect(hasPiperVoices('en')).toBe(true);
+    expect(hasPiperVoices('vi')).toBe(true);
+    expect(hasPiperVoices('hi')).toBe(true);
+    expect(hasPiperVoices('bn')).toBe(true);
     expect(hasPiperVoices('ar')).toBe(false);
   });
 
@@ -61,6 +74,14 @@ describe('Piper voice catalog and preferences', () => {
       speakerId: 0,
       useRhasspyRepo: true,
     });
+    for (const voice of PIPER_VOICES.filter((v) => ['vi', 'hi', 'bn'].includes(v.lang))) {
+      // These models are newer than the default mirror, so they load from rhasspy.
+      expect(voice.useRhasspyRepo).toBe(true);
+      expect(voice.hfPath).toBe(
+        `${voice.lang}/${voice.modelId.split('-')[0]}/${voice.modelId.split('-')[1]}/` +
+          `${voice.modelId.split('-')[2]}/${voice.modelId}.onnx`
+      );
+    }
     expect(findPiperVoice('en_GB-semaine-medium:0')?.speakerId).toBe(0);
     expect(findPiperVoice('en_GB-semaine-medium:1')?.speakerId).toBe(1);
     expect(findPiperVoice('en_GB-semaine-medium:2')?.speakerId).toBe(2);
@@ -71,6 +92,9 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('en')).toBe(DEFAULT_PIPER_VOICE_ID.en);
     expect(resolveVoiceId('es')).toBe(DEFAULT_PIPER_VOICE_ID.es);
     expect(resolveVoiceId('pt')).toBe(DEFAULT_PIPER_VOICE_ID.pt);
+    expect(resolveVoiceId('hi')).toBe('hi_IN-rohan-medium');
+    expect(resolveVoiceId('bn')).toBe('bn_BD-google-medium:0');
+    expect(resolveVoiceId('vi')).toBe('vi_VN-vais1000-medium');
     expect(resolveVoiceId('fr')).toBe(BROWSER_VOICE_ID);
 
     expect(resolveVoiceId('es', { es: 'es_MX-ald-medium' })).toBe('es_MX-ald-medium');
@@ -125,5 +149,8 @@ describe('Piper voice catalog and preferences', () => {
       spoken: 'Olá, eu sou Cadu. Devo ser o seu leitor de português?',
       englishHint: "Hi, I'm Cadu. Should I be your reader for Portuguese?",
     });
+    expect(voicePreviewText('hi', 'hi_IN-rohan-medium').spoken).toContain('मैं Rohan हूँ');
+    expect(voicePreviewText('bn', 'bn_BD-google-medium:0').englishHint).toContain('Bengali');
+    expect(voicePreviewText('vi', 'vi_VN-vais1000-medium').spoken).toContain('tiếng Việt');
   });
 });

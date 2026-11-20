@@ -83,7 +83,16 @@ student. Decide after using it with a small group.
 See `ARCHITECTURE.md` for the current layout, the target structure and an ordered list of
 refactor steps that don't change behavior, plus the larger consolidations to do afterward.
 
-### Small cleanups
+### More international languages and reader voices
+
+The first twelve languages came from the languages most spoken at home in the U.S.; Hindi and
+Bengali are the first international additions. Candidates for the next round are other widely
+spoken languages Chrome's on-device Translator and Google MT both cover (for example Urdu,
+Indonesian, Japanese, Swahili, Turkish). Piper reader voices exist for English, Spanish,
+Portuguese, Vietnamese, Hindi and Bengali. The rhasspy/piper-voices catalog also has models for
+Arabic (`ar_JO`), Simplified Chinese (`zh_CN`), French, Ukrainian, Russian and Persian (`fa_IR`,
+a possible Dari voice); add them to `src/tts/voices.ts` after listening to each one.
+
 
 - `getOnDeviceTranslator`, `prepareOnDeviceTranslators` and `translateGoogleCloud` / `translateGtx`
   take an argument that can be a language code *or* a helper function. It works but is
@@ -346,6 +355,8 @@ back to the bare code when a language isn't in it:
 | `so` | `so-SO` | **Unverified** |
 | `prs` | `fa-AF` | **Unverified**; Dari. `fa-IR` (Persian) is the closest fallback |
 | `ps` | `ps-AF` | **Unverified** |
+| `hi` | `hi-IN` | |
+| `bn` | `bn-BD` | Bangladesh; `bn-IN` is the alternative |
 
 The unverified ones rely on the `language-not-supported` handling in 1.2, which sends the
 user to the text box. Do not hide them from the picker.

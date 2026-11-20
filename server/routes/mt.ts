@@ -26,6 +26,8 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   so: 'Somali',
   prs: 'Dari',
   ps: 'Pashto',
+  hi: 'Hindi',
+  bn: 'Bengali',
 };
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
