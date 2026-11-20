@@ -106,6 +106,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                     </div>
                     <div
                       dir={lang.dir}
+                      lang={lang.code}
                       className="text-xs text-slate-600 dark:text-[#94A3B8] mt-0.5 truncate"
                     >
                       {lang.nativeName}

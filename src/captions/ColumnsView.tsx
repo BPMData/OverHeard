@@ -154,6 +154,7 @@ export function ColumnsView({
                   </span>
                   <span
                     dir={lang.dir}
+                    lang={lang.code}
                     className="text-xs text-[#64748B] dark:text-[#94A3B8]"
                   >
                     {lang.nativeName}
@@ -208,6 +209,7 @@ export function ColumnsView({
 
               <div
                 dir={lang.dir}
+                lang={lang.code}
                 className="flex-1 flex flex-col justify-between p-6 lg:p-8 gap-6"
               >
                 {/* Previous Translated Line */}

@@ -26,3 +26,10 @@
   font-family: 'Plus Jakarta Sans', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Devanagari', 'Noto Sans Bengali', system-ui, sans-serif;
   line-height: 1.35;
 }
+
+/* Chinese and Japanese share many Han characters but draw them differently, so Japanese text
+   (marked with lang="ja") puts the Japanese font ahead of the Chinese one. */
+[lang|='ja'],
+[lang|='ja'] .caption-text-ltr {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans JP', 'Noto Sans SC', system-ui, sans-serif;
+}

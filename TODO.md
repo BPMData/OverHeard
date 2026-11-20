@@ -98,8 +98,6 @@ Urdu, Indonesian, Swahili and Turkish.
 - [ ] **Bengali has 16 speakers in one model.** Only speaker 0 is offered; listen to the rest.
 - [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
       phonemizer, not eSpeak, so Japanese uses the browser voice.
-- [ ] **Japanese kanji use Chinese glyph shapes.** Captions don't set `lang`, so Noto Sans SC
-      draws shared Han characters before Noto Sans JP. Set `lang` on caption text to fix it.
 
 ### Small cleanups
 
