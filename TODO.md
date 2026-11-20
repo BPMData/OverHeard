@@ -121,6 +121,31 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
   general model characters per day" row). `CLOUD_TRANSLATE_DAILY_CHARS` is counted in server
   memory and starts over on every restart, so it is not a hard cap on its own.
 
+### Cut room stream bandwidth (after school; each step redeploys the server)
+
+At scale, outbound bandwidth costs more than any server or Redis choice. Every room patch goes
+to every student, about 3 a second while the teacher talks. Each patch is roughly 1 KB and
+carries the live translation for **every** selected language, not just the student's own.
+Rough estimate: 50,000 connected students would mean terabytes a month of egress, at about
+$0.12/GB once past the free tier. The department pilot (~900 students) is a small fraction of
+that. Measure before changing anything.
+
+- [ ] **Measure.** Count bytes written to student streams in `server/rooms.ts` and add
+      `bytesPerMinute` (and bytes per student) to the `[rooms]` log line. Read a few real
+      lessons with `gcloud logging read` before deciding what to cut.
+- [ ] **Send each student only their language.** Add `?lang=xx` to the student
+      `EventSource` URL (`src/rooms/useStudentRoom.ts`). For that stream, keep English plus that
+      one language in `entries[].translations` and `liveTranslations`. Changing **My language**
+      reconnects for a fresh snapshot. Keep serialize-once: group a room's readers by language
+      and build each frame once per language, not once per student. Languages the teacher
+      didn't select still translate on the student's device or through GTX, as they do now.
+      The teacher's own stream, Export JSON and the room snapshot stay complete.
+- [ ] **Compress the stream.** Try gzip or Brotli on `/api/rooms/:code/events`, flushing after
+      every event so captions aren't held back. Check that Cloud Run's front end passes the
+      flushes through. Compare bytes and caption delay before and after.
+- [ ] **Smaller patches (only if still needed).** Send interim text as an append rather than
+      the full string each time. This is the riskiest step for correctness, so do it last.
+
 ---
 
 ## Done
