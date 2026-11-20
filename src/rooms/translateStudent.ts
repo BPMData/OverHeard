@@ -1,23 +1,24 @@
-import { isOnDeviceUsable, translateOnDevice } from '../onDevice';
+import type { createDeviceFirstTranslator } from '../translation/deviceFirst';
 import { getSessionId, SESSION_HEADER } from '../session';
 import type { LanguageCode } from '../types';
 
 // Each browser shares its own pending/completed local work. Server requests are also
 // coalesced across students by the machine translator, including provider fallbacks.
 /** `onTranslated` hears who did each fresh translation, so the page can show it. */
-export function createStudentTranslator(onTranslated?: (by: 'on-device' | 'gtx') => void) {
+export function createStudentTranslator(
+  tryDeviceFirst: ReturnType<typeof createDeviceFirstTranslator>['translate'],
+  onTranslated?: (by: 'on-device' | 'gtx') => void,
+) {
   const cache = new Map<string, Promise<string>>();
   return (text: string, lang: LanguageCode): Promise<string> => {
     const key = `${lang}\0${text}`;
     const existing = cache.get(key);
     if (existing) return existing;
     const pending = (async () => {
-      if (await isOnDeviceUsable(lang, 'en')) {
-        try {
-          const local = await translateOnDevice(text, lang, 'en', 2500);
-          onTranslated?.('on-device');
-          return local;
-        } catch { /* Fall through to the free online translator. */ }
+      const local = await tryDeviceFirst(text, lang, 'en');
+      if (local !== null) {
+        onTranslated?.('on-device');
+        return local;
       }
       const response = await fetch('/api/mt', { method: 'POST',
         headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },

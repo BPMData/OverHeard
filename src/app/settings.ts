@@ -27,22 +27,18 @@ export function formatTimestamp(date: Date = new Date()): string {
 export const LIVE_INTERIM_TRANSLATION = true;
 export const MT_CLIENT_CACHE_MAX = 2000;
 
-// "On this device" mode waits this long for the built-in translator before a sentence falls
-// back to the online translators. Deliberately generous (the server's online translators get
-// 2.5 s) so slow on-device translations can be measured instead of abandoned.
+// The explicitly selected local-only mode gives slower devices more time per sentence.
 export const ON_DEVICE_TIMEOUT_MS = 10_000;
-// In Auto mode on-device is only a first choice: if it hasn't answered this fast, that
-// sentence goes to the online translators while on-device keeps loading for the next one.
-export const AUTO_ON_DEVICE_TIMEOUT_MS = 2500;
+export const AUTO_ON_DEVICE_TIMEOUT_MS = 5000;
 // Translations slower than this are flagged in the UI and console with how far over they went
 export const SLOW_TRANSLATION_MS = 2500;
 
 export function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: number | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = window.setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
   });
-  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 export const mtCacheKey = (preference: string, source: string, lang: string, text: string) =>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getOnDeviceAvailability } from '../onDevice';
 import { StudentRoom } from './StudentRoom';
 import { emptyLecture } from './protocol';
 import type { RoomSnapshot } from './protocol';
@@ -8,7 +9,7 @@ import type { LectureEntry } from '../conversation/lectureState';
 
 const { translate, prepare } = vi.hoisted(() => ({ translate: vi.fn(), prepare: vi.fn() }));
 vi.mock('./translateStudent', () => ({ createStudentTranslator: () => translate }));
-vi.mock('../onDevice', () => ({ prepareOnDeviceTranslators: prepare }));
+vi.mock('../onDevice', () => ({ prepareOnDeviceTranslators: prepare, getOnDeviceAvailability: vi.fn(async () => 'unavailable') }));
 class FakeEvents extends EventTarget {
   static instances: FakeEvents[] = [];
   onerror: (() => void) | null = null;
@@ -35,6 +36,14 @@ describe('student lecture view', () => {
     expect((screen.getByLabelText('My language') as HTMLSelectElement).value).toBe('es');
     expect((screen.getByLabelText('Voice') as HTMLSelectElement).value).toBe('es_MX-claude-high');
     expect(screen.getByText('Bienvenidos a ciencias')).toBeTruthy();
+  });
+
+  it('offers a download gesture for the default language on a direct room link', async () => {
+    vi.mocked(getOnDeviceAvailability).mockResolvedValueOnce('downloadable');
+    render(<StudentRoom code="science-101" />);
+    await emit({ ...snapshot(), selectedLangs: [], entries: [] });
+    fireEvent.click(await screen.findByRole('button', { name: 'Download language for this device' }));
+    expect(prepare).toHaveBeenCalledWith(['es'], expect.any(Function));
   });
 
   it('is read-only and reuses teacher translations without starting a microphone', async () => {

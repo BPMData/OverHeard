@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AUTO_ON_DEVICE_TIMEOUT_MS, MT_CLIENT_CACHE_MAX, MT_PREFERENCE_STORAGE_KEY, MT_PROVIDER_LABELS,
+  MT_CLIENT_CACHE_MAX, MT_PREFERENCE_STORAGE_KEY, MT_PROVIDER_LABELS,
   ON_DEVICE_TIMEOUT_MS, mtCacheKey, overBy,
   type MtPreference, type MtProviderId, type TranslatorId,
 } from '../app/settings';
+import { useDeviceFirstTranslator } from './useDeviceFirstTranslator';
 import { RateLimitedError } from '../http';
-import { isOnDeviceTranslationSupported, isOnDeviceUsable, translateOnDevice } from '../onDevice';
+import { isOnDeviceTranslationSupported, translateOnDevice } from '../onDevice';
 import { getSessionId, SESSION_HEADER } from '../session';
 import type { ConversationLanguage, LanguageCode } from '../types';
 
@@ -14,7 +15,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
   // Sharing promises means the final sentence reuses an interim request that's still running.
   const mtCacheRef = useRef<Map<string, Promise<string>>>(new Map());
 
-  // Translator picker: 'auto' uses the server's default order; anything else goes first
+  // 'auto' is the on-device-first default; retain the browser’s explicit choice.
   const [mtPreference, setMtPreference] = useState<MtPreference>(() => {
     try {
       const saved = localStorage.getItem(MT_PREFERENCE_STORAGE_KEY);
@@ -24,6 +25,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
     }
     return 'auto';
   });
+  const tryDeviceFirst = useDeviceFirstTranslator(mtPreference);
   const mtPreferenceRef = useRef<MtPreference>(mtPreference);
   const [lastUsedProvider, setLastUsedProvider] = useState<TranslatorId | null>(null);
   // How long the most recent translation took, end to end, as measured in the browser
@@ -68,6 +70,8 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       const recordTiming = () => setLastTranslateMs(Math.round(performance.now() - started));
 
       const attemptServer = async (): Promise<string> => {
+        // The user can switch to local-only while an automatic request waits for a pack.
+        if (preference !== mtPreferenceRef.current) throw new DOMException('Translator changed', 'AbortError');
         const res = await fetch('/api/mt', {
           method: 'POST',
           headers: {
@@ -98,24 +102,15 @@ export function useTranslator(availableProviders: MtProviderId[]) {
         return data.translation;
       };
 
-      // "On this device" is strict: it never sends text to the server, so it can't spend money
-      // or quietly use an online translator. Auto uses this device whenever the language pack
-      // is already installed, and the server's chain (free endpoint, then Cloud Translation,
-      // when it has a key) for anything it can't do. A browser without the Translator API treats
-      // "On this device" as Auto, matching `effectiveMtPreference`.
       const attempt = async (): Promise<string> => {
         const forced = preference === 'on-device' && isOnDeviceTranslationSupported();
-        const useOnDevice =
-          forced || (preference === 'auto' && (await isOnDeviceUsable(lang, source)));
-        if (useOnDevice) {
+        if (forced || preference === 'auto') {
           const t0 = performance.now();
           try {
-            const translation = await translateOnDevice(
-              text,
-              lang,
-              source,
-              forced ? ON_DEVICE_TIMEOUT_MS : AUTO_ON_DEVICE_TIMEOUT_MS
-            );
+            const translation = forced
+              ? await translateOnDevice(text, lang, source, ON_DEVICE_TIMEOUT_MS)
+              : await tryDeviceFirst(text, lang, source);
+            if (translation === null) return attemptServer();
             const ms = Math.round(performance.now() - t0);
             console.info(`[on-device] ${lang}: ${ms} ms${overBy(ms)}`);
             setLastUsedProvider('on-device');
@@ -123,7 +118,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             recordTiming();
             return translation;
           } catch (error) {
-            // Unsupported language, model not ready yet, blocked by policy, or too slow
             if (forced) {
               const ms = Math.round(performance.now() - t0);
               console.warn(
@@ -131,8 +125,8 @@ export function useTranslator(availableProviders: MtProviderId[]) {
                 error instanceof Error ? error.message : error
               );
               setOnDeviceFailing(true);
-              throw error;
             }
+            throw error;
           }
         }
         return attemptServer();
@@ -141,7 +135,8 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       const run = () =>
         attempt().catch(async (error) => {
           // Throttled: retrying straight away would only add load
-          if (error instanceof RateLimitedError) throw error;
+          if (error instanceof RateLimitedError || (error instanceof DOMException && error.name === 'AbortError') ||
+              preference !== mtPreferenceRef.current) throw error;
           await new Promise((resolve) => setTimeout(resolve, 250));
           return attempt();
         });
@@ -154,7 +149,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       }
       return promise;
     },
-    []
+    [tryDeviceFirst]
   );
 
   // A saved choice for a translator the server no longer offers behaves like Auto
