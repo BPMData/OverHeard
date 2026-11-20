@@ -234,7 +234,7 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     useRhasspyRepo: true,
   },
 
-  // Bengali (Bangladesh). One 16-speaker model; speaker 0 for now.
+  // Bengali (Bangladesh). One 16-speaker model; speaker 3 is dataset speaker 03042.
   {
     id: 'bn_BD-google-medium:0',
     lang: 'bn',
@@ -243,6 +243,17 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     modelId: 'bn_BD-google-medium',
     hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
     speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'bn_BD-google-medium:3',
+    lang: 'bn',
+    label: 'Arif (Male · BD)',
+    shortName: 'Arif',
+    gender: 'male',
+    modelId: 'bn_BD-google-medium',
+    hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
+    speakerId: 3,
     useRhasspyRepo: true,
   },
 

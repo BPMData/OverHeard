@@ -111,7 +111,7 @@ Urdu, Indonesian, Swahili and Turkish.
       uses the pinyin phonemizer, which the bundled phonemizer lacks), `fr_FR` (7 models),
       `uk_UA` (5), `ru_RU` (4) and `fa_IR` (6, a possible stand-in for Dari). Listen at
       rhasspy.github.io/piper-samples and add the keepers to `src/tts/voices.ts`.
-- [ ] **Bengali has 16 speakers in one model.** Only speaker 0 is offered; listen to the rest.
+- [ ] **Bengali has 16 speakers in one model.** Speakers 0 and 3 (Arif) are offered; listen to the rest.
 - [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
       phonemizer, not eSpeak, so Japanese uses the browser voice.
 

@@ -50,7 +50,10 @@ describe('Piper voice catalog and preferences', () => {
       'hi_IN-priyamvada-medium',
       'hi_IN-pratham-medium',
     ]);
-    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual(['bn_BD-google-medium:0']);
+    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual([
+      'bn_BD-google-medium:0',
+      'bn_BD-google-medium:3',
+    ]);
     expect(voicesForLanguage('ur').map((v) => v.id)).toEqual([
       'ur_PK-aegis_female-medium',
       'ur_PK-fasih-medium',
@@ -59,7 +62,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(26);
+    expect(PIPER_VOICES).toHaveLength(27);
     expect(voicesForLanguage('fr')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -92,6 +95,7 @@ describe('Piper voice catalog and preferences', () => {
           `${voice.modelId.split('-')[2]}/${voice.modelId}.onnx`
       );
     }
+    expect(findPiperVoice('bn_BD-google-medium:3')?.speakerId).toBe(3);
     expect(findPiperVoice('en_GB-semaine-medium:0')?.speakerId).toBe(0);
     expect(findPiperVoice('en_GB-semaine-medium:1')?.speakerId).toBe(1);
     expect(findPiperVoice('en_GB-semaine-medium:2')?.speakerId).toBe(2);
