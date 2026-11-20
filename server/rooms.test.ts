@@ -198,6 +198,24 @@ describe('live classroom rooms', () => {
   });
 });
 
+describe('school-network limits', () => {
+  it('limits joins per room, so one busy class behind a shared IP does not block another', async () => {
+    service.close();
+    service = createRoomRouter({ now: () => clock, joinsPerMinute: 2 });
+    server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
+    const app = express(); app.use('/api/rooms', service.router);
+    server = await new Promise<Server>(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+    base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/rooms`;
+    const a = await create('room-a'); const b = await create('room-b');
+    await stream(a.code); await stream(a.code);
+    expect((await request(`/${a.code}/events`)).status).toBe(429);
+    await stream(b.code);
+  });
+  it('lets a whole department create rooms from one IP at the same bell', async () => {
+    for (let i = 0; i < 30; i++) expect((await request('', 'POST', { code: `teacher-${i}`, pin: '1234' })).status).toBe(201);
+  });
+});
+
 describe('event writing', () => {
   const fakeReader = (writableLength = 0, destroyed = false) => {
     const written: string[] = []; let ended = false;

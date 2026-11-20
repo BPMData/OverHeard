@@ -32,12 +32,15 @@ export function writeEvent(res: EventWriter, frame: string) {
 
 // Live transport only. A restart discards rooms; local JSON exports are the durable copy.
 // Run one server instance until a shared room store/pub-sub is introduced.
-export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
+// Join and create limits are per IP, and a whole school usually shares one public IP, so they
+// are sized for every class at a bell. Joins are also keyed by room, so one busy class (or its
+// reconnects) cannot lock students out of another room.
+export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinute = 600, createsPerMinute = 100 } = {}) {
   const router = express.Router();
   const rooms = new Map<string, Room>();
-  const creates = createRateLimiter(20, 60_000, now);
+  const creates = createRateLimiter(createsPerMinute, 60_000, now);
   const rejoins = createRateLimiter(20, 60_000, now);
-  const joins = createRateLimiter(600, 60_000, now);
+  const joins = createRateLimiter(joinsPerMinute, 60_000, now);
   const publishes = createRateLimiter(600, 60_000, now);
   const send = (res: Response, event: string, value: unknown) => writeEvent(res, formatEvent(event, value));
   // Serialize once per broadcast, not once per student: full snapshots can be hundreds of KB,
@@ -49,6 +52,18 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
   };
   const isExpired = (room: Room) =>
     now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000);
+  // One log line per minute while rooms exist, so Cloud Run logs show how close the single
+  // instance is to its connection limit (every student stream is one in-flight request).
+  let lastStatsAt = now();
+  let peakStudents = 0;
+  const logStats = () => {
+    let students = 0, live = 0;
+    for (const room of rooms.values()) { students += room.clients.size; if (room.snapshot.teacherOnline) live++; }
+    peakStudents = Math.max(peakStudents, students);
+    if (now() - lastStatsAt < 60_000) return;
+    if (rooms.size > 0) console.log('[rooms]', JSON.stringify({ rooms: rooms.size, live, students, peakStudents }));
+    lastStatsAt = now(); peakStudents = students;
+  };
   const sweep = () => {
     for (const [code, room] of rooms) {
       if (isExpired(room)) {
@@ -64,6 +79,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
       }
     }
     creates.prune(); rejoins.prune(); joins.prune(); publishes.prune();
+    logStats();
   };
   const timer = setInterval(sweep, 10_000);
   timer.unref();
@@ -126,7 +142,7 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
   router.get('/:code/events', (req, res) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
     if (!room || isExpired(room)) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
-    if (room.clients.size >= 200 || joins.isLimited(req.ip || 'unknown')) { res.status(429).json({ error: 'Room connection limit reached.' }); return; }
+    if (room.clients.size >= 200 || joins.isLimited(`${req.ip || 'unknown'}:${normalizeRoomCode(req.params.code)}`)) { res.status(429).json({ error: 'Room connection limit reached.' }); return; }
     res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
     res.flushHeaders();
