@@ -79,14 +79,14 @@ describe('conversation with On this device', () => {
     expect(screen.getByTestId('packs')).toBeTruthy();
   });
 
-  it('Auto also fetches speech packs for offline use but keeps speech online while connected', async () => {
+  it('Auto leaves the click to translation packs while any still need downloading', async () => {
     // French, not the default Spanish: the previous test left Spanish translators cached
     localStorage.setItem(
       'overheard.conversation',
       JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } }),
     );
     mount('auto');
-    await vi.waitFor(() => expect(translator.availability).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(translator.availability).toHaveBeenCalledTimes(4));
     expect(translator.availability).toHaveBeenCalledWith({
       sourceLanguage: 'en',
       targetLanguage: 'fr',
@@ -95,11 +95,23 @@ describe('conversation with On this device', () => {
       sourceLanguage: 'fr',
       targetLanguage: 'en',
     });
-    // Packs are fetched during the click so speech can move to the device if the network drops
+    // Chrome allows one pack download per click; a speech install could take it
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(Recognition.install).not.toHaveBeenCalled();
+  });
+
+  it('Auto fetches speech packs for offline use once translation is ready', async () => {
+    translator.availability.mockResolvedValue('available');
+    localStorage.setItem(
+      'overheard.conversation',
+      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } }),
+    );
+    mount('auto');
     await vi.waitFor(() =>
       expect(Recognition.install).toHaveBeenCalledWith({ langs: ['fr-FR'], processLocally: true }),
     );
     expect(Recognition.install).toHaveBeenCalledWith({ langs: ['en-US'], processLocally: true });
+    translator.availability.mockResolvedValue('downloadable');
   });
 
   it('Auto runs speech on this device while offline', async () => {
