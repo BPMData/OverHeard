@@ -54,8 +54,30 @@ const readyPairs = new Set<string>();
 const unavailableUntil = new Map<string, number>();
 const UNAVAILABLE_RECHECK_MS = 30_000;
 
-/** Download progress for a language: 0–1 while downloading, null when it ended without a pack. */
+/**
+ * Download progress for a language: 0–1 while downloading, PACK_NEEDS_CLICK while it waits for
+ * a click to start, and null when it ended without a pack.
+ */
 export type PackProgress = (code: string, fraction: number | null) => void;
+
+/**
+ * Chrome lets each click start only one language pack download: create() uses up the click
+ * (user activation) when a pack still has to download, so the next pack in the same click is
+ * refused with NotAllowedError. Those packs wait here, and the pack panel shows a button for
+ * each one; its click starts that download.
+ */
+export const PACK_NEEDS_CLICK = -2;
+const waitingForClick = new Map<string, () => void>();
+
+/** Start a pack download that is waiting for a click. Call it straight from the click handler. */
+export function startWaitingPack(key: string): void {
+  const start = waitingForClick.get(key);
+  waitingForClick.delete(key);
+  start?.();
+}
+
+const isNotAllowed = (error: unknown) =>
+  typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'NotAllowedError';
 
 /** Chrome reports `loaded` as a 0–1 fraction; older builds reported bytes with a `total`. */
 export function progressFraction(event: { loaded: number; total?: number }): number {
@@ -116,9 +138,10 @@ export function getOnDeviceTranslator(
     onProgress?.(code, 0);
     let sawProgress = false;
     let settled = false;
-    const startedAt = Date.now();
+    let waiting = false;
+    let startedAt = Date.now();
 
-    const createPromise = api.create({
+    const createWithMonitor = () => api.create({
       ...langs,
       monitor: (m) =>
         m.addEventListener('downloadprogress', (e) => {
@@ -134,6 +157,7 @@ export function getOnDeviceTranslator(
         if (settled) return;
         settled = true;
         clearInterval(pollTimer);
+        if (waitingForClick.get(code) === resume) waitingForClick.delete(code);
         fn();
       };
 
@@ -153,7 +177,7 @@ export function getOnDeviceTranslator(
               );
             } else if (status === 'unavailable') {
               finish(() => resolve(null));
-            } else if (!sawProgress && Date.now() - startedAt >= STALLED_PROGRESS_MS) {
+            } else if (!waiting && !sawProgress && Date.now() - startedAt >= STALLED_PROGRESS_MS) {
               sawProgress = true;
               onProgress?.(code, -1);
             }
@@ -165,10 +189,30 @@ export function getOnDeviceTranslator(
       }, AVAILABILITY_POLL_MS);
 
       // A poll may have created the instance first. Destroy whichever one loses.
-      createPromise.then(
-        (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
-        (err) => finish(() => reject(err))
-      );
+      const begin = () =>
+        createWithMonitor().then(
+          (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
+          (err) => {
+            if (settled) return;
+            if (!isNotAllowed(err)) {
+              finish(() => reject(err));
+              return;
+            }
+            // Another pack took this click. Wait for a click of its own (see PACK_NEEDS_CLICK).
+            waiting = true;
+            onProgress?.(code, PACK_NEEDS_CLICK);
+            waitingForClick.set(code, resume);
+          }
+        );
+      function resume() {
+        if (settled) return;
+        waiting = false;
+        sawProgress = false;
+        startedAt = Date.now();
+        onProgress?.(code, 0);
+        begin();
+      }
+      begin();
     });
   })();
 
@@ -335,6 +379,30 @@ export function prepareOnDeviceSpeech(
   const done = () => speechPreparations.delete(lang);
   promise.then(done, done);
   return promise;
+}
+
+/**
+ * Auto: fetch on-device speech packs so speech can switch over when offline, but only once
+ * every translation pack is ready. A speech install made now could take the click a
+ * translation pack needs (see PACK_NEEDS_CLICK); speech packs can wait for a later Start.
+ * Call from a click handler.
+ */
+export function prepareOfflineSpeechIfTranslatorsReady(
+  pairs: ReadonlyArray<{ code: string; source: string }>,
+  /** Speech packs to fetch: the pack panel key ('speech' or 'speech:<code>') and the locale */
+  speech: ReadonlyArray<{ key: string; locale: string }>,
+  onProgress?: PackProgress
+): void {
+  void Promise.all(pairs.map(({ code, source }) => getOnDeviceAvailability(code, source)))
+    .then((statuses) => {
+      if (!statuses.every((status) => status === 'available' || status === 'unavailable')) return;
+      for (const { key, locale } of speech) {
+        void prepareOnDeviceSpeech(locale, () => onProgress?.(key, -1)).then(() =>
+          onProgress?.(key, null)
+        );
+      }
+    })
+    .catch(() => {});
 }
 
 /**

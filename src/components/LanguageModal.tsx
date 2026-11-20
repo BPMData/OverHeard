@@ -8,6 +8,8 @@ interface LanguageModalProps {
   onClose: () => void;
   selectedLangs: LanguageCode[];
   onToggleLang: (code: LanguageCode) => void;
+  /** Choosing a language starts its on-device pack download (Auto / On this device) */
+  downloadsPacks?: boolean;
 }
 
 export const LanguageModal: React.FC<LanguageModalProps> = ({
@@ -15,6 +17,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
   onClose,
   selectedLangs,
   onToggleLang,
+  downloadsPacks = false,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -69,6 +72,14 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
           <p className="text-sm text-slate-600 dark:text-[#94A3B8]">
             Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
           </p>
+
+          {downloadsPacks && (
+            <p className="text-sm font-medium px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100">
+              Choosing a language starts downloading its on-device translation pack (first time
+              only, about 5–10 minutes). Pick your languages a few minutes before class so
+              captions translate on this device, for free, from the first sentence.
+            </p>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {SUPPORTED_LANGUAGES.map((lang) => {
