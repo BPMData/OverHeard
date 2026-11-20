@@ -52,6 +52,66 @@ describe('on-device translation', () => {
   });
 });
 
+describe('translators that finish setting up too late', () => {
+  it('destroys a translator whose create() resolves after the setup cap', async () => {
+    vi.useFakeTimers();
+    try {
+      const destroy = vi.fn();
+      let finishCreate!: (t: { translate: () => Promise<string>; destroy: () => void }) => void;
+      const create = vi.fn(() => new Promise((resolve) => { finishCreate = resolve; }));
+      g.Translator = { availability: async () => 'available', create };
+      const m = await load();
+      const pending = m.getOnDeviceTranslator('es');
+      const check = expect(pending).rejects.toThrow('timed out');
+      await vi.advanceTimersByTimeAsync(10_001);
+      await check;
+      finishCreate({ translate: async () => 'late', destroy });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(destroy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('allows the strict mode its full ten seconds to create a translator', async () => {
+    vi.useFakeTimers();
+    try {
+      const create = vi.fn(() => new Promise((resolve) =>
+        setTimeout(() => resolve({ translate: async (t: string) => `es:${t}` }), 7000)));
+      g.Translator = { availability: async () => 'available', create };
+      const m = await load();
+      const result = m.translateOnDevice('Hello', 'es', 'en', 10_000);
+      await vi.advanceTimersByTimeAsync(7000);
+      await expect(result).resolves.toBe('es:Hello');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('destroys the download-path instance that loses the race to a poll', async () => {
+    vi.useFakeTimers();
+    try {
+      const destroy = vi.fn();
+      let finishOriginal!: (t: { translate: () => Promise<string>; destroy: () => void }) => void;
+      let status = 'downloadable';
+      const create = vi.fn()
+        .mockImplementationOnce(() => new Promise((resolve) => { finishOriginal = resolve; }))
+        .mockResolvedValue({ translate: async () => 'from poll' });
+      g.Translator = { availability: async () => status, create };
+      const m = await load();
+      const pending = m.getOnDeviceTranslator('es');
+      status = 'available';
+      await vi.advanceTimersByTimeAsync(2000);
+      await expect(pending).resolves.toMatchObject({ translate: expect.any(Function) });
+      finishOriginal({ translate: async () => 'original', destroy });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(destroy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('recovering from a translator that stops working', () => {
   it('discards a translator whose translate() fails and creates a fresh one next time', async () => {
     const destroy = vi.fn();

@@ -2,7 +2,7 @@
 // Nothing here talks to a server. Callers fall back to the cloud path when something
 // isn't available (unsupported browser, unsupported language, blocked by policy).
 
-import { AUTO_ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
+import { ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
 import { speechLocale } from './conversation/locales';
 
 type Availability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
@@ -64,6 +64,27 @@ export function progressFraction(event: { loaded: number; total?: number }): num
   return Math.min(Math.max(fraction, 0), 1);
 }
 
+const destroyQuietly = (translator: TranslatorInstance | null | undefined) => {
+  try {
+    translator?.destroy?.();
+  } catch {
+    // Already gone
+  }
+};
+
+/** Caps setup time. A translator that arrives after the cap is destroyed instead of leaking its model. */
+function createWithin(
+  api: TranslatorStatic,
+  langs: { sourceLanguage: string; targetLanguage: string },
+  ms: number
+): Promise<TranslatorInstance> {
+  const created = api.create(langs);
+  return rejectAfter(created, ms).catch((error) => {
+    void created.then(destroyQuietly, () => {});
+    throw error;
+  });
+}
+
 const AVAILABILITY_POLL_MS = 2000;
 const STALLED_PROGRESS_MS = 4000;
 
@@ -87,9 +108,10 @@ export function getOnDeviceTranslator(
   const promise: Promise<TranslatorInstance | null> = (async () => {
     if (!api) return null;
     const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
-    const availability = await rejectAfter(api.availability(langs), AUTO_ON_DEVICE_TIMEOUT_MS);
+    // These caps use the strict mode's budget. Auto callers apply their own shorter deadline.
+    const availability = await rejectAfter(api.availability(langs), ON_DEVICE_TIMEOUT_MS);
     if (availability === 'unavailable') return null;
-    if (availability === 'available') return rejectAfter(api.create(langs), AUTO_ON_DEVICE_TIMEOUT_MS);
+    if (availability === 'available') return createWithin(api, langs, ON_DEVICE_TIMEOUT_MS);
 
     onProgress?.(code, 0);
     let sawProgress = false;
@@ -124,7 +146,7 @@ export function getOnDeviceTranslator(
               // Chrome can finish downloading the pack in the background without resolving
               // the original create()/downloadprogress call; create a ready instance now.
               void api.create(langs).then(
-                (instance) => finish(() => resolve(instance)),
+                (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
                 () => {
                   /* Wait for the original createPromise or next poll tick. */
                 }
@@ -142,8 +164,9 @@ export function getOnDeviceTranslator(
         );
       }, AVAILABILITY_POLL_MS);
 
+      // A poll may have created the instance first. Destroy whichever one loses.
       createPromise.then(
-        (instance) => finish(() => resolve(instance)),
+        (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
         (err) => finish(() => reject(err))
       );
     });
@@ -222,16 +245,7 @@ export function discardOnDeviceTranslator(code: string, source = 'en'): void {
   if (!cached) return;
   translators.delete(key);
   readyPairs.delete(key);
-  void cached.then(
-    (translator) => {
-      try {
-        translator?.destroy?.();
-      } catch {
-        // Already gone
-      }
-    },
-    () => {},
-  );
+  void cached.then(destroyQuietly, () => {});
 }
 
 /**
