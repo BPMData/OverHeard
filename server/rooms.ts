@@ -16,6 +16,20 @@ interface Room {
 
 const hashPin = (pin: string, salt: string) => scryptSync(pin, salt, 32);
 
+/** One Server-Sent Events block. Exported for tests; the wire format must not change. */
+export const formatEvent = (event: string, value: unknown) => `event: ${event}\ndata: ${JSON.stringify(value)}\n\n`;
+
+/** The parts of a response `writeEvent` touches, so tests can pass a fake reader. */
+export type EventWriter = Pick<Response, 'destroyed' | 'writableLength' | 'write' | 'end'>;
+
+/** Writes a preformatted event to one reader. The checks run per reader, never per broadcast. */
+export function writeEvent(res: EventWriter, frame: string) {
+  if (res.destroyed) return;
+  // Disconnect slow readers instead of retaining unbounded caption buffers.
+  if (res.writableLength > MAX_ROOM_FILE_BYTES * 2) { res.end(); return; }
+  res.write(frame);
+}
+
 // Live transport only. A restart discards rooms; local JSON exports are the durable copy.
 // Run one server instance until a shared room store/pub-sub is introduced.
 export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
@@ -25,14 +39,13 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100 } = {}) {
   const rejoins = createRateLimiter(20, 60_000, now);
   const joins = createRateLimiter(600, 60_000, now);
   const publishes = createRateLimiter(600, 60_000, now);
-  const send = (res: Response, event: string, value: unknown) => {
-    if (res.destroyed) return;
-    // Disconnect slow readers instead of retaining unbounded caption buffers.
-    if (res.writableLength > MAX_ROOM_FILE_BYTES * 2) { res.end(); return; }
-    res.write(`event: ${event}\ndata: ${JSON.stringify(value)}\n\n`);
-  };
+  const send = (res: Response, event: string, value: unknown) => writeEvent(res, formatEvent(event, value));
+  // Serialize once per broadcast, not once per student: full snapshots can be hundreds of KB,
+  // and stringifying them per reader blocks the event loop for every room on this process.
   const broadcast = (room: Room, event: string, value: unknown) => {
-    for (const client of room.clients) send(client, event, value);
+    if (room.clients.size === 0) return;
+    const frame = formatEvent(event, value);
+    for (const client of room.clients) writeEvent(client, frame);
   };
   const isExpired = (room: Room) =>
     now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000);
