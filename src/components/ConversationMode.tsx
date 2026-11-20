@@ -118,7 +118,13 @@ export function ConversationMode({
     if (shareSetupOpen) roomCodeRef.current?.focus();
   }, [shareSetupOpen]);
   const lectureToolsId = useId();
+  // Simple controls hide Clear lecture until the teacher ends the room, so a live class
+  // can't be wiped by accident but the next class can start from an empty transcript.
+  const [roomJustEnded, setRoomJustEnded] = useState(false);
+  const previousRoomCode = useRef<string | null>(null);
   const handleRoomCodeChange = useCallback((code: string | null) => {
+    setRoomJustEnded(!code && previousRoomCode.current !== null);
+    previousRoomCode.current = code;
     setActiveRoomCode(code);
     if (code) setShareSetupOpen(false);
   }, []);
@@ -465,6 +471,12 @@ export function ConversationMode({
                 onClick={() => setShareSetupOpen(open => !open)}
               >
                 Share room code with students
+              </button>
+            )}
+            {!settings.showAllLectureControls && roomJustEnded && !lecture.speech.isListening
+              && (lecture.entries.length > 0 || !!lecture.speech.interim) && (
+              <button type="button" onClick={lecture.clear}>
+                Clear lecture
               </button>
             )}
           </div>
