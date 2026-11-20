@@ -19,9 +19,7 @@ import {
 } from '../onDevice';
 import {
   conversationJson,
-  loadConversationSettings,
   parseConversationJson,
-  saveConversationSettings,
   type ConversationSubMode,
 } from './conversationSettings';
 import { AboutModal } from './AboutModal';
@@ -29,8 +27,10 @@ import { LectureTools, LectureView } from './LectureView';
 import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import { TwoWayReadAloud, TwoWaySettings, TwoWayView } from './TwoWayView';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
+import { LectureControlsSetting } from './LectureControlsSetting';
+import { useConversationSettings } from './useConversationSettings';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Volume2 } from 'lucide-react';
+import { HelpCircle, Settings as SettingsIcon } from 'lucide-react';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { piperClient } from '../tts/piperClient';
@@ -72,6 +72,8 @@ interface Props {
   packPanel?: React.ReactNode;
   /** Lecture imported from the base web-page */
   importedLecture?: { seq: number; entries: LectureEntry[] } | null;
+  /** The view that `onExit` returns to, named on the exit button */
+  returnView?: 'columns' | 'subtitle';
 }
 export function ConversationMode({
   active,
@@ -94,8 +96,10 @@ export function ConversationMode({
   onPackProgress,
   packPanel,
   importedLecture,
+  returnView = 'columns',
 }: Props) {
-  const [settings, setSettings] = useState(() => loadConversationSettings(initialLanguage));
+  const [settings, setSettings] = useConversationSettings(initialLanguage);
+  const showAllControls = settings.alwaysShowAllLectureControls || settings.showAllLectureControls;
   const targetLangs: LanguageCode[] =
     selectedLangs
       ? selectedLangs
@@ -227,7 +231,6 @@ export function ConversationMode({
       nextButton.current?.focus();
   }, [active, isLecture, settings.manualTurns, speech.isListening]);
   useWakeLock(active);
-  useEffect(() => saveConversationSettings(settings), [settings]);
   useEffect(() => {
     if (!active || isLecture) {
       speech.stop();
@@ -392,7 +395,7 @@ export function ConversationMode({
     }
   };
   const startLecture = () => {
-    if (!settings.showAllLectureControls && !activeRoomCode) {
+    if (!showAllControls && !activeRoomCode) {
       if (shareSetupOpen) roomCodeRef.current?.focus();
       else setShareSetupOpen(true);
       return;
@@ -402,14 +405,15 @@ export function ConversationMode({
   const voiceSettingsButton = (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5"
+      className="conversation-settings-btn"
       onClick={() => setIsVoiceSettingsOpen(true)}
-      title="Open voice and privacy settings"
+      title="Open settings: controls, reader voices, and privacy"
     >
-      <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+      <SettingsIcon className="w-3.5 h-3.5" aria-hidden="true" />
       <span>Settings</span>
     </button>
   );
+  const returnViewName = returnView === 'subtitle' ? 'Subtitle' : 'Columns';
   return (
     <div
       ref={root}
@@ -463,7 +467,7 @@ export function ConversationMode({
                 Languages{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}
               </button>
             )}
-            {!settings.showAllLectureControls && !activeRoomCode && (
+            {!showAllControls && !activeRoomCode && (
               <button
                 type="button"
                 aria-expanded={shareSetupOpen}
@@ -473,7 +477,7 @@ export function ConversationMode({
                 Share room code with students
               </button>
             )}
-            {!settings.showAllLectureControls && roomJustEnded && !lecture.speech.isListening
+            {!showAllControls && roomJustEnded && !lecture.speech.isListening
               && (lecture.entries.length > 0 || !!lecture.speech.interim) && (
               <button type="button" onClick={lecture.clear}>
                 Clear lecture
@@ -496,7 +500,7 @@ export function ConversationMode({
           />
         )}
         <div className="conversation-control-group" role="group" aria-label="Display settings">
-          {!isLecture && voiceSettingsButton}
+          {voiceSettingsButton}
           <button
             onClick={() => {
               if (fullscreen) void document.exitFullscreen();
@@ -529,26 +533,26 @@ export function ConversationMode({
           />
         )}
         <div className="conversation-control-group" role="group" aria-label="Navigation">
-          {isLecture && (
+          {isLecture && !settings.alwaysShowAllLectureControls && (
             <button
               type="button"
               aria-controls={lectureToolsId}
-              aria-expanded={settings.showAllLectureControls}
+              aria-expanded={showAllControls}
               onClick={() => setSettings(current => ({
                 ...current,
                 showAllLectureControls: !current.showAllLectureControls,
               }))}
             >
-              {settings.showAllLectureControls ? 'Use simple controls' : 'Show all controls'}
+              {showAllControls ? 'Use simple controls' : 'Show all controls'}
             </button>
           )}
           <button
             type="button"
             className="conversation-exit"
             onClick={exit}
-            aria-label="Back to Listening Mode"
+            title={`Leave ${isLecture ? 'Lecture' : 'Two-way'} and go back to ${returnViewName} view`}
           >
-            <span aria-hidden="true">← </span>{isLecture ? 'Listening mode' : 'Back to Listening Mode'}
+            <span aria-hidden="true">← </span>Back to {returnViewName} view
           </button>
           <button
             type="button"
@@ -564,7 +568,7 @@ export function ConversationMode({
       </div>
       {isLecture && (
         <>
-          {!settings.showAllLectureControls && onDeviceTranslationFailing && (
+          {!showAllControls && onDeviceTranslationFailing && (
             <p className="lecture-translator-warning" role="alert">
               On-device translation failed. Open all controls to choose another translator.
             </p>
@@ -574,7 +578,7 @@ export function ConversationMode({
             className="conversation-settings lecture-tools"
             role="group"
             aria-label="Additional lecture controls"
-            hidden={!settings.showAllLectureControls}
+            hidden={!showAllControls}
           >
             <LectureTools
               active={active && isLecture}
@@ -596,7 +600,6 @@ export function ConversationMode({
               settings={settings}
               setSettings={setSettings}
             />
-            {voiceSettingsButton}
           </div>
           {lecturePlayback.status !== 'idle' && (
             <div className="conversation-settings" role="group" aria-label="Active audio playback">
@@ -613,8 +616,8 @@ export function ConversationMode({
       <TeacherRoomControls
         id={roomControlsId}
         roomCodeRef={roomCodeRef}
-        guideSetup={!settings.showAllLectureControls}
-        showSetup={settings.showAllLectureControls || shareSetupOpen}
+        guideSetup={!showAllControls}
+        showSetup={showAllControls || shareSetupOpen}
         archiveControls={isLecture && (
           <>
             <SaveLectureToDriveControl
@@ -701,7 +704,9 @@ export function ConversationMode({
         onClose={() => setIsVoiceSettingsOpen(false)}
         isDark={isDark}
         showPrivacy
-      />
+      >
+        <LectureControlsSetting initialLanguage={initialLanguage} />
+      </VoiceSettingsModal>
       <AboutModal
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}

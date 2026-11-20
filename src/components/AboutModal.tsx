@@ -155,7 +155,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             </div>
             <ul className="space-y-2 text-slate-600 dark:text-[#94A3B8]">
               <li>
-                <strong className="text-slate-800 dark:text-slate-200">Spacebar Shortcut (Listening Mode):</strong>{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Spacebar Shortcut (Columns &amp; Subtitle views):</strong>{' '}
                 In the default <strong className="text-slate-800 dark:text-slate-200">Columns</strong> or <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> projector view, press <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code> anytime (when not typing in a text box or menu) to toggle Start and Pause.
               </li>
               <li>
@@ -206,7 +206,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             <ul className="space-y-2 text-slate-600 dark:text-[#94A3B8]">
               <li>
                 <strong className="text-slate-800 dark:text-slate-200">Settings (Voices &amp; Privacy) &amp; Click-to-Read:</strong>{' '}
-                Open <strong className="text-slate-800 dark:text-slate-200">Settings</strong> (speaker icon on the main bar, Conversation/Lecture mode, and Student room pages) to pick default Piper neural voices for <strong className="text-slate-800 dark:text-slate-200">English</strong>, <strong className="text-slate-800 dark:text-slate-200">Spanish</strong>, and <strong className="text-slate-800 dark:text-slate-200">Portuguese</strong> with instant audio previews. Click any line&apos;s play button to read aloud from there, or toggle <strong className="text-slate-800 dark:text-slate-200">Read aloud</strong>.
+                Open <strong className="text-slate-800 dark:text-slate-200">Settings</strong> (gear icon on the main bar, in Two-way and Lecture, and on Student room pages) to pick default Piper neural voices for <strong className="text-slate-800 dark:text-slate-200">English</strong>, <strong className="text-slate-800 dark:text-slate-200">Spanish</strong>, and <strong className="text-slate-800 dark:text-slate-200">Portuguese</strong> with instant audio previews. In Two-way or Lecture, Settings also has <strong className="text-slate-800 dark:text-slate-200">Always show all lecture controls</strong> if you never want the simple lecture toolbar. Click any line&apos;s play button to read aloud from there, or toggle <strong className="text-slate-800 dark:text-slate-200">Read aloud</strong>.
               </li>
               <li>
                 <strong className="text-slate-800 dark:text-slate-200">Local JSON Export &amp; Import:</strong>{' '}

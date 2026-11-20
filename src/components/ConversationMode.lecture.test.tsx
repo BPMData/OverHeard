@@ -200,7 +200,7 @@ describe('ConversationMode Lecture mode', () => {
     expect(screen.getByText('Second lecture sentence')).toBeTruthy();
 
     // Exit stops lecture cleanly and calls onExit
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Listening Mode' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Columns view' }));
     expect(onExit).toHaveBeenCalledTimes(1);
 
     // Confirm Clear lecture removes rows
@@ -462,4 +462,34 @@ it('clears "While I talk" when Read aloud is turned off, instead of leaving it g
   // Turning Read aloud back on doesn't silently turn "While I talk" back on
   fireEvent.click(readAloud);
   expect(live.checked).toBe(false);
+});
+
+it('keeps Settings and a purple exit to the previous view in the simple lecture toolbar', () => {
+  render(<ConversationMode active fontSize={32} isDark translate={vi.fn()} returnView="subtitle"
+    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  expect(screen.getByRole('button', { name: 'Show all controls' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Settings' }).className).toContain('conversation-settings-btn');
+  expect(screen.getByRole('button', { name: 'Back to Subtitle view' }).className).toContain('conversation-exit');
+});
+
+it('can always show all lecture controls from Settings, and remembers it', () => {
+  const props = { active: true, fontSize: 32, isDark: true, translate: vi.fn(), selectedLangs: ['es' as const],
+    mtPreference: 'auto', onExit: vi.fn(), onPermissionDenied: vi.fn() };
+  const { unmount } = render(<ConversationMode {...props} />);
+  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
+  expect(screen.getByRole('button', { name: 'Show all controls' }).getAttribute('aria-expanded')).toBe('false');
+  expect(screen.queryByRole('group', { name: 'Additional lecture controls' })).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /Always show all lecture controls/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(screen.getByRole('group', { name: 'Additional lecture controls' }).hidden).toBe(false);
+  expect(screen.queryByRole('button', { name: 'Show all controls' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Use simple controls' })).toBeNull();
+
+  unmount();
+  render(<ConversationMode {...props} />);
+  expect(screen.getByRole('group', { name: 'Additional lecture controls' }).hidden).toBe(false);
+  expect(screen.queryByRole('button', { name: 'Use simple controls' })).toBeNull();
 });

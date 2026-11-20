@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Square, Volume2, X } from 'lucide-react';
+import { Settings, ShieldCheck, Square, Volume2, X } from 'lucide-react';
 import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/piperClient';
 import { VoiceSelect } from '../tts/VoiceSelect';
 import {
@@ -17,6 +17,8 @@ interface VoiceSettingsModalProps {
   client?: SpeechClient;
   /** Show the privacy note about keeping everything on this device */
   showPrivacy?: boolean;
+  /** Settings for the page that opened this, shown above the reader voices */
+  children?: React.ReactNode;
 }
 
 const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
@@ -57,6 +59,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   isDark,
   client = piperClient,
   showPrivacy = false,
+  children,
 }) => {
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
@@ -166,7 +169,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <Volume2 className="w-5 h-5 text-[#5843A5] dark:text-[#A78BFA]" />
+            <Settings className="w-5 h-5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
             <h2 className="text-lg font-bold tracking-tight">Settings</h2>
           </div>
           <button
@@ -187,6 +190,15 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
         </div>
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {children && (
+            <section
+              aria-label="Controls"
+              className={`pb-5 border-b ${darkMode ? 'border-[#1E293B]' : 'border-slate-200'}`}
+            >
+              {children}
+            </section>
+          )}
+
           {/* Reader Voices */}
           <section className="space-y-3">
             <div className="space-y-1">

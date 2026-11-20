@@ -1,6 +1,6 @@
 import { type ComponentProps, type ReactNode, type Dispatch, type SetStateAction, useRef } from 'react';
 import type { DisplayMode, CaptionSegment, LanguageCode } from '../types';
-import { Download, FlaskConical, Globe, HelpCircle, History, Moon, PictureInPicture2, Sun, Upload, Volume2 } from 'lucide-react';
+import { Download, FlaskConical, Globe, HelpCircle, History, Moon, PictureInPicture2, Settings, Sun, Upload } from 'lucide-react';
 import { PackProgressPanel } from '../components/PackProgressPanel';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { JoinRoomForm } from '../rooms/StudentRoom';
@@ -190,7 +190,7 @@ export function AppHeader({
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
             title="Open voice and privacy settings"
           >
-            <Volume2 className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+            <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
             <span>Settings</span>
           </button>
 

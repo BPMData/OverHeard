@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Moon, Sun, Volume2 } from 'lucide-react';
+import { Moon, Settings, Sun } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
@@ -130,7 +130,7 @@ export function StudentRoom({ code }: { code: string }) {
         onClick={() => setIsVoiceSettingsOpen(true)}
         title="Choose default reader voices"
       >
-        <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
+        <Settings className="w-3.5 h-3.5" aria-hidden="true" />
         <span>Settings</span>
       </button>
       <label>
