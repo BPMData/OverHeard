@@ -36,12 +36,18 @@ export interface SpeechClient {
   speak: (text: string, options: SpeakOptions) => PlaybackHandle;
   subscribeStatus: (listener: (status: PiperModelStatus) => void) => () => void;
   unlockAudio: () => void;
+  /** Download a voice and the shared voice runtime now, so read-aloud works offline later. */
+  saveForOffline?: (voiceId: string) => Promise<void>;
+  /** Model ids of the Piper voices already saved on this device. */
+  listSavedModels?: () => Promise<string[]>;
 }
 
 type WorkerEvent =
   | { type: 'status'; modelId: string; status: 'downloading' | 'ready' | 'error'; progress?: number; error?: string }
   | { type: 'wav'; jobId: number; wavBuffer: ArrayBuffer }
-  | { type: 'error'; jobId: number; error: string };
+  | { type: 'error'; jobId: number; error: string }
+  | { type: 'saved'; requestId: number; ok: boolean; error?: string }
+  | { type: 'stored'; requestId: number; modelIds: string[] };
 
 const CHUNK_EDGE_FADE_MS = 8;
 const MAX_PREFETCH_ENTRIES = 6;
@@ -136,6 +142,11 @@ export class PiperPlaybackClient implements SpeechClient {
     { resolve: (wav: ArrayBuffer) => void; reject: (err: Error) => void }
   >();
   private prefetchCache = new Map<string, Promise<ArrayBuffer>>();
+  private nextRequestId = 1;
+  private pendingRequests = new Map<
+    number,
+    { resolve: (value: string[] | void) => void; reject: (err: Error) => void }
+  >();
 
   isPiperSupported = (): boolean => isPiperSupported();
 
@@ -211,6 +222,15 @@ export class PiperPlaybackClient implements SpeechClient {
         }
         return;
       }
+      if (msg.type === 'saved' || msg.type === 'stored') {
+        const pending = this.pendingRequests.get(msg.requestId);
+        if (!pending) return;
+        this.pendingRequests.delete(msg.requestId);
+        if (msg.type === 'stored') pending.resolve(msg.modelIds);
+        else if (msg.ok) pending.resolve();
+        else pending.reject(new Error(msg.error || 'Could not save voice'));
+        return;
+      }
       if (msg.type === 'error') {
         const pending = this.pendingJobs.get(msg.jobId);
         if (pending) {
@@ -227,6 +247,10 @@ export class PiperPlaybackClient implements SpeechClient {
         pending.reject(err);
       }
       this.pendingJobs.clear();
+      for (const [, pending] of this.pendingRequests) {
+        pending.reject(err);
+      }
+      this.pendingRequests.clear();
       this.prefetchCache.clear();
       this.worker = null;
     });
@@ -241,6 +265,29 @@ export class PiperPlaybackClient implements SpeechClient {
     if (!voice) return;
     const worker = this.ensureWorker();
     worker.postMessage({ type: 'preload', modelId: voice.modelId });
+  };
+
+  private request<T extends string[] | void>(message: Record<string, unknown>): Promise<T> {
+    const requestId = this.nextRequestId++;
+    const worker = this.ensureWorker();
+    return new Promise<T>((resolve, reject) => {
+      this.pendingRequests.set(requestId, {
+        resolve: resolve as (value: string[] | void) => void,
+        reject,
+      });
+      worker.postMessage({ ...message, requestId });
+    });
+  }
+
+  saveForOffline = async (voiceId: string): Promise<void> => {
+    const voice = findPiperVoice(voiceId);
+    if (!this.isPiperSupported() || !voice) return;
+    await this.request<void>({ type: 'save', modelId: voice.modelId });
+  };
+
+  listSavedModels = async (): Promise<string[]> => {
+    if (!this.isPiperSupported()) return [];
+    return this.request<string[]>({ type: 'listStored' });
   };
 
   private synthesize(

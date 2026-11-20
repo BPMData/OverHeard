@@ -6,7 +6,8 @@
 // - Pages are network-first so deploys show up immediately, but give up after a few seconds
 //   on a weak connection and open the saved copy instead.
 // - The Piper voice runtimes (/ort/, /piper/, ~40 MB) and Google Fonts are saved the first
-//   time they're used, so a teacher who has used read-aloud or a script once has them offline.
+//   time they're used: on the first read-aloud, or when a teacher clicks "Save chosen voices
+//   for offline" in Settings. Student room links never download them at install.
 // - API calls are never cached.
 const PRECACHE = [];
 const SHELL_VERSION = 'dev';

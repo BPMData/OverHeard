@@ -23,6 +23,8 @@ for (const voice of PIPER_VOICES) {
 
 type IncomingMessage =
   | { type: 'preload'; modelId: string }
+  | { type: 'save'; requestId: number; modelId: string }
+  | { type: 'listStored'; requestId: number }
   | { type: 'cancelJob'; jobId: number }
   | { type: 'synthesize'; jobId: number; modelId: string; speakerId: number; text: string };
 
@@ -167,6 +169,33 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
       const oldest = cancelledJobs.values().next().value;
       if (typeof oldest === 'number') cancelledJobs.delete(oldest);
     }
+    return;
+  }
+
+  if (data.type === 'listStored') {
+    void stored().then(
+      (modelIds) => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds }),
+      () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] }),
+    );
+    return;
+  }
+
+  if (data.type === 'save') {
+    // Save for offline: load the voice (downloading it if needed) and speak once, which also
+    // fetches the shared runtimes (/ort/, /piper/) so the service worker keeps them.
+    runSerialized(async () => {
+      try {
+        const session = await ensureSession(data.modelId);
+        if (!warmedModels.has(data.modelId)) {
+          warmedModels.add(data.modelId);
+          await session.predict('Hello.');
+        }
+        workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not save voice';
+        workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: false, error: message });
+      }
+    });
     return;
   }
 

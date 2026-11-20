@@ -72,6 +72,22 @@ Almost every page is hard to use at phone width. The student room comes first: a
 good fit for a student who only reads along with the live translation. Once it works on a
 phone, a QR code beside the student link becomes worth adding.
 
+### Paste text to read aloud, and save it as an MP3
+
+A page where you type or paste text, optionally translate it, and hear a Piper voice read it.
+Translation is optional: someone who speaks Hindi may want Hindi text read in Hindi, or
+English in English. Either way, you can download the reading as an **MP3** to share or play
+later. It might fit better in AllHail, or as a new page in OverHeard. Decide before building.
+
+- [ ] Text pane with a language picker for the source text and an optional "translate to"
+      picker (reuse the on-device-first translator).
+- [ ] Read aloud with the chosen Piper voice, splitting long text into sentences like
+      lecture playback does.
+- [ ] Save as MP3. Piper produces WAV, so this needs an in-browser MP3 encoder (for example
+      `lamejs`, or a WASM build of LAME) to join the sentence clips into one file. Offer WAV
+      as a fallback.
+- [ ] Works offline with on-device translation and voices saved for offline use.
+
 ### Rework the column view for the "laptop on the desk" use case
 
 Not specified yet. Starting points: readable from across a desk at a slight angle, less

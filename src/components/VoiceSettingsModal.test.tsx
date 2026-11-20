@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import type { SpeechClient } from '../tts/piperClient';
+import { findPiperVoice, resolveVoiceId } from '../tts/voices';
 
 function createMockClient(): {
   client: SpeechClient;
@@ -94,5 +95,43 @@ describe('VoiceSettingsModal', () => {
     expect(screen.getByText(/none of your student or classroom data goes online/i)).toBeTruthy();
     expect(screen.queryByText(/Gemini/i)).toBeNull();
     expect(screen.queryByRole('checkbox', { name: /Refine statements/i })).toBeNull();
+  });
+  it('saves the chosen voices for offline only when asked, then marks them saved', async () => {
+    const { client } = createMockClient();
+    const saved = new Set<string>();
+    const saveForOffline = vi.fn(async (voiceId: string) => {
+      saved.add(findPiperVoice(voiceId)!.modelId);
+    });
+    const listSavedModels = vi.fn(async () => [...saved]);
+    render(
+      <VoiceSettingsModal isOpen onClose={vi.fn()} client={{ ...client, saveForOffline, listSavedModels }} />,
+    );
+    await waitFor(() => expect(listSavedModels).toHaveBeenCalled());
+    // Opening the settings downloads nothing
+    expect(saveForOffline).not.toHaveBeenCalled();
+    expect(screen.queryByText('Saved')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save chosen voices for offline' }));
+    await screen.findByText('Saved. These voices will read aloud without an internet connection.');
+    const chosen = new Set(['en', 'es', 'pt'].map((lang) => resolveVoiceId(lang as 'en')));
+    expect(saveForOffline).toHaveBeenCalledTimes(chosen.size);
+    for (const voiceId of chosen) expect(saveForOffline).toHaveBeenCalledWith(voiceId);
+    expect(screen.getAllByText('Saved')).toHaveLength(3);
+  });
+
+  it('reports voices that could not be saved', async () => {
+    const { client } = createMockClient();
+    const saveForOffline = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    render(
+      <VoiceSettingsModal
+        isOpen
+        onClose={vi.fn()}
+        client={{ ...client, saveForOffline, listSavedModels: async () => [] }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save chosen voices for offline' }));
+    await screen.findByText(/could not be saved/);
   });
 });
