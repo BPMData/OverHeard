@@ -4,11 +4,12 @@ import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
-import { PACK_NEEDS_CLICK, getChromeAvailability, getOnDeviceAvailability, prepareOnDeviceTranslators, startWaitingPack, waitingPackSize } from '../onDevice';
+import { PACK_NEEDS_CLICK, getChromeAvailability, isOnDeviceTranslationSupported, getOnDeviceAvailability, prepareOnDeviceTranslators, startWaitingPack, waitingPackSize } from '../onDevice';
 import { BERGAMOT_APPROXIMATE, bergamotDownloadLabel } from '../translation/bergamot/models';
 import { hasBergamotModel } from '../translation/bergamot/engine';
 import { piperClient } from '../tts/piperClient';
 import { TranslatedByBadge } from '../header/TranslatorPicker';
+import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 import { useLecturePlayback } from '../tts/useSpeechPlayback';
 import {
   BROWSER_VOICE_ID,
@@ -25,6 +26,13 @@ import { emptyLecture, normalizeRoomCode, validRoomCode } from './protocol';
 import { studentRoomUrl } from './roomLink';
 import { loadStudentPrefs, saveStudentPrefs } from './studentPrefs';
 import '../components/ConversationMode.css';
+
+const STUDENT_DEVICE_FIRST_TIP =
+  'On-device first: this page translates on your device when it can. Otherwise it uses Google’s free ' +
+  'online translator, which means the text is sent to Google.';
+const STUDENT_ONLY_LOCAL_TIP =
+  'Only on this device: this page never sends text to an online translator. Translations your ' +
+  'teacher’s computer already made still show. Languages your device can’t translate stay untranslated.';
 
 export function JoinRoomForm() {
   const [code, setCode] = useState('');
@@ -46,7 +54,8 @@ export function StudentRoom({ code }: { code: string }) {
   const [language, setLanguage] = useState<LanguageCode | 'en'>(prefs.language);
   const [fontSize, setFontSize] = useState(prefs.fontSize);
   const [isDark, setIsDark] = useState(prefs.isDark);
-  useEffect(() => saveStudentPrefs({ isDark, language, fontSize }), [isDark, language, fontSize]);
+  const [onDeviceOnly, setOnDeviceOnly] = useState(prefs.onDeviceOnly);
+  useEffect(() => saveStudentPrefs({ isDark, language, fontSize, onDeviceOnly }), [isDark, language, fontSize, onDeviceOnly]);
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [readAloud, setReadAloud] = useState(false);
@@ -72,7 +81,11 @@ export function StudentRoom({ code }: { code: string }) {
     }
     return () => { active = false; };
   }, [language, needsLocalPack]);
-  const translations = useStudentTranslations(snapshot, language);
+  const translations = useStudentTranslations(snapshot, language, { onDeviceOnly });
+  const needOnline = useLanguagesNeedingOnline(
+    language === 'en' ? [] : fromEnglish([language]),
+    onDeviceOnly && isOnDeviceTranslationSupported(),
+  );
   const studentTranslate = translations.translate;
   const translateLive = useCallback(
     (text: string, lang: ConversationLanguage) => (lang === 'en' ? Promise.resolve(text) : studentTranslate(text, lang)),
@@ -112,6 +125,19 @@ export function StudentRoom({ code }: { code: string }) {
         }}>
           <option value="en">English only</option>
           {SUPPORTED_LANGUAGES.map(lang => <option key={lang.code} value={lang.code}>{lang.name} · {lang.nativeName}</option>)}
+        </select>
+      </label>
+      <label title={onDeviceOnly ? STUDENT_ONLY_LOCAL_TIP : STUDENT_DEVICE_FIRST_TIP}>Translate
+        <select aria-label="Translate" value={onDeviceOnly ? 'on-device' : 'auto'} onChange={event => {
+          const next = event.target.value === 'on-device';
+          setOnDeviceOnly(next);
+          // Choosing it is a click, so start this language's download now
+          if (next && language !== 'en') prepareOnDeviceTranslators([language]);
+        }}>
+          <option value="auto" title={STUDENT_DEVICE_FIRST_TIP}>On-device first</option>
+          <option value="on-device" disabled={!isOnDeviceTranslationSupported()} title={STUDENT_ONLY_LOCAL_TIP}>
+            Only on this device{isOnDeviceTranslationSupported() ? '' : ' (needs a newer browser)'}
+          </option>
         </select>
       </label>
       {needsLocalPack && downloadOffer === language && (
@@ -203,6 +229,13 @@ export function StudentRoom({ code }: { code: string }) {
     <p className="conversation-help">Follow your teacher’s captions in your language. Pop them out to keep reading while you work.</p>
     <p aria-live="polite">{error || (snapshot?.ended ? 'This lecture has ended.' : !snapshot?.teacherOnline
       ? 'Teacher disconnected. Waiting for them to reconnect…' : state.isListening ? 'Connected · Lecture live' : 'Connected · Teacher paused')}</p>
+    {needOnline.length > 0 && (
+      <p role="alert" className="lecture-translator-warning" title={needOnlineText(needOnline).title}>
+        ⚠ {needOnlineText(needOnline).names}: “Only on this device” can’t translate this language here. Lines
+        your teacher’s computer already translated still show; the rest stay untranslated. Choose
+        On-device first to translate them online.
+      </p>
+    )}
     {translations.translatedBy && language !== 'en' && (
       <p className="text-xs"><TranslatedByBadge provider={translations.translatedBy} /></p>
     )}

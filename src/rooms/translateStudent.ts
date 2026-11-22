@@ -1,13 +1,19 @@
 import type { createDeviceFirstTranslator } from '../translation/deviceFirst';
+import { ON_DEVICE_TIMEOUT_MS } from '../app/settings';
+import { translateOnDevice } from '../onDevice';
 import { getSessionId, SESSION_HEADER } from '../session';
 import type { LanguageCode } from '../types';
 
 // Each browser shares its own pending/completed local work. Server requests are also
 // coalesced across students by the machine translator, including provider fallbacks.
-/** `onTranslated` hears who did each fresh translation, so the page can show it. */
+/**
+ * `onTranslated` hears who did each fresh translation, so the page can show it. With
+ * `onDeviceOnly` (the student's own choice) nothing is ever sent to an online translator.
+ */
 export function createStudentTranslator(
   tryDeviceFirst: ReturnType<typeof createDeviceFirstTranslator>['translate'],
   onTranslated?: (by: 'on-device' | 'gtx') => void,
+  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
 ) {
   const cache = new Map<string, Promise<string>>();
   return (text: string, lang: LanguageCode): Promise<string> => {
@@ -15,6 +21,12 @@ export function createStudentTranslator(
     const existing = cache.get(key);
     if (existing) return existing;
     const pending = (async () => {
+      if (onDeviceOnly) {
+        const value = await translateOnDevice(text, lang, 'en', ON_DEVICE_TIMEOUT_MS);
+        if (!value.trim()) throw new Error('Empty local translation');
+        onTranslated?.('on-device');
+        return value;
+      }
       const local = await tryDeviceFirst(text, lang, 'en');
       if (local !== null) {
         onTranslated?.('on-device');
