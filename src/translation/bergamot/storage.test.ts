@@ -22,7 +22,7 @@ describe('On-device translation models storage category', () => {
       { id: 'prs', label: 'English → Dari (approximate: Iranian Persian, not Afghan Dari)', bytes: 50, removable: true },
       { id: 'ur', label: 'English → Urdu', bytes: 100, removable: true },
       { id: BERGAMOT_LEFTOVERS_ID, label: 'Unfinished or old translation downloads', bytes: 7, removable: true },
-      { id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language)', bytes: 5, removable: true },
+      { id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language except Swahili)', bytes: 5, removable: true },
     ]);
   });
 

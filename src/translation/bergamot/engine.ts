@@ -1,17 +1,19 @@
-// Bergamot on-device translation: whether a language can run here, its shared download, and
-// translator instances for src/onDevice.ts, which tries Chrome's built-in translator first.
+// On-device translation fallback (Bergamot; Opus-MT for Swahili): whether a language can run
+// here, its shared download, and translator instances for src/onDevice.ts, which tries
+// Chrome's built-in translator first.
 // Nothing here sends caption text anywhere; only model files are downloaded.
 import { notifyStorageChanged } from '../../storage/registry';
 import { bergamotModelFor } from './models';
 import {
   downloadAndSaveModel, isModelSaved, readSavedModel, removeAllSavedModels, removeSavedModel,
 } from './store';
+import { OpusWorkers } from './opus';
 import { BergamotWorker } from './worker';
 
 export type BergamotAvailability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
 
 export interface BergamotTranslator {
-  engine: 'bergamot';
+  engine: 'bergamot' | 'opus';
   translate(text: string): Promise<string>;
   destroy(): void;
 }
@@ -20,6 +22,7 @@ export interface BergamotTranslator {
 const NOT_SAVED_RECHECK_MS = 30_000;
 
 let worker = new BergamotWorker();
+let opus = new OpusWorkers();
 const saved = new Map<string, boolean | number>(); // true, or the time "not saved" was checked
 const downloads = new Map<string, Promise<void>>();
 
@@ -80,6 +83,7 @@ const progressListeners = new Map<string, Set<(fraction: number) => void>>();
 export async function createBergamotTranslator(lang: string, source = 'en'): Promise<BergamotTranslator> {
   const model = bergamotModelFor(lang, source);
   if (!model) throw new Error(`No on-device model for ${lang}`);
+  if (model.engine === 'opus') return createOpusTranslator(lang);
   const load = async () => {
     if (worker.isLoaded(model.pair)) return;
     const buffers = await readSavedModel(model);
@@ -105,8 +109,30 @@ export async function createBergamotTranslator(lang: string, source = 'en'): Pro
   };
 }
 
-export const isBergamotTranslator = (value: unknown): value is BergamotTranslator =>
-  typeof value === 'object' && value !== null && (value as { engine?: unknown }).engine === 'bergamot';
+/** Opus-MT (Swahili): the worker reads the saved files itself. */
+async function createOpusTranslator(lang: string): Promise<BergamotTranslator> {
+  const model = bergamotModelFor(lang)!;
+  if (!(await isModelSaved(model).catch(() => false))) {
+    saved.delete(lang);
+    throw new Error(`The ${lang} translation model isn't downloaded`);
+  }
+  const started = performance.now();
+  await opus.load(lang);
+  // Warm up: the first sentence after loading is slower, so don't spend it on a caption.
+  await opus.translate(lang, 'Hello.').catch(() => '');
+  console.info(`[opus-mt] ${model.pair} ready in ${Math.round(performance.now() - started)} ms`);
+  return {
+    engine: 'opus',
+    translate: (text: string) => opus.translate(lang, text),
+    destroy: () => {},
+  };
+}
+
+/** True for this module's translators (Bergamot or Opus-MT), as opposed to Chrome's. */
+export const isBergamotTranslator = (value: unknown): value is BergamotTranslator => {
+  const engine = typeof value === 'object' && value !== null ? (value as { engine?: unknown }).engine : undefined;
+  return engine === 'bergamot' || engine === 'opus';
+};
 
 /** Delete a saved model (Settings → Space used on this device). '' deletes leftover files. */
 export async function deleteBergamotModel(lang: string): Promise<void> {
@@ -114,7 +140,8 @@ export async function deleteBergamotModel(lang: string): Promise<void> {
   if (lang) {
     saved.delete(lang);
     const model = bergamotModelFor(lang);
-    if (model) worker.unload(model.pair);
+    if (model?.engine === 'opus') opus.unload(lang);
+    else if (model) worker.unload(model.pair);
   }
 }
 
@@ -123,12 +150,19 @@ export async function deleteAllBergamotModels(): Promise<void> {
   saved.clear();
   worker.reset('Translation models deleted');
   worker = new BergamotWorker();
+  opus.reset('Translation models deleted');
+  opus = new OpusWorkers();
 }
 
 /** For tests */
-export function resetBergamotForTests(next: BergamotWorker = new BergamotWorker()): void {
+export function resetBergamotForTests(
+  next: BergamotWorker = new BergamotWorker(),
+  nextOpus: OpusWorkers = new OpusWorkers(),
+): void {
   worker.reset();
   worker = next;
+  opus.reset();
+  opus = nextOpus;
   saved.clear();
   downloads.clear();
   progressListeners.clear();

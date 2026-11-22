@@ -5,7 +5,7 @@ import { formatBytes, type StorageCategory, type StoredItem } from '../../storag
 import type { LanguageCode } from '../../types';
 import { RUNTIME_CACHE_NAME } from '../../tts/voiceStorage';
 import { deleteAllBergamotModels, deleteBergamotModel } from './engine';
-import { BERGAMOT_APPROXIMATE, BERGAMOT_ATTRIBUTION, BERGAMOT_MODELS, modelBytes } from './models';
+import { BERGAMOT_APPROXIMATE, BERGAMOT_ATTRIBUTION, modelBytes, ON_DEVICE_MODELS, OPUS_ATTRIBUTION } from './models';
 import { BERGAMOT_LEFTOVERS_ID, savedModelSizes } from './store';
 
 export const BERGAMOT_ENGINE_ITEM_ID = 'engine';
@@ -56,7 +56,7 @@ export function createBergamotStorageCategory(
   const remove = deps.remove ?? deleteBergamotModel;
   const removeAllModels = deps.removeAll ?? deleteAllBergamotModels;
   const cacheStorage = deps.cacheStorage ?? getCaches;
-  const modelSizes = BERGAMOT_MODELS.map(modelBytes);
+  const modelSizes = ON_DEVICE_MODELS.map(modelBytes);
   const typical = `${formatBytes(Math.min(...modelSizes)).replace(' MB', '')}–${formatBytes(Math.max(...modelSizes))}`;
   return {
     id: 'bergamot-models',
@@ -64,7 +64,7 @@ export function createBergamotStorageCategory(
     description:
       'Translation models saved on this device so captions can translate here, without sending ' +
       'the text online, where Chrome’s built-in translator can’t (Safari, Firefox, some ' +
-      `Chromebooks, and languages like Urdu). ${BERGAMOT_ATTRIBUTION.text}.`,
+      `Chromebooks, and languages like Urdu and Swahili). ${BERGAMOT_ATTRIBUTION.text}; ${OPUS_ATTRIBUTION.text}.`,
     removeAllLabel: 'delete all on-device translation models',
     afterRemoveNote:
       `Each language will need to download its model again (${typical} each) before it can translate on ` +
@@ -82,7 +82,7 @@ export function createBergamotStorageCategory(
       items.sort((a, b) => a.label.localeCompare(b.label));
       const engineBytes = await measureEngine(cacheStorage()).catch(() => 0);
       if (engineBytes > 0) {
-        items.push({ id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language)', bytes: engineBytes, removable: true });
+        items.push({ id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language except Swahili)', bytes: engineBytes, removable: true });
       }
       return items;
     },

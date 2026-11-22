@@ -28,6 +28,7 @@
   "devDependencies": {
     "@browsermt/bergamot-translator": "0.4.9",
     "@diffusionstudio/piper-wasm": "^1.0.0",
+    "@huggingface/transformers": "3.7.6",
     "@mintplex-labs/piper-tts-web": "^1.0.5",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",

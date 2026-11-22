@@ -274,6 +274,9 @@ Do these only after steps 0–9 (including 8b), each as its own PR, with a note 
   listed as their own storage category. They download from `MMS_VOICE_BASE_URL`
   (`https://bpmdata.github.io/overheard-voices`, repo `BPMData/overheard-voices`), int8
   conversions of `facebook/mms-tts-<iso3>` (CC BY-NC 4.0: keep the attribution in Settings).
+- On-device translation falls back from Chrome's Translator API to OverHeard's own models in
+  `src/translation/bergamot/`: Bergamot for 15 languages and Opus-MT (Transformers.js) for
+  Swahili. See `docs/offline-translation.md`.
   To convert another language, see `docs/mms-voices.md`.
 - Live rooms keep state in one process. Don't add anything that assumes more than one
   Cloud Run instance (see `ROOMS.md`).
