@@ -60,8 +60,10 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['id_ID-news_tts-medium']);
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
+    expect(voicesForLanguage('zh').map((v) => v.id)).toEqual(['zh_CN-xiao_ya-medium', 'zh_CN-chaowen-medium']);
+    expect(voicesForLanguage('zh').every((v) => v.phonemeType === 'pinyin')).toBe(true);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(26);
+    expect(PIPER_VOICES).toHaveLength(28);
     expect(voicesForLanguage('fr')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -85,7 +87,7 @@ describe('Piper voice catalog and preferences', () => {
       useRhasspyRepo: true,
     });
     for (const voice of PIPER_VOICES.filter((v) =>
-      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr'].includes(v.lang)
+      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang)
     )) {
       // These models are newer than the default mirror, so they load from rhasspy.
       expect(voice.useRhasspyRepo).toBe(true);

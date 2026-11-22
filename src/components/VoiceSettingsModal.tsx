@@ -89,6 +89,12 @@ const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
     selectAriaLabel: 'Default Turkish voice',
     previewAriaLabel: 'Preview Turkish voice',
   },
+  {
+    code: 'zh',
+    title: 'Chinese · 简体中文',
+    selectAriaLabel: 'Default Chinese voice',
+    previewAriaLabel: 'Preview Chinese voice',
+  },
 ];
 
 interface PreviewState {

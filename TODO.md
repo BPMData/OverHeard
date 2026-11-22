@@ -107,8 +107,7 @@ Turkish. Piper reader voices exist for English, Spanish, Portuguese, Vietnamese,
 Urdu, Indonesian, Swahili and Turkish.
 
 - [ ] **Pick voices for Arabic, Chinese, French, Ukrainian, Russian and Dari.** The
-      rhasspy/piper-voices catalog has `ar_JO` (1 voice), `zh_CN` (huayan, xiao_ya; chaowen
-      uses the pinyin phonemizer, which the bundled phonemizer lacks), `fr_FR` (7 models),
+      rhasspy/piper-voices catalog has `ar_JO` (1 voice), `zh_CN` (done: Xiao Ya and Chaowen, via the pinyin step in `src/tts/pinyin.ts`; huayan dropped), `fr_FR` (7 models),
       `uk_UA` (5), `ru_RU` (4) and `fa_IR` (6, a possible stand-in for Dari). Listen at
       rhasspy.github.io/piper-samples and add the keepers to `src/tts/voices.ts`.
 - [ ] **Bengali has 16 speakers in one model.** Speakers 0 and 3 (Arif) are offered; listen to the rest.

@@ -1,4 +1,5 @@
 import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, stored, type Progress } from '@mintplex-labs/piper-tts-web';
+import { pinyinPhonemeIds, splitChineseForSpeech } from './pinyin';
 import { PIPER_VOICES } from './voices';
 
 const PIPER_WASM_PATHS = {
@@ -46,6 +47,19 @@ const cancelledJobs = new Set<number>();
 const savedLoadFailures = new Map<string, number>();
 let ortPatched = false;
 let activeSpeakerId = 0;
+// Chinese pinyin voices can't go through the library's eSpeak step (see pinyin.ts), so their
+// ONNX sessions are captured when the library creates them and run directly instead.
+type OrtSession = { run: (feeds: Record<string, unknown>) => Promise<Record<string, { data: Float32Array }>> };
+type OrtModule = { Tensor: new (type: string, data: unknown, dims?: number[]) => unknown };
+const pinyinSessions = new Map<string, OrtSession>();
+let captureModelId: string | null = null;
+let ortForPinyin: OrtModule | null = null;
+const PINYIN_SCALES: Record<string, [number, number, number]> = {
+  'zh_CN-xiao_ya-medium': [0.667, 1.0, 0.8],
+  'zh_CN-chaowen-medium': [0.5, 1.0, 0.333],
+};
+const PINYIN_SAMPLE_RATE = 22050;
+const pinyinModels = new Set(PIPER_VOICES.filter((v) => v.phonemeType === 'pinyin').map((v) => v.modelId));
 let queue: Promise<void> = Promise.resolve();
 
 function runSerialized(task: () => Promise<void>): void {
@@ -61,6 +75,11 @@ async function installSpeakerInterceptor(): Promise<void> {
   const origCreate = ort.InferenceSession.create.bind(ort.InferenceSession);
   ort.InferenceSession.create = async (...args: unknown[]) => {
     const session = await origCreate(...args);
+    if (captureModelId) {
+      pinyinSessions.set(captureModelId, session as unknown as OrtSession);
+      ortForPinyin = ort as unknown as OrtModule;
+      captureModelId = null;
+    }
     const origRun = session.run.bind(session);
     session.run = (feeds: Record<string, unknown>, ...rest: unknown[]) => {
       if (feeds && 'sid' in feeds && feeds.sid) {
@@ -70,6 +89,63 @@ async function installSpeakerInterceptor(): Promise<void> {
     };
     return session;
   };
+}
+
+// Speaks Chinese text with a pinyin voice: one piece at a time, joined into one 16-bit WAV.
+async function predictPinyin(modelId: string, text: string): Promise<Blob> {
+  const session = pinyinSessions.get(modelId);
+  const scales = PINYIN_SCALES[modelId];
+  const ort = ortForPinyin;
+  if (!session || !scales || !ort) throw new Error('Chinese voice is not loaded');
+  const pieces = splitChineseForSpeech(text);
+  const clips: Float32Array[] = [];
+  const gap = new Float32Array(Math.round(PINYIN_SAMPLE_RATE * 0.15));
+  for (const piece of pieces) {
+    const ids = pinyinPhonemeIds(piece);
+    if (ids.length <= 2) continue;
+    const { output } = await session.run({
+      input: new ort.Tensor('int64', ids, [1, ids.length]),
+      input_lengths: new ort.Tensor('int64', [ids.length], [1]),
+      scales: new ort.Tensor('float32', Float32Array.from(scales), [3]),
+    });
+    if (clips.length) clips.push(gap);
+    clips.push(output.data);
+  }
+  if (clips.length === 0) throw new Error('No Chinese text to speak.');
+  const total = clips.reduce((sum, clip) => sum + clip.length, 0);
+  const wav = new DataView(new ArrayBuffer(44 + total * 2));
+  const writeText = (offset: number, value: string) => {
+    for (let n = 0; n < value.length; n += 1) wav.setUint8(offset + n, value.charCodeAt(n));
+  };
+  writeText(0, 'RIFF');
+  wav.setUint32(4, 36 + total * 2, true);
+  writeText(8, 'WAVEfmt ');
+  wav.setUint32(16, 16, true);
+  wav.setUint16(20, 1, true);
+  wav.setUint16(22, 1, true);
+  wav.setUint32(24, PINYIN_SAMPLE_RATE, true);
+  wav.setUint32(28, PINYIN_SAMPLE_RATE * 2, true);
+  wav.setUint16(32, 2, true);
+  wav.setUint16(34, 16, true);
+  writeText(36, 'data');
+  wav.setUint32(40, total * 2, true);
+  let at = 44;
+  for (const clip of clips) {
+    for (let n = 0; n < clip.length; n += 1) {
+      const v = Math.max(-1, Math.min(1, clip[n]));
+      wav.setInt16(at, v < 0 ? v * 32768 : v * 32767, true);
+      at += 2;
+    }
+  }
+  return new Blob([wav], { type: 'audio/x-wav' });
+}
+
+function predictFor(session: TtsSession, modelId: string, text: string): Promise<Blob> {
+  return pinyinModels.has(modelId) ? predictPinyin(modelId, text) : session.predict(text);
+}
+
+function warmupText(modelId: string): string {
+  return pinyinModels.has(modelId) ? '你好。' : 'Hello.';
 }
 
 function isValidWav(buffer: ArrayBuffer): boolean {
@@ -102,6 +178,7 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
   }
 
   (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
+  captureModelId = pinyinModels.has(modelId) ? modelId : null;
   // A voice saved on this device only loads from storage, so report no download percentage
   // (the UI then says "Loading voice" instead of "Downloading voice").
   const alreadySaved = await stored().then((ids) => ids.includes(modelId), () => false);
@@ -142,6 +219,7 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
     return session;
   } catch (error) {
     loading = false;
+    captureModelId = null;
     (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
     sessionCache.delete(modelId);
     // A fresh download that fails to load is likely truncated, so drop it. A voice that was
@@ -188,7 +266,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
         const session = await ensureSession(data.modelId);
         if (!warmedModels.has(data.modelId)) {
           warmedModels.add(data.modelId);
-          await session.predict('Hello.');
+          await predictFor(session, data.modelId, warmupText(data.modelId));
         }
         workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: true });
       } catch (error) {
@@ -205,7 +283,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
         const session = await ensureSession(data.modelId);
         if (!warmedModels.has(data.modelId)) {
           warmedModels.add(data.modelId);
-          await session.predict('Hello.').catch(() => undefined);
+          await predictFor(session, data.modelId, warmupText(data.modelId)).catch(() => undefined);
         }
       } catch {
         // Status error already posted by ensureSession.
@@ -221,7 +299,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
         const session = await ensureSession(data.modelId);
         if (cancelledJobs.has(data.jobId)) return;
         activeSpeakerId = data.speakerId;
-        const wavBlob = await session.predict(data.text);
+        const wavBlob = await predictFor(session, data.modelId, data.text);
         if (cancelledJobs.has(data.jobId)) return;
         const wavBuffer = await wavBlob.arrayBuffer();
         if (!isValidWav(wavBuffer)) {

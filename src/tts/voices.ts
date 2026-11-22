@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr';
+export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh';
 
 export interface PiperVoiceOption {
   id: string;
@@ -13,6 +13,8 @@ export interface PiperVoiceOption {
   hfPath: string;
   speakerId: number;
   useRhasspyRepo?: boolean;
+  /** Chinese voices that take pinyin instead of eSpeak phonemes (see pinyin.ts). */
+  phonemeType?: 'pinyin';
 }
 
 export const BROWSER_VOICE_ID = 'browser';
@@ -313,6 +315,32 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     speakerId: 0,
     useRhasspyRepo: true,
   },
+
+  // Simplified Chinese. Both voices need the pinyin step in pinyin.ts.
+  {
+    id: 'zh_CN-xiao_ya-medium',
+    lang: 'zh',
+    label: 'Xiao Ya (Female · CN)',
+    gender: 'female',
+    shortName: 'Xiao Ya',
+    modelId: 'zh_CN-xiao_ya-medium',
+    hfPath: 'zh/zh_CN/xiao_ya/medium/zh_CN-xiao_ya-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
+  {
+    id: 'zh_CN-chaowen-medium',
+    lang: 'zh',
+    label: 'Chaowen (Male · CN)',
+    gender: 'male',
+    shortName: 'Chaowen',
+    modelId: 'zh_CN-chaowen-medium',
+    hfPath: 'zh/zh_CN/chaowen/medium/zh_CN-chaowen-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
 ];
 
 export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
@@ -326,6 +354,7 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   id: 'id_ID-news_tts-medium',
   sw: 'sw_CD-lanfrica-medium',
   tr: 'tr_TR-dfki-medium',
+  zh: 'zh_CN-xiao_ya-medium',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -410,6 +439,12 @@ export function voicePreviewText(
       return {
         spoken: `Merhaba, ben ${shortName}. Sizin için Türkçe okuyayım mı?`,
         englishHint: `Hi, I'm ${shortName}. Shall I read Turkish for you?`,
+      };
+    }
+    case 'zh': {
+      return {
+        spoken: `你好，我是${shortName}。要我为你朗读中文吗？`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Chinese for you?`,
       };
     }
   }
