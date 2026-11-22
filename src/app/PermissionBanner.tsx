@@ -45,7 +45,7 @@ export function PermissionBanner({
           href={window.location.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white font-semibold text-xs hover:bg-red-500 transition-colors whitespace-nowrap shrink-0"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] bg-red-600 text-white font-semibold text-xs hover:bg-red-500 transition-colors whitespace-nowrap shrink-0"
         >
           <span>Open Full Tab</span>
           <ExternalLink className="w-3.5 h-3.5" />

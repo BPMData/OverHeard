@@ -36,7 +36,7 @@ export function SubtitleBar({
 
   return (
     <main className="flex-1 flex flex-col justify-between p-4 lg:p-8 pb-56">
-      <div className="max-w-4xl mx-auto w-full rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white/60 dark:bg-[#111827]/60 p-6 space-y-4">
+      <div className="max-w-4xl mx-auto w-full rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">
@@ -50,7 +50,7 @@ export function SubtitleBar({
             <button
               type="button"
               onClick={handleTogglePip}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white text-xs font-bold whitespace-nowrap transition-colors"
+              className="oh-btn-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white text-xs font-bold whitespace-nowrap transition-colors"
             >
               <PictureInPicture2 className="w-4 h-4" />
               <span>
@@ -96,7 +96,7 @@ export function SubtitleBar({
       {/* Fixed Bottom Subtitle Bar */}
       <section
         aria-label="Bottom Subtitle Bar"
-        className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#5843A5]/50 dark:border-[#A78BFA]/45 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-md px-6 py-4 shadow-2xl"
+        className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#5843A5] dark:border-[#A78BFA] bg-white dark:bg-[#111827] px-6 py-4"
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
           {/* Top Row: English Caption + Language Switcher Pill */}
@@ -134,7 +134,7 @@ export function SubtitleBar({
 
             {/* Target Language Switcher when >1 language is checked */}
             {selectedLangs.length > 1 && (
-              <div className="flex items-center gap-1 p-1 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] shrink-0">
+              <div className="flex items-center gap-1 p-1 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#EAEFF6] dark:bg-[#090D16] shrink-0">
                 {selectedLangs.map((code, langIndex) => {
                   const cfg = LANGUAGE_MAP[code];
                   const active = code === activeSubtitleLang;
@@ -143,10 +143,10 @@ export function SubtitleBar({
                       key={code}
                       type="button"
                       onClick={() => setSubtitleLang(code)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-colors whitespace-nowrap ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] text-xs font-bold transition-colors whitespace-nowrap ${
                         active
-                          ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
-                          : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
+                          ? 'oh-btn-primary border border-[#443180] bg-[#5843A5] dark:bg-[#6D56C6] text-white'
+                          : 'text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
                       }`}
                     >
                       <CaptionSwatch color={languageCaptionColor(langIndex)} />

@@ -5,6 +5,8 @@
   :root {
     --font-sans: 'Plus Jakarta Sans', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Bengali', Tahoma, system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --oh-radius-panel: 3px;
+    --oh-radius-control: 2px;
   }
 
   body {
@@ -15,6 +17,68 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Aero-lite chrome & tactile control sheen over crisp 2px/3px surfaces */
+.oh-chrome-bar {
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fa 100%);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+.dark .oh-chrome-bar {
+  background: linear-gradient(180deg, #192438 0%, #0f1624 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.oh-panel-header {
+  background: linear-gradient(180deg, #fcfdff 0%, #eaeff7 100%);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+.dark .oh-panel-header {
+  background: linear-gradient(180deg, #1e2a42 0%, #131c2e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.oh-btn {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 49%, #e6ecf5 50%, #eef3f9 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-color: #b6c2d2;
+}
+.oh-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff 0%, #eef4fc 49%, #dce6f4 50%, #e7effa 100%);
+  border-color: #8fa3bd;
+}
+.dark .oh-btn {
+  background: linear-gradient(180deg, #243149 0%, #1b2538 49%, #141c2c 50%, #1a2436 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: #33435d;
+}
+.dark .oh-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #2b3a56 0%, #202c43 49%, #182133 50%, #1f2b40 100%);
+  border-color: #4b5f80;
+}
+
+.oh-btn-active {
+  background: linear-gradient(180deg, #f3efff 0%, #e5ddfb 49%, #d8ccf7 50%, #e6dffb 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.dark .oh-btn-active {
+  background: linear-gradient(180deg, #433282 0%, #342568 49%, #291c54 50%, #36286b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.oh-btn-primary {
+  background: linear-gradient(180deg, #7c66cc 0%, #5e47b0 49%, #4c3699 50%, #614bb8 100%);
+  border-color: #3f2b82;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+.oh-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #8873d4 0%, #6851ba 49%, #553fa3 50%, #6c56c4 100%);
+}
+
+.oh-btn-listening {
+  background: linear-gradient(180deg, #19c389 0%, #059669 49%, #047857 50%, #09a36f 100%);
+  border-color: #065f46;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 3px rgba(16, 185, 129, 0.22);
 }
 
 .caption-text-rtl {

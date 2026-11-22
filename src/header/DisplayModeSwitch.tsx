@@ -11,14 +11,14 @@ export function DisplayModeSwitch({
   displayMode, setDisplayMode, enterConversation,
 }: DisplayModeSwitchProps) {
   return (
-    <div className="inline-flex items-stretch rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#090D16] p-0.5">
+    <div className="inline-flex items-stretch rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#EAEFF6] dark:bg-[#090D16] p-0.5">
       <button
         type="button"
         onClick={() => setDisplayMode('columns')}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-xs font-semibold transition-colors whitespace-nowrap ${
           displayMode === 'columns'
-            ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
-            : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
+            ? 'oh-btn-primary border border-[#443180] bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
+            : 'text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
         }`}
       >
         <Columns3 className="w-3.5 h-3.5" />
@@ -27,10 +27,10 @@ export function DisplayModeSwitch({
       <button
         type="button"
         onClick={() => setDisplayMode('subtitle')}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-xs font-semibold transition-colors whitespace-nowrap ${
           displayMode === 'subtitle'
-            ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
-            : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
+            ? 'oh-btn-primary border border-[#443180] bg-[#5843A5] dark:bg-[#6D56C6] text-white shadow-2xs'
+            : 'text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
         }`}
       >
         <Subtitles className="w-3.5 h-3.5" />
@@ -38,7 +38,7 @@ export function DisplayModeSwitch({
       </button>
       <button
         type="button"
-        className="flex flex-col items-center justify-center px-2.5 py-0.5 rounded-md text-xs font-semibold leading-[1.1] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors text-center"
+        className="flex flex-col items-center justify-center px-2.5 py-0.5 rounded-[2px] text-xs font-semibold leading-[1.1] text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors text-center"
         onClick={enterConversation}
       >
         <span>Conversation/</span>

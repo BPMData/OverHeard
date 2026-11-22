@@ -26,7 +26,7 @@ export function TranslatorPicker({
   const online = useOnline();
   return (
     <label
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
+      className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
       title={
         lastUsedProvider
           ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
@@ -98,7 +98,7 @@ export function TranslatorPicker({
       {effectiveMtPreference === 'on-device' && onDeviceFailing && (
         <span
           role="status"
-          className="px-1.5 py-0.5 rounded bg-red-600 text-white font-semibold"
+          className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
           title="Translation on this device failed. On this device never uses online translators, so these lines stay untranslated. Choose a translator with online fallback to use one."
         >
           ⚠ On-device translation failing
@@ -119,7 +119,7 @@ const TONE_CLASSES = {
 export function TranslatedByBadge({ provider }: { provider: TranslatorId }) {
   const info = TRANSLATED_BY[provider];
   return (
-    <span className={`px-1.5 py-0.5 rounded font-semibold ${TONE_CLASSES[info.tone]}`} title={info.title}>
+    <span className={`px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`} title={info.title}>
       Last translation: {info.label}
     </span>
   );

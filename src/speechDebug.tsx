@@ -41,7 +41,7 @@ export function SpeechDebugPanel() {
   if (!enabled) return null;
   const text = log.join('\n');
   return (
-    <div className="fixed bottom-2 right-2 z-50 w-[min(95vw,40rem)] max-h-[40vh] flex flex-col rounded-lg border border-amber-400 bg-black/90 text-[11px] text-amber-200 font-mono">
+    <div className="fixed bottom-2 right-2 z-50 w-[min(95vw,40rem)] max-h-[40vh] flex flex-col rounded-[3px] border border-amber-400 bg-black/90 text-[11px] text-amber-200 font-mono">
       <div className="flex gap-2 p-1 border-b border-amber-400/40">
         <strong className="flex-1">Speech debug ({log.length})</strong>
         <button onClick={() => void navigator.clipboard?.writeText(text)}>Copy</button>

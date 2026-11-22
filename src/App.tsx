@@ -150,7 +150,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#090D16] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
+    <div className="min-h-screen flex flex-col bg-[#EAEFF6] dark:bg-[#070B12] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
       <SpeechDebugPanel />
       <AppBanners
         displayMode={displayMode} isEmbeddedIframe={isEmbeddedIframe} hasSpeechApi={hasSpeechApi}
