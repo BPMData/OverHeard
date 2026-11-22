@@ -81,6 +81,31 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 0 3px rgba(16, 185, 129, 0.22);
 }
 
+/* "Click me" shimmer, video-game style: a soft light sweep every few seconds */
+.oh-beckon {
+  position: relative;
+  overflow: hidden;
+}
+.oh-beckon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 34%, rgba(245, 158, 11, 0.22) 44%, rgba(251, 191, 36, 0.55) 50%, rgba(245, 158, 11, 0.22) 56%, transparent 66%);
+  transform: translateX(-130%);
+  animation: oh-beckon-sweep 4s ease-in-out 1.5s infinite;
+}
+.dark .oh-beckon::after {
+  background: linear-gradient(105deg, transparent 34%, rgba(250, 204, 21, 0.3) 44%, rgba(255, 255, 255, 0.6) 50%, rgba(250, 204, 21, 0.3) 56%, transparent 66%);
+}
+@keyframes oh-beckon-sweep {
+  0% { transform: translateX(-130%); }
+  30%, 100% { transform: translateX(130%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oh-beckon::after { animation: none; }
+}
+
 /* Light mode: disabled buttons stay legible so people can see what will unlock */
 html:not(.dark) .oh-btn:disabled,
 html:not(.dark) .room-join button:disabled {
