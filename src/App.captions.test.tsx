@@ -159,13 +159,13 @@ it('translates on this device without sending the caption to /api/mt', async () 
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(mt).not.toHaveBeenCalled();
-  expect(screen.getByText('Last translation: this device')).toBeTruthy();
+  expect(screen.getByTitle(/^Last translation: this device\./)).toBeTruthy();
 });
 
 it('labels a server translation so it is clear the text left the device', async () => {
   await listen();
   await say(true);
-  expect(screen.getByText('Last translation: Google, free')).toBeTruthy();
+  expect(screen.getByTitle(/^Last translation: Google, free\./)).toBeTruthy();
 });
 
 it('never falls back to the server in "On this device" mode, and says so on the page', async () => {

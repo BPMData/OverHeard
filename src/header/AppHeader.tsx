@@ -51,9 +51,11 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header className="oh-chrome-bar border-b border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Two rows: brand, Listen and display controls; then translation and session controls */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         {/* Left: Brand & Primary Start/Stop Mic Action */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 xl:gap-4">
           <button
             type="button"
             onClick={() => setDisplayMode('columns')}
@@ -79,8 +81,6 @@ export function AppHeader({
           <PackProgressPanel progress={packProgress} startedAt={packStartedAt} />
         </div>
 
-        {/* Right: classroom controls, grouped so each group wraps as a unit */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {/* Display: how captions look on the projector */}
           <div className="flex flex-wrap items-center gap-2">
             <FontSizeControls {...sizing} />
@@ -108,22 +108,28 @@ export function AppHeader({
                     : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
                 }`}
                 title="Open floating always-on-top caption window over slides"
+                aria-label={pipWindow ? 'Close Pop-out' : 'Pop out captions'}
               >
                 <PictureInPicture2 className="w-3.5 h-3.5" />
-                <span>{pipWindow ? 'Close Pop-out' : 'Pop out captions'}</span>
+                <span className="hidden xl:inline">{pipWindow ? 'Close Pop-out' : 'Pop out captions'}</span>
               </button>
             )}
           </div>
 
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           {/* Translation: which languages, which translator */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setIsLangModalOpen(true)}
+              aria-label={`Languages (${selectedLangs.join(', ')})`}
+              title="Choose caption languages"
               className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
             >
               <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
-              <span>Languages</span>
+              <span className="hidden 2xl:inline">Languages</span>
               <span className="px-1.5 py-px rounded-[2px] bg-[#EAEFF6] dark:bg-[#0B111C] text-[10.5px] font-bold uppercase tracking-wide text-[#475569] dark:text-[#A5B4CB]">
                 {selectedLangs.join(' · ')}
               </span>
@@ -134,9 +140,10 @@ export function AppHeader({
               onClick={() => setIsVoiceSettingsOpen(true)}
               className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
               title="Open voice and privacy settings"
+              aria-label="Settings"
             >
               <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
-              <span>Settings</span>
+              <span className="hidden 2xl:inline">Settings</span>
             </button>
           </div>
 
@@ -161,9 +168,10 @@ export function AppHeader({
                   : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] hover:text-[#0F172A] dark:hover:text-white'
               }`}
               title="Toggle silent text input & sample classroom phrases"
+              aria-label="Test Input"
             >
               <FlaskConical className="w-3.5 h-3.5" />
-              <span>Test Input</span>
+              <span className="hidden xl:inline">Test Input</span>
             </button>
             <button
               type="button"
