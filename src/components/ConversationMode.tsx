@@ -122,7 +122,7 @@ export function ConversationMode({
   const [shareSetupOpen, setShareSetupOpen] = useState(false);
   const online = useOnline();
   const roomControlsId = useId();
-  const roomCodeRef = useRef<HTMLInputElement>(null);
+  const roomCodeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (shareSetupOpen) roomCodeRef.current?.focus();
   }, [shareSetupOpen]);

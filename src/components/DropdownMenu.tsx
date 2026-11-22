@@ -6,9 +6,10 @@ import { ChevronDown } from 'lucide-react';
  * file picker or Drive picker started from inside it survives the panel closing.
  */
 export function DropdownMenu({
-  label, icon, title, children, closeOnClick = true, align = 'left', panelLabel,
+  label, icon, title, children, closeOnClick = true, align = 'left', panelLabel, ariaLabel,
 }: {
   label: ReactNode;
+  ariaLabel?: string;
   icon?: ReactNode;
   title?: string;
   children: ReactNode;
@@ -43,6 +44,7 @@ export function DropdownMenu({
         className={`oh-menu-trigger${open ? ' is-open' : ''}`}
         aria-expanded={open}
         aria-haspopup="true"
+        aria-label={ariaLabel}
         title={title}
         onClick={() => setOpen((v) => !v)}
       >

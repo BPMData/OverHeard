@@ -114,6 +114,11 @@ html:not(.dark) .room-join button:disabled {
   color: #475569;
 }
 
+/* Size a select to its chosen option, not its longest one (Chrome 123+; others keep the old width) */
+.oh-fit-select {
+  field-sizing: content;
+}
+
 .caption-text-rtl {
   font-family: 'Noto Sans Arabic', 'Plus Jakarta Sans', Tahoma, sans-serif;
   line-height: 1.55;

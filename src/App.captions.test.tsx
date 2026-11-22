@@ -142,7 +142,7 @@ it('defaults to on-device first and gives an installed translator five seconds',
   vi.mocked(getOnDeviceAvailability).mockResolvedValueOnce('available');
   vi.mocked(translateOnDevice).mockResolvedValue('La clase empieza al mediodía');
   await listen();
-  expect(screen.getByRole('option', { name: 'On-device first (online fallback)', selected: true })).toBeTruthy();
+  expect(screen.getByRole('option', { name: 'On-device 1st', selected: true })).toBeTruthy();
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(translateOnDevice).toHaveBeenCalledWith(phrase, 'es', 'en', 5000, { waitForSetup: false });

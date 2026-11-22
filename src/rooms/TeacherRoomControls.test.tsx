@@ -61,6 +61,7 @@ describe('TeacherRoomControls', () => {
 
     // Clicking Create room without a PIN shows inline validation without issuing network request
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(screen.getByText(/Enter a room PIN/i)).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -70,6 +71,7 @@ describe('TeacherRoomControls', () => {
     });
     fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
     fireEvent.click(screen.getByRole('button', { name: 'Rejoin room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rejoin' }));
 
     await waitFor(() => expect(onRestore).toHaveBeenCalledTimes(1));
     expect(onRestore).toHaveBeenCalledWith({
@@ -149,11 +151,12 @@ describe('TeacherRoomControls', () => {
     };
 
     render(<TeacherRoomControls state={localState} visible onRestore={onRestore} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rejoin room' }));
     fireEvent.change(screen.getByLabelText('Room code (optional for new)'), {
       target: { value: 'room-9' },
     });
     fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '9999' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Rejoin room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rejoin' }));
 
     await waitFor(() => expect(screen.getByText('Room: room-9')).toBeTruthy());
     expect(onRestore).not.toHaveBeenCalled();
@@ -231,8 +234,9 @@ describe('TeacherRoomControls', () => {
     );
 
     render(<TeacherRoomControls state={emptyLecture()} visible />);
-    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy(), { timeout: 4000 });
     expect(createAttempts).toBe(3); // 1 initial + 2 retries
@@ -261,9 +265,12 @@ describe('TeacherRoomControls class codes', () => {
     vi.stubGlobal('fetch', fetchMock);
     render(<TeacherRoomControls state={{ ...emptyLecture() }} visible />);
 
-    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('murphy-p3');
-    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('murphy-p3');
+    // The saved code is filled in, so the PIN gets focus
+    expect(document.activeElement).toBe(screen.getByLabelText('Room PIN'));
+    fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() => expect(screen.getByText('Room: murphy-p3')).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith('/api/rooms/murphy-p3/rejoin', expect.anything());

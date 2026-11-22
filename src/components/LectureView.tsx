@@ -1,5 +1,5 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
-import { FolderOpen, Volume2 } from 'lucide-react';
+import { BookOpen, FolderOpen } from 'lucide-react';
 import { LANGUAGE_MAP } from '../constants';
 import { DropdownMenu } from './DropdownMenu';
 import type { useLectureMode } from '../conversation/useLectureMode';
@@ -45,12 +45,20 @@ interface LectureToolsProps {
   fileMenuExtras?: ReactNode;
 }
 
+const READ_MODE_LABEL = {
+  off: 'Off',
+  after: 'After I finish speaking',
+  live: 'While I talk (headphones)',
+} as const;
+const READ_MODE_SHORT = { off: 'Off', after: 'After', live: 'Live' } as const;
+
 export function LectureTools({
   active, onSetLanguages, translatorPicker, lecture, lectureState,
   isDark, fontSize, onAdjustFont, activeRoomCode, effectiveLectureLang,
   setLecturePlaybackLang, lectureLangs, voicePrefs, updateVoicePref, lectureReadAloud,
   setLectureReadAloud, settings, setSettings, fileMenuExtras,
 }: LectureToolsProps) {
+  const readMode = !lectureReadAloud ? 'off' : settings.lectureLiveReadAloud ? 'live' : 'after';
   return (
     <>
       {translatorPicker && <div className="conversation-lecture-translator">{translatorPicker}</div>}
@@ -84,48 +92,40 @@ export function LectureTools({
         </DropdownMenu>
       </div>
       <div className="conversation-control-group" role="group" aria-label="Read aloud controls">
-        <label>
-          <input
-            type="checkbox"
-            checked={lectureReadAloud}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setLectureReadAloud(checked);
-              // "While I talk" only applies while reading aloud: clear it rather than leave it
-              // greyed out but still ticked
-              if (!checked) setSettings((s) => ({ ...s, lectureLiveReadAloud: false }));
-              if (checked) {
-                piperClient.unlockAudio();
-                const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
-                if (activeVoice !== BROWSER_VOICE_ID) {
-                  piperClient.preloadVoice(activeVoice);
-                }
-              }
-            }}
-          />
-          Read aloud
-        </label>
-        <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
-          <input
-            type="checkbox"
-            aria-label="While I talk (headphones)"
-            checked={lectureReadAloud && settings.lectureLiveReadAloud}
-            disabled={!lectureReadAloud}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setSettings((s) => ({ ...s, lectureLiveReadAloud: checked }));
-            }}
-          />
-          While I talk<span className="oh-wide-only"> (headphones)</span>
-        </label>
         <DropdownMenu
-          label="Voices"
-          icon={<Volume2 className="w-3.5 h-3.5" aria-hidden="true" />}
-          title="Choose the reading voice for each language"
-          panelLabel="Voice selection"
-          closeOnClick={false}
+          label={<>Read<span className={`oh-read-chip${readMode === 'off' ? '' : ' is-on'}`}>{READ_MODE_SHORT[readMode]}</span></>}
+          ariaLabel={`Read aloud: ${READ_MODE_LABEL[readMode]}`}
+          icon={<BookOpen className="w-3.5 h-3.5" aria-hidden="true" />}
+          title="Read translations aloud, and choose the reading voice"
+          panelLabel="Read aloud"
           align="right"
         >
+          {(['off', 'after', 'live'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              role="radio"
+              aria-checked={readMode === mode}
+              className={`oh-menu-item oh-radio-item${readMode === mode ? ' is-checked' : ''}`}
+              title={mode === 'live' ? 'Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.' : undefined}
+              onClick={() => {
+                const reading = mode !== 'off';
+                setLectureReadAloud(reading);
+                setSettings((s) => ({ ...s, lectureLiveReadAloud: mode === 'live' }));
+                if (reading && !lectureReadAloud) {
+                  piperClient.unlockAudio();
+                  const activeVoice = resolveVoiceId(effectiveLectureLang, voicePrefs);
+                  if (activeVoice !== BROWSER_VOICE_ID) {
+                    piperClient.preloadVoice(activeVoice);
+                  }
+                }
+              }}
+            >
+              <span className="oh-radio-dot" aria-hidden="true" />
+              {READ_MODE_LABEL[mode]}
+            </button>
+          ))}
+          <div className="oh-menu-sep" role="separator" />
           <div className="conversation-voice-controls">
             <label>
               Voice for
