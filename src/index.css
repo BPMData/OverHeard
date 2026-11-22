@@ -107,6 +107,30 @@
   .oh-beckon::after { animation: none; opacity: 0.7; }
 }
 
+/* Settings button: always gold and always breathing (with .oh-beckon), on every page, so it
+   is easy to find at any moment. Light mode uses a darker gold so the text stays readable.
+   The doubled class outranks the page toolbars' own button styles. */
+button.oh-settings-btn.oh-settings-btn {
+  color: #a16207;
+  border: 1px solid #eab308;
+  background: #fefce8;
+  font-weight: 700;
+}
+.dark button.oh-settings-btn.oh-settings-btn,
+.conversation-dark button.oh-settings-btn.oh-settings-btn {
+  color: #facc15;
+  border-color: #ca8a04;
+  background: #2a2410;
+}
+button.oh-settings-btn.oh-settings-btn:hover:not(:disabled) {
+  background: #fef9c3;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+.dark button.oh-settings-btn.oh-settings-btn:hover:not(:disabled),
+.conversation-dark button.oh-settings-btn.oh-settings-btn:hover:not(:disabled) {
+  background: #3a3112;
+}
+
 /* Light mode: disabled buttons stay legible so people can see what will unlock */
 html:not(.dark) .oh-btn:disabled,
 html:not(.dark) .room-join button:disabled {

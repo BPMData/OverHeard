@@ -138,12 +138,12 @@ export function AppHeader({
             <button
               type="button"
               onClick={() => setIsVoiceSettingsOpen(true)}
-              className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+              className="oh-btn oh-settings-btn oh-beckon inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs border transition-colors whitespace-nowrap"
               title="Open voice and privacy settings"
               aria-label="Settings"
             >
-              <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
-              <span className="hidden 2xl:inline">Settings</span>
+              <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Settings</span>
             </button>
           </div>
 
