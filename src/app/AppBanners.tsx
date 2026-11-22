@@ -47,7 +47,7 @@ export function AppBanners({
                 href={window.location.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#5843A5] dark:bg-[#6D56C6] text-white font-semibold"
+                className="oh-btn-primary inline-flex items-center gap-1 px-2.5 py-1 rounded-[2px] bg-[#5843A5] dark:bg-[#6D56C6] text-white font-semibold"
               >
                 <span>Open Full Tab</span>
                 <ExternalLink className="w-3 h-3" />

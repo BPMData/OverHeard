@@ -93,10 +93,10 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
       {/* Floating toolbar: hidden until the pointer is over the window (or a control has keyboard focus),
           so the captions get the whole window. Wraps instead of overflowing in narrow/tall windows. */}
       <div
-        className={`absolute inset-x-0 top-0 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2 border-b text-xs shadow-lg transition-opacity duration-150 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto ${
+        className={`oh-chrome-bar absolute inset-x-0 top-0 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2 border-b text-xs transition-opacity duration-150 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto ${
           isDark
-            ? 'bg-[#111827] border-[#1E293B] text-[#94A3B8]'
-            : 'bg-white border-[#E2E8F0] text-[#64748B]'
+            ? 'bg-[#111827] border-[#243044] text-[#94A3B8]'
+            : 'bg-white border-[#CBD5E1] text-[#64748B]'
         }`}
       >
         <div className="flex items-center gap-2.5">
@@ -107,10 +107,10 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
           {onToggleListening && <button
             type="button"
             onClick={onToggleListening}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold text-xs transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] border font-semibold text-xs transition-colors ${
               isListening
-                ? 'bg-emerald-600 text-white'
-                : 'bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
+                ? 'oh-btn-listening border-[#047857] bg-emerald-600 text-white'
+                : 'oh-btn-primary border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
             }`}
           >
             {isListening ? (
@@ -148,9 +148,9 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                       ? `Hide ${label}`
                       : `Show ${label}`
                 }
-                className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+                className={`px-2 py-0.5 rounded-[2px] text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
                   shown
-                    ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
+                    ? 'oh-btn-primary bg-[#5843A5] dark:bg-[#6D56C6] text-white'
                     : 'hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40'
                 }`}
               >
@@ -176,9 +176,9 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                   ? 'Stack caption lines vertically'
                   : 'Arrange caption lines side by side'
               }
-              className={`inline-flex items-center gap-1 px-2 py-0.5 mr-1 rounded text-xs font-semibold transition-colors whitespace-nowrap ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 mr-1 rounded-[2px] text-xs font-semibold transition-colors whitespace-nowrap ${
                 layout === 'columns'
-                  ? 'bg-[#5843A5] dark:bg-[#6D56C6] text-white'
+                  ? 'oh-btn-primary bg-[#5843A5] dark:bg-[#6D56C6] text-white'
                   : 'hover:bg-slate-200 dark:hover:bg-slate-800'
               }`}
             >
@@ -190,7 +190,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             type="button"
             onClick={() => onAdjustFont(-4)}
             disabled={fontSize <= MIN_FONT_SIZE}
-            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
+            className="p-1 rounded-[2px] hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
             title="Decrease font size"
           >
             <Minus className="w-3.5 h-3.5" />
@@ -199,7 +199,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             type="button"
             onClick={() => onAdjustFont(4)}
             disabled={fontSize >= MAX_FONT_SIZE}
-            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
+            className="p-1 rounded-[2px] hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
             title="Increase font size"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -207,7 +207,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
           <button
             type="button"
             onClick={onClosePip}
-            className="p-1 ml-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800"
+            className="p-1 ml-1 rounded-[2px] hover:bg-slate-200 dark:hover:bg-slate-800"
             title="Return to main window"
           >
             <X className="w-3.5 h-3.5" />

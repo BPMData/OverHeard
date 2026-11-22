@@ -53,7 +53,7 @@ export function AppHeader({
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <header className="border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
+    <header className="oh-chrome-bar border-b border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left: Brand & Primary Start/Stop Mic Action */}
         <div className="flex items-center gap-4">
@@ -62,9 +62,9 @@ export function AppHeader({
             onClick={() => setDisplayMode('columns')}
             aria-label="OverHeard — Go to Columns view"
             title="Back to main Columns view"
-            className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-lg px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
+            className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-[2px] px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
           >
-            <WhiteboatIcon app="overheard" size={28} className="shadow-2xs" />
+            <WhiteboatIcon app="overheard" size={28} />
             <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
               OverHeard
             </span>
@@ -91,10 +91,10 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setShowPreviousLine((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
               showPreviousLine
-                ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
-                : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
+                ? 'oh-btn-active border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE] dark:bg-[#2E2356] text-[#443180] dark:text-[#DDD6FE]'
+                : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] hover:text-[#0F172A] dark:hover:text-white'
             }`}
             title="Show or hide the preceding caption line"
           >
@@ -109,7 +109,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => importFileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
             title="Open an exported OverHeard lecture JSON file"
           >
             <Upload className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
@@ -150,7 +150,7 @@ export function AppHeader({
             hasExistingEntries={() => loadLectureEntries().length > 0}
             onImport={(imported) => applyImportedLecture(imported)}
             onError={(msg) => setImportError(msg)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] disabled:opacity-50 transition-colors whitespace-nowrap"
             iconClassName="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]"
           />
           {/* Pop Out Captions (Document Picture-in-Picture) */}
@@ -158,10 +158,10 @@ export function AppHeader({
             <button
               type="button"
               onClick={handleTogglePip}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
                 pipWindow
-                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                  : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
               }`}
               title="Open floating always-on-top caption window over slides"
             >
@@ -174,7 +174,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setIsLangModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
           >
             <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
             <span>Languages</span>
@@ -187,7 +187,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setIsVoiceSettingsOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
             title="Open voice and privacy settings"
           >
             <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
@@ -201,10 +201,10 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setIsTestBarOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
               isTestBarOpen
-                ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
-                : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
+                ? 'oh-btn-active border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE] dark:bg-[#2E2356] text-[#443180] dark:text-[#DDD6FE]'
+                : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] hover:text-[#0F172A] dark:hover:text-white'
             }`}
             title="Toggle silent text input & sample classroom phrases"
           >
@@ -216,7 +216,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setIsDark((d) => !d)}
-            className="p-2 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="oh-btn p-2 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
@@ -228,7 +228,7 @@ export function AppHeader({
             type="button"
             onClick={handleExportJson}
             disabled={segments.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             title="Export transcript as OverHeard JSON"
           >
             <Download className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export function AppHeader({
           <button
             type="button"
             onClick={() => setIsAboutModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+            className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
             aria-label="How to use OverHeard: Guide, FAQ, and Privacy"
             title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
           >

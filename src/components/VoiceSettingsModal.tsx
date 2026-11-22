@@ -234,21 +234,21 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
     >
       <div
-        className={`w-full max-w-2xl max-h-[90vh] flex flex-col rounded-xl border shadow-2xl overflow-hidden ${
+        className={`w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[3px] border-2 overflow-hidden ${
           darkMode
-            ? 'border-[#1E293B] bg-[#111827] text-[#F8FAFC]'
-            : 'border-slate-200 bg-white text-slate-900'
+            ? 'border-[#334155] bg-[#111827] text-[#F8FAFC]'
+            : 'border-[#94A3B8] bg-white text-slate-900'
         }`}
       >
         <div
-          className={`flex items-center justify-between px-6 py-4 border-b shrink-0 ${
-            darkMode ? 'border-[#1E293B]' : 'border-slate-200'
+          className={`oh-panel-header flex items-center justify-between px-6 py-3.5 border-b shrink-0 ${
+            darkMode ? 'border-[#243044] bg-[#162033]' : 'border-[#CBD5E1] bg-[#F1F5F9]'
           }`}
         >
           <div className="flex items-center gap-2.5">
@@ -261,10 +261,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               stopPreview();
               onClose();
             }}
-            className={`p-1.5 rounded-lg transition-colors ${
+            className={`oh-btn p-1.5 rounded-[2px] border border-transparent transition-colors ${
               darkMode
-                ? 'text-[#94A3B8] hover:text-white hover:bg-slate-800'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                ? 'text-[#94A3B8] hover:text-white hover:border-[#2B3952] hover:bg-slate-800'
+                : 'text-slate-500 hover:text-slate-900 hover:border-[#CBD5E1] hover:bg-white'
             }`}
             aria-label="Close settings"
           >
@@ -318,10 +318,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                   return (
                     <div
                       key={code}
-                      className={`p-4 rounded-lg border space-y-2 ${
+                      className={`p-4 rounded-[3px] border space-y-2 ${
                         darkMode
-                          ? 'border-[#1E293B] bg-[#090D16]/60'
-                          : 'border-slate-200 bg-slate-50/70'
+                          ? 'border-[#243044] bg-[#0D1422]'
+                          : 'border-[#CBD5E1] bg-[#F8FAFC]'
                       }`}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -342,10 +342,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                             lang={code}
                             ariaLabel={selectAriaLabel}
                             value={selectedVoiceId}
-                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer [&>option]:text-[#0F172A] ${
+                            className={`rounded-[2px] border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer [&>option]:text-[#0F172A] ${
                               darkMode
-                                ? 'border-[#1E293B] bg-[#111827] text-[#F8FAFC]'
-                                : 'border-slate-300 bg-white text-slate-900'
+                                ? 'border-[#2B3952] bg-[#111827] text-[#F8FAFC]'
+                                : 'border-[#CBD5E1] bg-white text-slate-900'
                             }`}
                             onChange={(nextVoice) => {
                               updateVoicePref(code, nextVoice);
@@ -359,10 +359,10 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                               onClick={() => void saveForOffline(code, selectedVoiceId)}
                               disabled={savingVoice !== null || !online}
                               title={online ? 'Download this voice now so read-aloud works offline' : OFFLINE_TITLE}
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors disabled:opacity-60 ${
+                              className={`oh-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-xs font-semibold border transition-colors disabled:opacity-60 ${
                                 darkMode
-                                  ? 'border-[#1E293B] hover:bg-slate-800 text-[#F8FAFC]'
-                                  : 'border-slate-300 hover:bg-slate-100 text-slate-900'
+                                  ? 'border-[#2B3952] bg-[#162033] hover:bg-slate-800 text-[#F8FAFC]'
+                                  : 'border-[#CBD5E1] bg-white hover:bg-[#EDF2F7] text-slate-900'
                               }`}
                             >
                               <CloudDownload className="w-3.5 h-3.5" />
@@ -373,7 +373,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                             <button
                               type="button"
                               onClick={stopPreview}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-amber-700 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
                             >
                               <Square className="w-3 h-3" />
                               <span>Stop preview</span>
@@ -383,7 +383,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                               type="button"
                               aria-label={previewAriaLabel}
                               onClick={() => playPreview(code, selectedVoiceId)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
+                              className="oh-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[#443180] text-xs font-semibold bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
                             >
                               <Volume2 className="w-3.5 h-3.5" />
                               <span>Preview</span>
@@ -429,7 +429,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               }`}
             >
                 <div
-                  className={`p-3 rounded-lg border text-xs leading-relaxed space-y-1 ${
+                  className={`p-3 rounded-[3px] border text-xs leading-relaxed space-y-1 ${
                     darkMode
                       ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
                       : 'border-emerald-600/25 bg-emerald-50 text-emerald-950'
@@ -465,7 +465,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
         <div
           className={`px-6 py-3 border-t flex justify-end shrink-0 ${
-            darkMode ? 'border-[#1E293B] bg-[#0B1120]' : 'border-slate-200 bg-slate-50'
+            darkMode ? 'border-[#243044] bg-[#0B1120]' : 'border-[#CBD5E1] bg-[#F1F5F9]'
           }`}
         >
           <button
@@ -474,7 +474,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               stopPreview();
               onClose();
             }}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
+            className="oh-btn-primary px-4 py-2 text-xs font-semibold rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
           >
             Done
           </button>

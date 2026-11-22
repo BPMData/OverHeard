@@ -77,15 +77,15 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="drive-save-modal-title"
     >
-      <div className="w-full max-w-md rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#0F172A] shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="w-full max-w-md rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#0F172A] overflow-hidden">
+        <div className="oh-panel-header flex items-center justify-between px-5 py-3.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#EEF2FF] dark:bg-[#1E1B4B] flex items-center justify-center text-[#5843A5] dark:text-[#A78BFA]">
+            <div className="w-8 h-8 rounded-[2px] border border-[#C7D2FE] dark:border-[#3730A3] bg-[#EEF2FF] dark:bg-[#1E1B4B] flex items-center justify-center text-[#5843A5] dark:text-[#A78BFA]">
               <Cloud className="w-4 h-4" />
             </div>
             <div>
@@ -105,14 +105,14 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
             onClick={onClose}
             disabled={busy}
             aria-label="Close Google Drive save modal"
-            className="p-1.5 rounded-lg text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+            className="oh-btn p-1.5 rounded-[2px] border border-transparent hover:border-[#CBD5E1] dark:hover:border-[#2B3952] text-[#64748B] hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-white dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#020617] px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#020617] px-3 py-2">
             <div className="min-w-0">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
                 Google Account
@@ -125,7 +125,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
               type="button"
               onClick={() => void onSwitchAccount()}
               disabled={busy}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#5843A5] dark:text-[#A78BFA] hover:bg-[#EEF2FF] dark:hover:bg-[#1E1B4B]/60 transition-colors whitespace-nowrap disabled:opacity-50"
+              className="oh-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] text-xs font-semibold text-[#5843A5] dark:text-[#A78BFA] hover:bg-[#EEF2FF] dark:hover:bg-[#1E1B4B]/60 transition-colors whitespace-nowrap disabled:opacity-50"
             >
               <RefreshCw className="w-3 h-3" />
               <span>Switch account</span>
@@ -145,7 +145,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
               disabled={busy}
-              className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#020617] px-3 py-2 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#5843A5] disabled:opacity-60"
+              className="w-full rounded-[2px] border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#020617] px-3 py-2 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#5843A5] disabled:opacity-60"
               placeholder="Lecture.json"
             />
             <p className="mt-1 text-[11px] text-[#64748B] dark:text-[#94A3B8] truncate">
@@ -163,7 +163,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
                   type="button"
                   onClick={() => void onChangeFolder()}
                   disabled={busy}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  className="oh-btn inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-[11px] font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
                 >
                   <FolderOpen className="w-3 h-3" />
                   <span>Change...</span>
@@ -172,7 +172,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
                   type="button"
                   onClick={() => setCreatingFolder((v) => !v)}
                   disabled={busy}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  className="oh-btn inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-[11px] font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
                 >
                   <FolderPlus className="w-3 h-3" />
                   <span>New folder...</span>
@@ -180,7 +180,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
               </div>
             </div>
 
-            <div className="rounded-xl border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#020617] px-3 py-2">
+            <div className="rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#020617] px-3 py-2">
               <div className="text-xs font-medium text-[#0F172A] dark:text-[#F8FAFC]">
                 {folder.name}
               </div>
@@ -200,13 +200,13 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
                   disabled={busy}
                   aria-label="New Drive folder name"
                   placeholder={DEFAULT_DRIVE_FOLDER_NAME}
-                  className="flex-1 rounded-lg border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#020617] px-2.5 py-1.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#5843A5]"
+                  className="flex-1 rounded-[2px] border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#020617] px-2.5 py-1.5 text-xs text-[#0F172A] dark:text-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#5843A5]"
                 />
                 <button
                   type="button"
                   onClick={handleCreateFolderSubmit}
                   disabled={busy || !newFolderName.trim()}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#5843A5] hover:bg-[#49368F] text-white transition-colors disabled:opacity-50"
+                  className="oh-btn-primary px-3 py-1.5 rounded-[2px] border border-[#443180] text-xs font-semibold bg-[#5843A5] hover:bg-[#49368F] text-white transition-colors disabled:opacity-50"
                 >
                   Create
                 </button>
@@ -215,7 +215,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
           </div>
 
           {canUpdateExisting && lastSave && (
-            <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/30 px-3 py-2.5 space-y-2">
+            <div className="rounded-[3px] border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/30 px-3 py-2.5 space-y-2">
               <div className="text-xs font-medium text-[#0F172A] dark:text-[#F8FAFC]">
                 A saved copy named <span className="font-semibold">{lastSave.name}</span> already exists in{' '}
                 <span className="font-semibold">{lastSave.folderName}</span>.
@@ -246,7 +246,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
           )}
 
           {statusMessage && (
-            <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
+            <div className="rounded-[3px] border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
               {statusMessage}
             </div>
           )}
@@ -254,25 +254,25 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
           {error && (
             <div
               role="alert"
-              className="rounded-xl border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300"
+              className="rounded-[3px] border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300"
             >
               {error}
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E2E8F0] dark:border-[#1E293B]">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#CBD5E1] dark:border-[#243044]">
             <button
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+              className="oh-btn px-3.5 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#334155] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy || !fileName.trim()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-[#5843A5] hover:bg-[#49368F] text-white transition-colors disabled:opacity-50"
+              className="oh-btn-primary inline-flex items-center gap-1.5 px-4 py-2 rounded-[2px] border border-[#443180] text-xs font-semibold bg-[#5843A5] hover:bg-[#49368F] text-white transition-colors disabled:opacity-50"
             >
               <Cloud className="w-3.5 h-3.5" />
               <span>{busy ? 'Saving...' : effectiveMode === 'update' ? 'Update in Drive' : 'Save to Drive'}</span>

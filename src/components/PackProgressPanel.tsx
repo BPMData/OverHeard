@@ -21,10 +21,10 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
   return (
     <div
       role="status"
-      className="flex flex-col gap-1.5 px-3 py-2 rounded-lg border border-[#5843A5]/30 dark:border-[#A78BFA]/30 bg-[#5843A5]/10 dark:bg-[#5843A5]/20 text-xs text-slate-700 dark:text-slate-200 min-w-[16rem]"
+      className="flex flex-col gap-1.5 px-3 py-2 rounded-[3px] border border-[#5843A5]/40 dark:border-[#A78BFA]/40 bg-[#EDE9FE] dark:bg-[#1E1838] text-xs text-slate-700 dark:text-slate-200 min-w-[16rem]"
     >
       {waiting.length > 0 && (
-        <div className="flex flex-col gap-1.5 p-2 -mx-1 rounded-md border border-amber-500/60 bg-amber-500/15 text-amber-900 dark:text-amber-100">
+        <div className="flex flex-col gap-1.5 p-2 -mx-1 rounded-[2px] border border-amber-500/60 bg-amber-500/15 text-amber-900 dark:text-amber-100">
           <div className="flex items-center gap-1.5 font-semibold">
             <MousePointerClick className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
             <span>
@@ -43,7 +43,7 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
                 key={key}
                 type="button"
                 onClick={() => startWaitingPack(key)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[2px] font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse"
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
                 Download {packLabel(key)}

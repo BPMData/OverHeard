@@ -43,16 +43,16 @@ export const AboutModal: React.FC<AboutModalProps> = ({
 
   const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="about-modal-title"
     >
-      <div className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-2xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] shadow-2xl overflow-hidden">
+      <div className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] overflow-hidden">
         {/* Sticky Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-[#1E293B] shrink-0">
+        <div className="oh-panel-header flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033] shrink-0">
           <div className="flex items-center gap-3">
-            <WhiteboatIcon app="overheard" size={32} className="shadow-xs" />
+            <WhiteboatIcon app="overheard" size={32} />
             <div>
               <h2 id="about-modal-title" className="text-base sm:text-lg font-bold tracking-tight">
                 How to Use OverHeard — Guide &amp; FAQ
@@ -79,7 +79,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-[#94A3B8] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="oh-btn p-1.5 rounded-[2px] border border-transparent hover:border-[#CBD5E1] dark:hover:border-[#2B3952] text-slate-500 hover:text-slate-900 dark:text-[#94A3B8] dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 transition-colors"
             aria-label="Close guide dialog"
           >
             <X className="w-5 h-5" />
@@ -87,7 +87,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
         </div>
 
         {/* Quick Jump Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 px-5 sm:px-6 py-2.5 border-b border-slate-200 dark:border-[#1E293B] bg-slate-50 dark:bg-[#0B1120] text-xs shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 px-5 sm:px-6 py-2.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] text-xs shrink-0">
           {[
             ['guide-start', 'Quick Start'],
             ['guide-shortcuts', 'Shortcuts & Floating Window'],
@@ -99,7 +99,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               key={id}
               type="button"
               onClick={() => scrollToSection(id)}
-              className="px-2.5 py-1 rounded-md font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:border-[#5843A5] dark:hover:border-[#A78BFA] transition-colors"
+              className="oh-btn px-2.5 py-1 rounded-[2px] font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#162033] text-slate-700 dark:text-slate-200 hover:border-[#5843A5] dark:hover:border-[#A78BFA] transition-colors"
             >
               {label}
             </button>
@@ -109,7 +109,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
         {/* Scrollable Content */}
         <div className="p-5 sm:p-6 space-y-6 text-xs sm:text-sm leading-relaxed overflow-y-auto">
           {embedded && (
-            <div className="p-3.5 rounded-lg border border-[#5843A5]/30 dark:border-[#A78BFA]/30 bg-[#5843A5]/10 dark:bg-[#5843A5]/20 flex items-center justify-between gap-4">
+            <div className="p-3.5 rounded-[3px] border border-[#5843A5]/40 dark:border-[#A78BFA]/40 bg-[#EDE9FE] dark:bg-[#2E2356]/55 flex items-center justify-between gap-4">
               <div className="text-xs text-slate-700 dark:text-slate-200">
                 Running inside an embedded frame? Open OverHeard in a full Chrome tab for the smoothest microphone and Picture-in-Picture experience.
               </div>
@@ -117,7 +117,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 href={window.location.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white font-semibold text-xs whitespace-nowrap shrink-0 transition-colors"
+                className="oh-btn-primary inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white font-semibold text-xs whitespace-nowrap shrink-0 transition-colors"
               >
                 <span>Open Full Tab</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -176,19 +176,19 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               <h3>Which Mode Should I Use?</h3>
             </div>
             <div className="grid sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B1120] space-y-1">
+              <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Columns / Subtitle</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
                   Best for whole-class projection. Switch between multi-language <strong className="text-slate-800 dark:text-slate-200">Columns</strong>, a single-line <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> strip, or <strong className="text-slate-800 dark:text-slate-200">Pop out captions</strong> over slides.
                 </p>
               </div>
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B1120] space-y-1">
+              <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Lecture + Student Rooms</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
                   Keeps a running lesson transcript. Enter a 4+ character PIN and click <strong className="text-slate-800 dark:text-slate-200">Create room</strong> to give students a live <code className="font-mono">?room=...</code> link on their own devices (or use <strong className="text-slate-800 dark:text-slate-200">Rejoin room</strong> later with the same code + PIN).
                 </p>
               </div>
-              <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0B1120] space-y-1">
+              <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Two-Way Conversation</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
                   Built for 1-on-1 conferences across two languages. Choose auto speaker switching or <strong className="text-slate-800 dark:text-slate-200">Manual (Press Space)</strong>, or type messages directly below the thread.
@@ -255,7 +255,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               </div>
             </div>
 
-            <div className="p-4 rounded-lg border border-amber-500/30 bg-amber-500/10 text-slate-800 dark:text-slate-100 space-y-1.5">
+            <div className="p-4 rounded-[3px] border border-amber-500/40 bg-amber-500/10 text-slate-800 dark:text-slate-100 space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
                 <ShieldAlert className="w-4 h-4 shrink-0" />
                 <span>Privacy Statement</span>
@@ -268,11 +268,11 @@ export const AboutModal: React.FC<AboutModalProps> = ({
         </div>
 
         {/* Sticky Footer */}
-        <div className="px-5 sm:px-6 py-3 border-t border-slate-200 dark:border-[#1E293B] bg-slate-50 dark:bg-[#0B1120] flex justify-end shrink-0">
+        <div className="px-5 sm:px-6 py-3 border-t border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#0B1120] flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors"
+            className="oh-btn-primary px-4 py-2 text-xs font-semibold rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors"
           >
             Close
           </button>
