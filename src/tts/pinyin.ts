@@ -39,14 +39,19 @@ export function textToPinyinPhonemes(text: string): string[] {
   return phonemes;
 }
 
-/** Piper's id layout: start marker, then every symbol followed by a pad, then the end marker. */
+// Piper pads after each syllable's tone and after punctuation, not after every symbol
+// (see phonemes_to_ids in piper1-gpl's phonemize_chinese.py).
+const GROUP_END = new Set(['1', '2', '3', '4', '5', '。', '.', '？', '?', '！', '!', '—', '…', '、', '，', ',', '：', ':', '；', ';', ' ']);
+
+/** Piper's id layout for pinyin voices: start marker, symbols, a pad after each group, end marker. */
 export function pinyinPhonemeIds(text: string, idMap: Record<string, number[]>): number[] {
   const pad = idMap['_'] ?? [0];
   const ids: number[] = [...(idMap['^'] ?? [1])];
   for (const symbol of textToPinyinPhonemes(text)) {
     const id = idMap[symbol];
     if (!id) continue;
-    ids.push(...id, ...pad);
+    ids.push(...id);
+    if (GROUP_END.has(symbol)) ids.push(...pad);
   }
   ids.push(...(idMap['$'] ?? [2]));
   return ids;
