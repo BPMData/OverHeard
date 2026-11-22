@@ -1,4 +1,5 @@
 import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, stored, type Progress } from '@mintplex-labs/piper-tts-web';
+import { boostQuietWav } from './loudness';
 import { pinyinPhonemeIds, splitChineseForSpeech } from './pinyin';
 import { PIPER_VOICES } from './voices';
 
@@ -301,7 +302,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
         activeSpeakerId = data.speakerId;
         const wavBlob = await predictFor(session, data.modelId, data.text);
         if (cancelledJobs.has(data.jobId)) return;
-        const wavBuffer = await wavBlob.arrayBuffer();
+        const wavBuffer = boostQuietWav(await wavBlob.arrayBuffer());
         if (!isValidWav(wavBuffer)) {
           throw new Error('Piper returned empty or invalid audio');
         }

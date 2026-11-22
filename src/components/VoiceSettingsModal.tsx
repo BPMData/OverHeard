@@ -95,6 +95,36 @@ const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
     selectAriaLabel: 'Default Chinese voice',
     previewAriaLabel: 'Preview Chinese voice',
   },
+  {
+    code: 'ar',
+    title: 'Arabic · العربية',
+    selectAriaLabel: 'Default Arabic voice',
+    previewAriaLabel: 'Preview Arabic voice',
+  },
+  {
+    code: 'fr',
+    title: 'French · Français',
+    selectAriaLabel: 'Default French voice',
+    previewAriaLabel: 'Preview French voice',
+  },
+  {
+    code: 'uk',
+    title: 'Ukrainian · Українська',
+    selectAriaLabel: 'Default Ukrainian voice',
+    previewAriaLabel: 'Preview Ukrainian voice',
+  },
+  {
+    code: 'ru',
+    title: 'Russian · Русский',
+    selectAriaLabel: 'Default Russian voice',
+    previewAriaLabel: 'Preview Russian voice',
+  },
+  {
+    code: 'prs',
+    title: 'Dari · دری',
+    selectAriaLabel: 'Default Dari voice',
+    previewAriaLabel: 'Preview Dari voice',
+  },
 ];
 
 interface PreviewState {

@@ -61,17 +61,27 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
     expect(voicesForLanguage('zh').map((v) => v.id)).toEqual(['zh_CN-xiao_ya-medium', 'zh_CN-chaowen-medium']);
+    expect(voicesForLanguage('ar').map((v) => v.id)).toEqual(['ar_JO-kareem-medium']);
+    expect(voicesForLanguage('fr').map((v) => v.id)).toEqual([
+      'fr_FR-siwis-medium',
+      'fr_FR-tom-medium',
+      'fr_FR-upmc-medium:0',
+      'fr_FR-upmc-medium:1',
+    ]);
+    expect(voicesForLanguage('uk').map((v) => v.shortName)).toEqual(['Tetiana', 'Mykyta', 'Oleksa']);
+    expect(voicesForLanguage('ru').map((v) => v.shortName)).toEqual(['Irina', 'Dmitri']);
+    expect(voicesForLanguage('prs').map((v) => v.shortName)).toEqual(['Magnoliasis', 'Amir', 'Ganji Adabi']);
     expect(voicesForLanguage('zh').every((v) => v.phonemeType === 'pinyin')).toBe(true);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(28);
-    expect(voicesForLanguage('fr')).toEqual([]);
+    expect(PIPER_VOICES).toHaveLength(41);
+    expect(voicesForLanguage('ps')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
     expect(hasPiperVoices('en')).toBe(true);
     expect(hasPiperVoices('vi')).toBe(true);
     expect(hasPiperVoices('hi')).toBe(true);
     expect(hasPiperVoices('bn')).toBe(true);
-    expect(hasPiperVoices('ar')).toBe(false);
+    expect(hasPiperVoices('ps')).toBe(false);
   });
 
   it('configures multi-speaker and rhasspy-hosted voice metadata accurately', () => {
@@ -112,7 +122,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('vi')).toBe('vi_VN-vais1000-medium');
     expect(resolveVoiceId('ur')).toBe('ur_PK-aegis_female-medium');
     expect(resolveVoiceId('ja')).toBe(BROWSER_VOICE_ID);
-    expect(resolveVoiceId('fr')).toBe(BROWSER_VOICE_ID);
+    expect(resolveVoiceId('ps')).toBe(BROWSER_VOICE_ID);
 
     expect(resolveVoiceId('es', { es: 'es_MX-ald-medium' })).toBe('es_MX-ald-medium');
     expect(resolveVoiceId('pt', { pt: BROWSER_VOICE_ID })).toBe(BROWSER_VOICE_ID);

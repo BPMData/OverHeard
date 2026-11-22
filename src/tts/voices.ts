@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh';
+export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs';
 
 export interface PiperVoiceOption {
   id: string;
@@ -341,6 +341,159 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     useRhasspyRepo: true,
     phonemeType: 'pinyin',
   },
+
+  // Arabic (Jordan)
+  {
+    id: 'ar_JO-kareem-medium',
+    lang: 'ar',
+    label: 'Kareem (Male · JO)',
+    gender: 'male',
+    shortName: 'Kareem',
+    modelId: 'ar_JO-kareem-medium',
+    hfPath: 'ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // French (France)
+  {
+    id: 'fr_FR-siwis-medium',
+    lang: 'fr',
+    label: 'Siwis (Female · FR)',
+    gender: 'female',
+    shortName: 'Siwis',
+    modelId: 'fr_FR-siwis-medium',
+    hfPath: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-tom-medium',
+    lang: 'fr',
+    label: 'Tom (Male · FR)',
+    gender: 'male',
+    shortName: 'Tom',
+    modelId: 'fr_FR-tom-medium',
+    hfPath: 'fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:0',
+    lang: 'fr',
+    label: 'Jessica (Female · FR)',
+    gender: 'female',
+    shortName: 'Jessica',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:1',
+    lang: 'fr',
+    label: 'Pierre (Male · FR)',
+    gender: 'male',
+    shortName: 'Pierre',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 1,
+    useRhasspyRepo: true,
+  },
+
+  // Ukrainian
+  {
+    id: 'uk_UA-tetiana-high',
+    lang: 'uk',
+    label: 'Tetiana (Female · UA)',
+    gender: 'female',
+    shortName: 'Tetiana',
+    modelId: 'uk_UA-tetiana-high',
+    hfPath: 'uk/uk_UA/tetiana/high/uk_UA-tetiana-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-mykyta-high',
+    lang: 'uk',
+    label: 'Mykyta (Male · UA)',
+    gender: 'male',
+    shortName: 'Mykyta',
+    modelId: 'uk_UA-mykyta-high',
+    hfPath: 'uk/uk_UA/mykyta/high/uk_UA-mykyta-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-oleksa-high',
+    lang: 'uk',
+    label: 'Oleksa (Male · UA)',
+    gender: 'male',
+    shortName: 'Oleksa',
+    modelId: 'uk_UA-oleksa-high',
+    hfPath: 'uk/uk_UA/oleksa/high/uk_UA-oleksa-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Russian
+  {
+    id: 'ru_RU-irina-medium',
+    lang: 'ru',
+    label: 'Irina (Female · RU)',
+    gender: 'female',
+    shortName: 'Irina',
+    modelId: 'ru_RU-irina-medium',
+    hfPath: 'ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'ru_RU-dmitri-medium',
+    lang: 'ru',
+    label: 'Dmitri (Male · RU)',
+    gender: 'male',
+    shortName: 'Dmitri',
+    modelId: 'ru_RU-dmitri-medium',
+    hfPath: 'ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Dari, using Iranian Persian voices (fa_IR)
+  {
+    id: 'fa_IR-magnoliasis-medium',
+    lang: 'prs',
+    label: 'Magnoliasis (Female · IR)',
+    gender: 'female',
+    shortName: 'Magnoliasis',
+    modelId: 'fa_IR-magnoliasis-medium',
+    hfPath: 'fa/fa_IR/magnoliasis/medium/fa_IR-magnoliasis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-amir-medium',
+    lang: 'prs',
+    label: 'Amir (Male · IR)',
+    gender: 'male',
+    shortName: 'Amir',
+    modelId: 'fa_IR-amir-medium',
+    hfPath: 'fa/fa_IR/amir/medium/fa_IR-amir-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-ganji_adabi-medium',
+    lang: 'prs',
+    label: 'Ganji Adabi (Male · IR)',
+    gender: 'male',
+    shortName: 'Ganji Adabi',
+    modelId: 'fa_IR-ganji_adabi-medium',
+    hfPath: 'fa/fa_IR/ganji_adabi/medium/fa_IR-ganji_adabi-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
 ];
 
 export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
@@ -355,6 +508,11 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   sw: 'sw_CD-lanfrica-medium',
   tr: 'tr_TR-dfki-medium',
   zh: 'zh_CN-xiao_ya-medium',
+  ar: 'ar_JO-kareem-medium',
+  fr: 'fr_FR-siwis-medium',
+  uk: 'uk_UA-tetiana-high',
+  ru: 'ru_RU-irina-medium',
+  prs: 'fa_IR-magnoliasis-medium',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -439,6 +597,36 @@ export function voicePreviewText(
       return {
         spoken: `Merhaba, ben ${shortName}. Sizin için Türkçe okuyayım mı?`,
         englishHint: `Hi, I'm ${shortName}. Shall I read Turkish for you?`,
+      };
+    }
+    case 'ar': {
+      return {
+        spoken: `مرحباً، أنا ${shortName}. هل أقرأ لك بالعربية؟`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Arabic for you?`,
+      };
+    }
+    case 'fr': {
+      return {
+        spoken: `Bonjour, je suis ${shortName}. Voulez-vous que je vous lise en français ?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read French for you?`,
+      };
+    }
+    case 'uk': {
+      return {
+        spoken: `Привіт, я ${shortName}. Прочитати вам українською?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Ukrainian for you?`,
+      };
+    }
+    case 'ru': {
+      return {
+        spoken: `Здравствуйте, я ${shortName}. Прочитать вам по-русски?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Russian for you?`,
+      };
+    }
+    case 'prs': {
+      return {
+        spoken: `سلام، من ${shortName} هستم. آیا برایتان فارسی بخوانم؟`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Dari for you?`,
       };
     }
     case 'zh': {
