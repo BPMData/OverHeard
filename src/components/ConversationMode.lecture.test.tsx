@@ -457,7 +457,7 @@ it('pops the teacher lecture out into a floating window from the full toolbar', 
   expect(win.close).toHaveBeenCalled();
 });
 
-it('keeps Settings and a purple exit to the previous view in the simple lecture toolbar', () => {
+it('keeps Settings and an exit to the previous view in the simple lecture toolbar', () => {
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn()} returnView="subtitle"
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
