@@ -56,6 +56,12 @@ ONNX Runtime gets one thread. Read-aloud prefetches the next line, which hides s
 Ways to make it faster: cross-origin isolation (COOP/COEP headers) for multithreaded WebAssembly,
 or ONNX Runtime's WebGPU backend.
 
+To change a voice's pace, save the model locally with a different `speaking_rate` in
+`config.json` (it is baked into the ONNX graph) and export from that folder. Indonesian ships
+at 0.88 (`model_quantized_rate088.onnx`, about 10% slower), because Meta's default sounded
+rushed. Use a new file name (`mmsFile` in `voices.ts`) rather than overwriting, so cached
+copies of the old file can't be mixed up with the new one.
+
 Then add `mms-tts-<iso3>/model_quantized.onnx` to the `BPMData/overheard-voices` repository
 (GitHub Pages, CORS `*`), its vocabulary to `mmsVocab.ts`, and an `mmsVoice(...)` entry to
 `voices.ts` with the file size in bytes.
