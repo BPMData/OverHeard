@@ -1,0 +1,42 @@
+<!doctype html><meta charset=utf-8><title>MT spike</title>
+<body style="font:14px system-ui;max-width:900px;margin:1em auto"><h3>On-device MT spike</h3><pre id=log></pre>
+<script type=module>
+const SENTS=["Please open your textbooks to page forty-two.","Today we are going to learn about photosynthesis.","Who can tell me what the main character wants in this story?","The homework is due on Friday, so please ask me questions before then.","Remember that the water cycle has four steps: evaporation, condensation, precipitation, and collection."];
+const q=new URLSearchParams(location.search); const log=m=>{document.getElementById('log').textContent+=m+'\n'};
+window.__results=null;
+const median=a=>[...a].sort((x,y)=>x-y)[Math.floor(a.length/2)];
+async function runTf({model,device,dtype,threads,opts,label}){
+  const w=new Worker('tw.js',{type:'module'}); let bytes=0; const files={};
+  const send=m=>new Promise((res,rej)=>{const h=({data})=>{ if(data.type==='progress'){files[data.file]=data.loaded;return;}
+    if(data.type==='error'){rej(new Error(data.error));return;} if(data.type===m.expect){w.removeEventListener('message',h);res(data);} }; w.addEventListener('message',h); w.postMessage(m);});
+  const t0=performance.now(); const l=await send({type:'load',model,device,dtype,threads,expect:'loaded'});
+  const sizeMB=Object.values(files).reduce((a,b)=>a+b,0)/1e6;
+  const outs=[],times=[]; const multi=opts&&opts.tgts; const tgts=multi||[null]; const byLang={};
+  for(const tg of tgts){ const o=multi?{src_lang:'eng_Latn',tgt_lang:tg}:opts; const outs=[];
+  await send({type:'translate',id:-1,text:SENTS[0],opts:o,expect:'result'}); // warm-up
+  for(let i=0;i<SENTS.length;i++){const r=await send({type:'translate',id:i,text:SENTS[i],opts:o,expect:'result'});outs.push(r.text);times.push(r.ms);}
+  // second pass for steadier timing
+  const t2=[]; for(let i=0;i<SENTS.length;i++){const r=await send({type:'translate',id:i,text:SENTS[i],opts:o,expect:'result'});t2.push(r.ms);}
+  byLang[tg]={outs,perSentenceMs:t2.map(Math.round),medianMs:Math.round(median(t2))}; }
+  w.terminate(); if(multi) return {label,device,dtype,loadMs:Math.round(l.ms),downloadedMB:+sizeMB.toFixed(1),byLang};
+  const t2=byLang[null].perSentenceMs; const outs0=byLang[null].outs;
+  return {label,device,dtype,threads,loadMs:Math.round(l.ms),downloadedMB:+sizeMB.toFixed(1),outs:outs0,perSentenceMs:t2,medianMs:median(t2)};
+}
+async function runBergamot(pair){
+  const {LatencyOptimisedTranslator}=await import('./vendor/package/translator.js');
+  const t=new LatencyOptimisedTranslator({registryUrl:'models/bergamot/registry.json',workerUrl:'vendor/package/worker/translator-worker.js',pivotLanguage:null});
+  const t0=performance.now(); const outs=[];
+  await t.translate({from:'en',to:pair,text:SENTS[0]}); const loadMs=Math.round(performance.now()-t0);
+  const times=[]; for(const s of SENTS){const a=performance.now();const r=await t.translate({from:'en',to:pair,text:s});times.push(Math.round(performance.now()-a));outs.push(r.target.text);}
+  const t2=[]; for(const s of SENTS){const a=performance.now();await t.translate({from:'en',to:pair,text:s});t2.push(Math.round(performance.now()-a));}
+  t.delete(); return {label:'bergamot en-'+pair,loadMs,outs,perSentenceMs:t2,medianMs:median(t2)};
+}
+const job=q.get('job'); if(job){
+  try{
+    let r; if(job==='bergamot') r=await runBergamot(q.get('to'));
+    else r=await runTf({model:q.get('model'),device:q.get('device')||'wasm',dtype:q.get('dtype')||'q8',threads:+q.get('threads')||0,
+      opts:q.get('tgts')?{tgts:q.get('tgts').split(',')}:{},label:q.get('model')+' '+(q.get('device')||'wasm')});
+    r.crossOriginIsolated=crossOriginIsolated; window.__results=r; log(JSON.stringify(r,null,1));
+  }catch(e){window.__results={error:String(e)};log('ERR '+e.stack);}
+}
+</script>
