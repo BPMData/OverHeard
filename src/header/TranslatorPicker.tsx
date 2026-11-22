@@ -33,7 +33,7 @@ export function TranslatorPicker({
           : 'Which translator powers live captions. On-device first uses online translation temporarily if the local model is unavailable.'
       }
     >
-      <span className="text-[#64748B] dark:text-[#94A3B8]">Translator</span>
+      <span className="hidden 2xl:inline text-[#64748B] dark:text-[#94A3B8]">Translator</span>
       <select
         value={effectiveMtPreference}
         onChange={(e) => {
@@ -92,7 +92,7 @@ export function TranslatorPicker({
               : 'On-device speech is not available here; using Google’s speech service'
           }
         >
-          🎙 {speechIsLocal ? 'local' : 'cloud'}
+          🎙<span className="hidden xl:inline"> {speechIsLocal ? 'local' : 'cloud'}</span>
         </span>
       )}
       {effectiveMtPreference === 'on-device' && onDeviceFailing && (
@@ -104,7 +104,7 @@ export function TranslatorPicker({
           ⚠ On-device translation failing
         </span>
       )}
-      {lastUsedProvider && <TranslatedByBadge provider={lastUsedProvider} />}
+      {lastUsedProvider && <TranslatedByBadge provider={lastUsedProvider} compact />}
     </label>
   );
 }
@@ -115,12 +115,20 @@ const TONE_CLASSES = {
   paid: 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300',
 } as const;
 
-/** Always-visible answer to "which translator just ran?" */
-export function TranslatedByBadge({ provider }: { provider: TranslatorId }) {
+/** Always-visible answer to "which translator just ran?" `compact` shrinks it for the teacher toolbar. */
+export function TranslatedByBadge({ provider, compact = false }: { provider: TranslatorId; compact?: boolean }) {
   const info = TRANSLATED_BY[provider];
+  if (!compact) {
+    return (
+      <span className={`px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`} title={info.title}>
+        Last translation: {info.label}
+      </span>
+    );
+  }
   return (
-    <span className={`px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`} title={info.title}>
-      Last translation: {info.label}
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`} title={`Last translation: ${info.label}. ${info.title}`}>
+      <span className="xl:hidden w-2 h-2 rounded-full bg-current" aria-hidden="true" />
+      <span className="hidden xl:inline"><span className="hidden 2xl:inline">Last translation: </span>{info.label}</span>
     </span>
   );
 }

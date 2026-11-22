@@ -297,6 +297,7 @@
 .dark .room-join input, .dark .room-join button,
 .conversation-dark .room-join input, .conversation-dark .room-join button { border-color: #2b3952; }
 .room-join input { width: 160px; background: #f8fafc; }
+@media (max-width: 1279px) { header .room-join input { width: 124px; } }
 .dark .room-join input, .conversation-dark .room-join input { background: #090d16; }
 .room-join button { background: #f8fafc; }
 .dark .room-join button, .conversation-dark .room-join button { background: #162033; }

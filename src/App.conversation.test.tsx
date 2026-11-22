@@ -205,6 +205,7 @@ describe('App conversation integration', () => {
 
       await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
 
+      fireEvent.click(screen.getByRole('button', { name: 'File' }));
       const exportBtn = screen.getByRole('button', { name: 'Export JSON' });
       expect(screen.queryByRole('button', { name: /CSV/i })).toBeNull();
       fireEvent.click(exportBtn);
