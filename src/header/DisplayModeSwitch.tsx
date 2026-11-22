@@ -1,5 +1,5 @@
 import type { DisplayMode } from '../types';
-import { Columns3, Subtitles } from 'lucide-react';
+import { Columns3, MessagesSquare, Subtitles } from 'lucide-react';
 
 interface DisplayModeSwitchProps {
   displayMode: DisplayMode;
@@ -38,11 +38,11 @@ export function DisplayModeSwitch({
       </button>
       <button
         type="button"
-        className="flex flex-col items-center justify-center px-2.5 py-0.5 rounded-[2px] text-xs font-semibold leading-[1.1] text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors text-center"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-xs font-semibold text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors whitespace-nowrap"
         onClick={enterConversation}
       >
-        <span>Conversation/</span>
-        <span className="text-[11px] font-semibold">Lecture</span>
+        <MessagesSquare className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>Conversation/Lecture</span>
       </button>
     </div>
   );
