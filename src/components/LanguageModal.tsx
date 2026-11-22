@@ -3,6 +3,7 @@ import { Check, Copy, Globe, X } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, MAX_LANGUAGES } from '../constants';
 import { LanguageCode } from '../types';
 import { CHROME_PACK_SIZE_HINT } from '../translation/packStorage';
+import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 
 interface LanguageModalProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface LanguageModalProps {
   onToggleLang: (code: LanguageCode) => void;
   /** Choosing a language starts its on-device pack download (Auto / On this device) */
   downloadsPacks?: boolean;
+  /** "Only on this device" is chosen: name chosen languages it can't translate */
+  onDeviceOnly?: boolean;
 }
 
 export const LanguageModal: React.FC<LanguageModalProps> = ({
@@ -19,8 +22,11 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
   selectedLangs,
   onToggleLang,
   downloadsPacks = false,
+  onDeviceOnly = false,
 }) => {
   const [copied, setCopied] = useState(false);
+  const needOnline = useLanguagesNeedingOnline(fromEnglish(selectedLangs), isOpen && onDeviceOnly);
+  const needOnlineNotice = needOnlineText(needOnline);
 
   if (!isOpen) return null;
 
@@ -84,6 +90,15 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             </p>
           )}
 
+          {needOnline.length > 0 && (
+            <p role="alert" className="text-sm font-semibold px-3 py-2 rounded-[2px] border border-red-600/60 bg-red-600/10 text-red-800 dark:text-red-200">
+              ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate{' '}
+              {needOnline.length > 1 ? 'these languages' : 'this language'}, so{' '}
+              {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated. Choose{' '}
+              <strong>On-device first</strong> or an online translator in the Translator menu.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {SUPPORTED_LANGUAGES.map((lang) => {
               const isChecked = selectedLangs.includes(lang.code);
@@ -126,6 +141,11 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                       {lang.nativeName}
                       {lang.dir === 'rtl' ? ' · RTL' : ''}
                     </div>
+                    {needOnline.includes(lang.code) && (
+                      <div className="text-xs font-semibold text-red-700 dark:text-red-300 mt-0.5">
+                        Needs online translation
+                      </div>
+                    )}
                   </div>
                 </label>
               );

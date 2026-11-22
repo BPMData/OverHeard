@@ -134,3 +134,46 @@ describe('conversation with On this device', () => {
     expect(translator.availability).not.toHaveBeenCalled();
   });
 });
+
+describe('languages "Only on this device" cannot translate', () => {
+  beforeEach(() => {
+    translator.availability.mockImplementation(async (pair?: { sourceLanguage: string; targetLanguage: string }) =>
+      pair && [pair.sourceLanguage, pair.targetLanguage].some((l) => l === 'ht' || l === 'ps') ? 'unavailable' : 'available');
+  });
+  afterEach(() => translator.availability.mockImplementation(async () => 'downloadable'));
+
+  function show(props: Partial<React.ComponentProps<typeof ConversationMode>>) {
+    render(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={vi.fn(async (text: string) => text)}
+        mtPreference="on-device"
+        onExit={vi.fn()}
+        onPermissionDenied={vi.fn()}
+        {...props}
+      />,
+    );
+  }
+
+  it('names them in two-way mode', async () => {
+    show({ initialLanguage: 'ps' });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('⚠ Pashto: “Only on this device” can’t translate this language');
+  });
+
+  it('names them in lecture mode, and only them', async () => {
+    show({ selectedLangs: ['ht', 'es'], onOpenLanguages: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('⚠ Haitian Creole: “Only on this device” can’t translate this language');
+    expect(alert.textContent).not.toContain('Spanish');
+  });
+
+  it('says nothing with On-device first, which uses online translation for them', async () => {
+    show({ initialLanguage: 'ps', mtPreference: 'auto' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});

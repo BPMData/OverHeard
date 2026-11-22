@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react';
 import type { DisplayMode, LanguageCode } from '../types';
-import { ON_DEVICE_TIMEOUT_MS, MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, rejectAfter, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
-import { getOnDeviceAvailability, hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
+import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
+import { hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
 import { useOnline } from '../app/useOnline';
-import { LANGUAGE_MAP } from '../constants';
-import { hasBergamotModel } from '../translation/bergamot/engine';
+import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 
 /** What each translator choice does, shown as its tooltip. */
 export function translatorTooltip(
@@ -33,38 +31,6 @@ export function translatorTooltip(
   }
 }
 
-/**
- * Selected languages that "Only on this device" can't translate here (from English), so the
- * picker can say why they stay untranslated. Chrome's check can hang in a browser without its
- * translation service; then only a language with a downloadable pack counts as translatable.
- */
-function useLanguagesNeedingOnline(langs: LanguageCode[], active: boolean): LanguageCode[] {
-  const [missing, setMissing] = useState<LanguageCode[]>([]);
-  const key = langs.join(',');
-  useEffect(() => {
-    if (!active) {
-      setMissing([]);
-      return;
-    }
-    let cancelled = false;
-    void Promise.all(
-      langs.map((lang) =>
-        rejectAfter(getOnDeviceAvailability(lang, 'en'), ON_DEVICE_TIMEOUT_MS).then(
-          (status) => (status === 'unavailable' ? lang : null),
-          () => (hasBergamotModel(lang, 'en') ? null : lang),
-        ),
-      ),
-    ).then((results) => {
-      if (!cancelled) setMissing(results.filter((lang): lang is LanguageCode => lang !== null));
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` stands for `langs`
-  }, [key, active]);
-  return missing;
-}
-
 interface TranslatorPickerProps {
   displayMode: DisplayMode;
   selectedLangs: LanguageCode[];
@@ -86,11 +52,12 @@ export function TranslatorPicker({
   onDeviceFailing = false,
 }: TranslatorPickerProps) {
   const online = useOnline();
+  // Conversation/Lecture shows these notices in its own always-visible row
   const needOnline = useLanguagesNeedingOnline(
-    selectedLangs,
+    fromEnglish(selectedLangs),
     effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation',
   );
-  const needOnlineNames = needOnline.map((lang) => LANGUAGE_MAP[lang].name).join(', ');
+  const needOnlineNotice = needOnlineText(needOnline);
   const tip = (preference: MtPreference) =>
     translatorTooltip(preference, onDeviceSupported, availableProviders[0]);
   return (
@@ -167,12 +134,12 @@ export function TranslatorPicker({
         <span
           role="status"
           className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
-          title={`${needOnlineNames} can’t be translated on this device alone, so ${needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated. Choose On-device first or an online translator to translate ${needOnline.length > 1 ? 'them' : 'it'}.`}
+          title={needOnlineNotice.title}
         >
-          ⚠ {needOnlineNames}: {needOnline.length > 1 ? 'need' : 'needs'} online translation
+          {needOnlineNotice.label}
         </span>
       )}
-      {needOnline.length === 0 && effectiveMtPreference === 'on-device' && onDeviceFailing && (
+      {needOnline.length === 0 && displayMode !== 'conversation' && effectiveMtPreference === 'on-device' && onDeviceFailing && (
         <span
           role="status"
           className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
