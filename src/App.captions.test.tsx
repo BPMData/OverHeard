@@ -144,7 +144,7 @@ it('defaults to on-device first and gives an installed translator five seconds',
   vi.mocked(getOnDeviceAvailability).mockResolvedValueOnce('available');
   vi.mocked(translateOnDevice).mockResolvedValue('La clase empieza al mediodía');
   await listen();
-  expect(screen.getByRole('option', { name: 'On-device 1st', selected: true })).toBeTruthy();
+  expect(screen.getByRole('option', { name: 'On-device first', selected: true })).toBeTruthy();
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(translateOnDevice).toHaveBeenCalledWith(phrase, 'es', 'en', 5000, { waitForSetup: false });
@@ -155,7 +155,7 @@ it('translates on this device without sending the caption to /api/mt', async () 
   vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
   vi.mocked(translateOnDevice).mockResolvedValue('La clase empieza al mediodía');
   await act(async () => { render(<App />); });
-  const option = screen.getByRole('option', { name: 'On this device (speech too)' }) as HTMLOptionElement;
+  const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
   fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
   await act(async () => { click(/Start Listening/); });
   await say(true);
@@ -170,11 +170,12 @@ it('labels a server translation so it is clear the text left the device', async 
   expect(screen.getByTitle(/^Last translation: Google, free\./)).toBeTruthy();
 });
 
-it('never falls back to the server in "On this device" mode, and says so on the page', async () => {
+it('never falls back to the server in "Only on this device" mode, and says so on the page', async () => {
   vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
+  vi.mocked(getOnDeviceAvailability).mockResolvedValue('available');
   vi.mocked(translateOnDevice).mockRejectedValue(new Error('InvalidStateError'));
   await act(async () => { render(<App />); });
-  const option = screen.getByRole('option', { name: 'On this device (speech too)' }) as HTMLOptionElement;
+  const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
   fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
   await act(async () => { click(/Start Listening/); });
   await say(true);
@@ -182,6 +183,21 @@ it('never falls back to the server in "On this device" mode, and says so on the 
   expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
   expect(screen.getByRole('status').textContent).toContain('On-device translation failing');
   expect(mt).not.toHaveBeenCalled();
+  vi.mocked(getOnDeviceAvailability).mockResolvedValue('unavailable');
+});
+
+it('names a language "Only on this device" cannot translate instead of a vague failure', async () => {
+  vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
+  vi.mocked(getOnDeviceAvailability).mockImplementation(async (code) => (code === 'es' ? 'unavailable' : 'available'));
+  await act(async () => { render(<App />); });
+  const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
+  await act(async () => {
+    fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
+  });
+  const status = await screen.findByRole('status');
+  expect(status.textContent).toBe('⚠ Spanish: needs online translation');
+  expect(status.getAttribute('title')).toContain('can’t be translated on this device alone');
+  vi.mocked(getOnDeviceAvailability).mockImplementation(async () => 'unavailable');
 });
 
 it('clears the English and translated captions after confirmation', async () => {

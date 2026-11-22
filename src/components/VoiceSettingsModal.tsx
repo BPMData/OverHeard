@@ -534,7 +534,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     <span>Zero-Cloud / On-Device Guarantee</span>
                   </div>
                   <p>
-                    If you select <strong>On this device</strong> in the <strong>Translator</strong>{' '}
+                    If you select <strong>Only on this device</strong> in the <strong>Translator</strong>{' '}
                     menu (with
                     supported browser speech and language packs installed, plus local Piper or Meta MMS reader
                     voices), speech recognition, translation, and playback all stay inside your

@@ -68,10 +68,10 @@ export function createBergamotStorageCategory(
     removeAllLabel: 'delete all on-device translation models',
     afterRemoveNote:
       `Each language will need to download its model again (${typical} each) before it can translate on ` +
-      'this device. Until then captions use online translation, or stay untranslated with “On this device”.',
+      'this device. Until then captions use online translation, or stay untranslated with “Only on this device”.',
     afterRemoveItemNote:
       'This language will need to download its model again before it can translate on this device. ' +
-      'Until then its captions use online translation, or stay untranslated with “On this device”.',
+      'Until then its captions use online translation, or stay untranslated with “Only on this device”.',
     list: async () => {
       const saved = await sizes().catch(() => []);
       const items: StoredItem[] = saved.map(({ lang, bytes }) =>

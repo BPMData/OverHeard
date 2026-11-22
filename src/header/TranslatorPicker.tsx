@@ -1,7 +1,69 @@
+import { useEffect, useState } from 'react';
 import type { DisplayMode, LanguageCode } from '../types';
-import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
-import { hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
+import { ON_DEVICE_TIMEOUT_MS, MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, rejectAfter, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
+import { getOnDeviceAvailability, hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
 import { useOnline } from '../app/useOnline';
+import { LANGUAGE_MAP } from '../constants';
+import { hasBergamotModel } from '../translation/bergamot/engine';
+
+/** What each translator choice does, shown as its tooltip. */
+export function translatorTooltip(
+  preference: MtPreference,
+  onDeviceSupported: boolean,
+  firstProvider: MtProviderId | undefined,
+): string {
+  switch (preference) {
+    case 'auto':
+      return onDeviceSupported
+        ? 'On-device first: translates on this computer when it can (private, free, works offline). ' +
+            'Languages this computer can’t translate, and packs still downloading, use online translation.'
+        : 'Auto: translates online' +
+            (firstProvider ? `, with ${MT_PROVIDER_LABELS[firstProvider]} first` : '') +
+            '. This browser can’t translate on the device.';
+    case 'on-device':
+      return onDeviceSupported
+        ? 'Only on this device: translation never goes online. Languages this computer can’t ' +
+            'translate stay untranslated.' +
+            (hasChromeTranslator() ? ' In Chrome, speech recognition also runs on this computer.' : '')
+        : 'Only on this device: needs a newer browser, such as a recent Chrome.';
+    case 'gtx':
+      return 'Free (unofficial): always translates online with Google’s free translator. The text is sent to Google.';
+    case 'google-cloud':
+      return 'Google Cloud: always translates online with Google Cloud Translation, which costs money. The text is sent to Google.';
+  }
+}
+
+/**
+ * Selected languages that "Only on this device" can't translate here (from English), so the
+ * picker can say why they stay untranslated. Chrome's check can hang in a browser without its
+ * translation service; then only a language with a downloadable pack counts as translatable.
+ */
+function useLanguagesNeedingOnline(langs: LanguageCode[], active: boolean): LanguageCode[] {
+  const [missing, setMissing] = useState<LanguageCode[]>([]);
+  const key = langs.join(',');
+  useEffect(() => {
+    if (!active) {
+      setMissing([]);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      langs.map((lang) =>
+        rejectAfter(getOnDeviceAvailability(lang, 'en'), ON_DEVICE_TIMEOUT_MS).then(
+          (status) => (status === 'unavailable' ? lang : null),
+          () => (hasBergamotModel(lang, 'en') ? null : lang),
+        ),
+      ),
+    ).then((results) => {
+      if (!cancelled) setMissing(results.filter((lang): lang is LanguageCode => lang !== null));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` stands for `langs`
+  }, [key, active]);
+  return missing;
+}
 
 interface TranslatorPickerProps {
   displayMode: DisplayMode;
@@ -14,7 +76,7 @@ interface TranslatorPickerProps {
   effectiveMtPreference: MtPreference;
   setMtPreference: (preference: MtPreference) => void;
   reportPack: (key: string, fraction: number | null) => void;
-  /** "On this device" translation failed most recently (it never falls back to the server) */
+  /** "Only on this device" translation failed most recently (it never falls back to the server) */
   onDeviceFailing?: boolean;
 }
 
@@ -24,13 +86,19 @@ export function TranslatorPicker({
   onDeviceFailing = false,
 }: TranslatorPickerProps) {
   const online = useOnline();
+  const needOnline = useLanguagesNeedingOnline(
+    selectedLangs,
+    effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation',
+  );
+  const needOnlineNames = needOnline.map((lang) => LANGUAGE_MAP[lang].name).join(', ');
+  const tip = (preference: MtPreference) =>
+    translatorTooltip(preference, onDeviceSupported, availableProviders[0]);
   return (
     <label
       className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
       title={
-        lastUsedProvider
-          ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
-          : 'Which translator powers live captions. On-device 1st translates on this device and uses online translation only if the local model is unavailable.'
+        tip(effectiveMtPreference) +
+        (lastUsedProvider ? `\n\nLast caption translated by: ${TRANSLATED_BY[lastUsedProvider].label}` : '')
       }
     >
       <span className="hidden 2xl:inline text-[#64748B] dark:text-[#94A3B8]">Translator</span>
@@ -49,19 +117,19 @@ export function TranslatorPicker({
         }}
         className="oh-fit-select bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
       >
-        <option value="auto" title={onDeviceSupported ? 'Translate on this device first; use online translation only if that fails' : undefined}>
+        <option value="auto" title={tip('auto')}>
           {onDeviceSupported
-            ? 'On-device 1st'
+            ? 'On-device first'
             : availableProviders[0]
               ? `Auto (${MT_PROVIDER_LABELS[availableProviders[0]]})`
               : 'Auto'}
         </option>
-        <option value="on-device" disabled={!onDeviceSupported}>
+        <option value="on-device" disabled={!onDeviceSupported} title={tip('on-device')}>
           {MT_PROVIDER_LABELS['on-device']}
-          {onDeviceSupported ? (hasChromeTranslator() ? ' (speech too)' : '') : ' (needs a newer browser)'}
+          {onDeviceSupported ? '' : ' (needs a newer browser)'}
         </option>
         {availableProviders.map((p) => (
-          <option key={p} value={p} disabled={!online}>
+          <option key={p} value={p} disabled={!online} title={tip(p)}>
             {MT_PROVIDER_LABELS[p]}
             {online ? '' : ' (needs internet)'}
           </option>
@@ -95,11 +163,20 @@ export function TranslatorPicker({
           🎙<span className="hidden xl:inline"> {speechIsLocal ? 'local' : 'cloud'}</span>
         </span>
       )}
-      {effectiveMtPreference === 'on-device' && onDeviceFailing && (
+      {needOnline.length > 0 && (
         <span
           role="status"
           className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
-          title="Translation on this device failed. On this device never uses online translators, so these lines stay untranslated. Choose a translator with online fallback to use one."
+          title={`${needOnlineNames} can’t be translated on this device alone, so ${needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated. Choose On-device first or an online translator to translate ${needOnline.length > 1 ? 'them' : 'it'}.`}
+        >
+          ⚠ {needOnlineNames}: {needOnline.length > 1 ? 'need' : 'needs'} online translation
+        </span>
+      )}
+      {needOnline.length === 0 && effectiveMtPreference === 'on-device' && onDeviceFailing && (
+        <span
+          role="status"
+          className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
+          title="Translation on this device failed. Only on this device never uses online translators, so these lines stay untranslated. Choose On-device first or an online translator to use one."
         >
           ⚠ On-device translation failing
         </span>

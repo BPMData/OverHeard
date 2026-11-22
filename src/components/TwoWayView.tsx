@@ -45,24 +45,27 @@ export function TwoWaySettings({
               setSettings((s) => ({ ...s, [side]: { ...s[side], name: e.target.value } }))
             }
           />
-          <select
-            aria-label={`Side ${side.toUpperCase()} language`}
-            value={settings[side].lang}
-            disabled={speech.isListening}
-            onChange={(e) =>
-              setSettings((s) => ({
-                ...s,
-                [side]: { ...s[side], lang: e.target.value as ConversationLanguage },
-              }))
-            }
-          >
-            <option value="en">English</option>
-            {SUPPORTED_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+          {/* A select can't hold the glow's ::after layer, so a wrapper carries it */}
+          <span className="oh-beckon oh-beckon-wrap">
+            <select
+              aria-label={`Side ${side.toUpperCase()} language`}
+              value={settings[side].lang}
+              disabled={speech.isListening}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  [side]: { ...s[side], lang: e.target.value as ConversationLanguage },
+                }))
+              }
+            >
+              <option value="en">English</option>
+              {SUPPORTED_LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </span>
           <VoiceSelect
             lang={settings[side].lang}
             ariaLabel={`Side ${side.toUpperCase()} voice`}

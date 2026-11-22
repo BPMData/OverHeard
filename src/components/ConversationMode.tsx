@@ -421,7 +421,7 @@ export function ConversationMode({
   const voiceSettingsButton = (
     <button
       type="button"
-      className="conversation-settings-btn oh-settings-btn oh-beckon"
+      className="conversation-settings-btn oh-settings-btn"
       onClick={() => setIsVoiceSettingsOpen(true)}
       title="Open settings: controls, reader voices, and privacy"
     >
@@ -519,7 +519,7 @@ export function ConversationMode({
             {onOpenLanguages && (
               <button
                 type="button"
-                className="conversation-langs-btn"
+                className="conversation-langs-btn oh-beckon"
                 onClick={onOpenLanguages}
                 aria-label={`Languages${targetLangs.length > 0 ? `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}` : ''}`}
               >
