@@ -147,7 +147,7 @@ export function StudentRoom({ code }: { code: string }) {
       </label>
       <button
         type="button"
-        className="inline-flex items-center gap-1.5"
+        className="inline-flex items-center gap-1.5 oh-settings-btn oh-beckon"
         onClick={() => setIsVoiceSettingsOpen(true)}
         title="Choose default reader voices"
       >

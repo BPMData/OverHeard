@@ -421,7 +421,7 @@ export function ConversationMode({
   const voiceSettingsButton = (
     <button
       type="button"
-      className="conversation-settings-btn"
+      className="conversation-settings-btn oh-settings-btn oh-beckon"
       onClick={() => setIsVoiceSettingsOpen(true)}
       title="Open settings: controls, reader voices, and privacy"
     >
