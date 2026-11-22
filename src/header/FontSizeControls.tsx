@@ -23,7 +23,7 @@ export function FontSizeControls({
       >
         A-
       </button>
-      <span className="px-2 text-xs font-mono text-[#475569] dark:text-[#94A3B8] whitespace-nowrap">
+      <span className="px-2 text-xs font-semibold tabular-nums text-[#475569] dark:text-[#94A3B8] whitespace-nowrap">
         {fontSize}px
       </span>
       <button

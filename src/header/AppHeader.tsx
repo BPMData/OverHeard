@@ -124,8 +124,8 @@ export function AppHeader({
             >
               <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
               <span>Languages</span>
-              <span className="font-mono text-[#64748B] dark:text-[#94A3B8]">
-                ({selectedLangs.join(', ')})
+              <span className="px-1.5 py-px rounded-[2px] bg-[#EAEFF6] dark:bg-[#0B111C] text-[10.5px] font-bold uppercase tracking-wide text-[#475569] dark:text-[#A5B4CB]">
+                {selectedLangs.join(' · ')}
               </span>
             </button>
             {translatorPicker}

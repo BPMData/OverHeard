@@ -34,9 +34,9 @@ export function ListenButton({
           <span>Start Listening</span>
         </>
       )}
-      <span className="hidden sm:inline-block text-xs opacity-75 font-mono">
-        [Space]
-      </span>
+      <kbd className="hidden sm:inline-block px-1.5 py-px rounded-[2px] border border-white/35 bg-white/10 font-sans text-[10.5px] font-semibold tracking-wide opacity-90">
+        Space
+      </kbd>
     </button>
   );
 }

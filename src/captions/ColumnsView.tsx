@@ -45,7 +45,7 @@ export function ColumnsView({
               <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
                 English
               </span>
-              <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
+              <span className="text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">
                 en-US · Teacher
               </span>
             </div>
@@ -60,7 +60,7 @@ export function ColumnsView({
             {/* Previous Line (0.68x font size, muted, above hairline divider) */}
             {showPreviousLine && (
               <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
-                <div className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8] mb-1.5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748B] dark:text-[#94A3B8] mb-1.5">
                   Previous line
                 </div>
                 {previousSegment ? (
@@ -110,7 +110,7 @@ export function ColumnsView({
               {/* Live Interim Speech (dimmed) */}
               {interimTranscript.trim().length > 0 && (
                 <div className="pt-2">
-                  <span className="inline-block text-xs font-mono text-[#5843A5] dark:text-[#C4B5FD] mb-1">
+                  <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5843A5] dark:text-[#C4B5FD] mb-1">
                     Speaking live…
                   </span>
                   <p
@@ -217,7 +217,7 @@ export function ColumnsView({
                   <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
                     <div
                       dir="ltr"
-                      className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8] mb-1.5"
+                      className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748B] dark:text-[#94A3B8] mb-1.5"
                     >
                       Previous line
                     </div>
