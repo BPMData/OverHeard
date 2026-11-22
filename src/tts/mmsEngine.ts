@@ -54,13 +54,23 @@ export async function isMmsSaved(modelId: string): Promise<boolean> {
   return (await readSaved(modelId)) !== null;
 }
 
-/** Downloads a model with progress (0–99). Rejects when the body is cut short. */
-async function download(url: string, onProgress: (pct: number) => void): Promise<Uint8Array> {
-  const response = await fetch(url, { mode: 'cors' });
+/**
+ * Downloads a model with progress (0–99). Rejects when the body isn't `expectedBytes` long.
+ * The size comes from voices.ts, not Content-Length: GitHub Pages gzips the file, so that header
+ * gives the compressed size while the body arrives decompressed.
+ */
+export async function downloadMmsModel(
+  url: string,
+  expectedBytes: number,
+  onProgress: (pct: number) => void,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Uint8Array> {
+  const response = await fetchImpl(url, { mode: 'cors' });
   if (!response.ok) throw new Error(`Voice download failed (HTTP ${response.status})`);
-  const total = Number(response.headers.get('content-length')) || 0;
+  const total = expectedBytes > 0 ? expectedBytes : 0;
   if (!response.body) {
     const bytes = new Uint8Array(await response.arrayBuffer());
+    if (total > 0 && bytes.length !== total) throw new Error('Voice download was interrupted');
     onProgress(99);
     return bytes;
   }
@@ -112,7 +122,7 @@ export async function loadMmsModel(
 ): Promise<{ bytes: ArrayBuffer; saved: boolean }> {
   const saved = await readSaved(voice.modelId);
   if (saved) return { bytes: await saved.arrayBuffer(), saved: true };
-  const bytes = await download(url, onProgress);
+  const bytes = await downloadMmsModel(url, voice.downloadBytes ?? 0, onProgress);
   await save(voice.modelId, bytes);
   return { bytes: bytes.buffer as ArrayBuffer, saved: false };
 }
