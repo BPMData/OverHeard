@@ -185,3 +185,16 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicePreviewText('tr', 'tr_TR-dfki-medium').spoken).toContain('Türkçe');
   });
 });
+
+describe('voice download sizes', () => {
+  it('knows a size for every voice, and none for the browser voice', async () => {
+    const { PIPER_VOICES, BROWSER_VOICE_ID, voiceDownloadBytes, voiceDownloadLabel } = await import('./voices');
+    for (const voice of PIPER_VOICES) {
+      expect(voiceDownloadBytes(voice.id)).toBeGreaterThan(10 * 1024 * 1024);
+    }
+    expect(voiceDownloadBytes(BROWSER_VOICE_ID)).toBe(0);
+    expect(voiceDownloadLabel('es_MX-claude-high')).toBe('60 MB');
+    expect(voiceDownloadLabel('uk_UA-tetiana-high')).toBe('109 MB');
+    expect(voiceDownloadLabel(BROWSER_VOICE_ID)).toBe('');
+  });
+});

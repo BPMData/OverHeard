@@ -2,6 +2,7 @@ import type { ConversationLanguage } from '../types';
 import {
   BROWSER_VOICE_ID,
   BROWSER_VOICE_LABEL,
+  voiceDownloadLabel,
   voicesForLanguage,
 } from './voices';
 import type { PlaybackStatus } from './useSpeechPlayback';
@@ -13,6 +14,18 @@ interface VoiceSelectProps {
   disabled?: boolean;
   className?: string;
   onChange: (voiceId: string) => void;
+  /** Model ids already saved on this device; those options say "saved" instead of a size */
+  savedModelIds?: ReadonlySet<string> | null;
+}
+
+/** Option text with the download size, so people know what a voice takes up before it downloads. */
+export function voiceOptionLabel(
+  voice: { id: string; label: string; modelId: string },
+  savedModelIds?: ReadonlySet<string> | null,
+): string {
+  if (savedModelIds?.has(voice.modelId)) return `${voice.label} — saved`;
+  const size = voiceDownloadLabel(voice.id);
+  return size ? `${voice.label} — ${size}` : voice.label;
 }
 
 export function VoiceSelect({
@@ -22,6 +35,7 @@ export function VoiceSelect({
   disabled = false,
   className,
   onChange,
+  savedModelIds,
 }: VoiceSelectProps) {
   const piperVoices = voicesForLanguage(lang);
   return (
@@ -34,7 +48,7 @@ export function VoiceSelect({
     >
       {piperVoices.map((voice) => (
         <option key={voice.id} value={voice.id}>
-          {voice.label}
+          {voiceOptionLabel(voice, savedModelIds)}
         </option>
       ))}
       <option value={BROWSER_VOICE_ID}>{BROWSER_VOICE_LABEL}</option>

@@ -40,6 +40,17 @@ export interface SpeechClient {
   saveForOffline?: (voiceId: string) => Promise<void>;
   /** Model ids of the Piper voices already saved on this device. */
   listSavedModels?: () => Promise<string[]>;
+  /** Bytes on disk per saved model id. modelId '' collects leftover files (interrupted downloads). */
+  listSavedSizes?: () => Promise<SavedModelSize[]>;
+  /** Delete one saved voice model ('' deletes the leftovers). It downloads again when next used. */
+  removeSavedModel?: (modelId: string) => Promise<void>;
+  /** Delete every saved voice model. */
+  removeAllSavedModels?: () => Promise<void>;
+}
+
+export interface SavedModelSize {
+  modelId: string;
+  bytes: number;
 }
 
 type WorkerEvent =
@@ -47,7 +58,11 @@ type WorkerEvent =
   | { type: 'wav'; jobId: number; wavBuffer: ArrayBuffer }
   | { type: 'error'; jobId: number; error: string }
   | { type: 'saved'; requestId: number; ok: boolean; error?: string }
-  | { type: 'stored'; requestId: number; modelIds: string[] };
+  | { type: 'stored'; requestId: number; modelIds: string[] }
+  | { type: 'storedSizes'; requestId: number; sizes: SavedModelSize[] }
+  | { type: 'removed'; requestId: number; ok: boolean; error?: string };
+
+type RequestResult = string[] | SavedModelSize[] | void;
 
 const CHUNK_EDGE_FADE_MS = 8;
 const MAX_PREFETCH_ENTRIES = 6;
@@ -145,7 +160,7 @@ export class PiperPlaybackClient implements SpeechClient {
   private nextRequestId = 1;
   private pendingRequests = new Map<
     number,
-    { resolve: (value: string[] | void) => void; reject: (err: Error) => void }
+    { resolve: (value: RequestResult) => void; reject: (err: Error) => void }
   >();
 
   isPiperSupported = (): boolean => isPiperSupported();
@@ -222,13 +237,14 @@ export class PiperPlaybackClient implements SpeechClient {
         }
         return;
       }
-      if (msg.type === 'saved' || msg.type === 'stored') {
+      if (msg.type === 'saved' || msg.type === 'stored' || msg.type === 'storedSizes' || msg.type === 'removed') {
         const pending = this.pendingRequests.get(msg.requestId);
         if (!pending) return;
         this.pendingRequests.delete(msg.requestId);
         if (msg.type === 'stored') pending.resolve(msg.modelIds);
+        else if (msg.type === 'storedSizes') pending.resolve(msg.sizes);
         else if (msg.ok) pending.resolve();
-        else pending.reject(new Error(msg.error || 'Could not save voice'));
+        else pending.reject(new Error(msg.error || (msg.type === 'saved' ? 'Could not save voice' : 'Could not delete voice')));
         return;
       }
       if (msg.type === 'error') {
@@ -267,12 +283,12 @@ export class PiperPlaybackClient implements SpeechClient {
     worker.postMessage({ type: 'preload', modelId: voice.modelId });
   };
 
-  private request<T extends string[] | void>(message: Record<string, unknown>): Promise<T> {
+  private request<T extends RequestResult>(message: Record<string, unknown>): Promise<T> {
     const requestId = this.nextRequestId++;
     const worker = this.ensureWorker();
     return new Promise<T>((resolve, reject) => {
       this.pendingRequests.set(requestId, {
-        resolve: resolve as (value: string[] | void) => void,
+        resolve: resolve as (value: RequestResult) => void,
         reject,
       });
       worker.postMessage({ ...message, requestId });
@@ -288,6 +304,23 @@ export class PiperPlaybackClient implements SpeechClient {
   listSavedModels = async (): Promise<string[]> => {
     if (!this.isPiperSupported()) return [];
     return this.request<string[]>({ type: 'listStored' });
+  };
+
+  listSavedSizes = async (): Promise<SavedModelSize[]> => {
+    if (!this.isPiperSupported()) return [];
+    return this.request<SavedModelSize[]>({ type: 'listStoredSizes' });
+  };
+
+  removeSavedModel = async (modelId: string): Promise<void> => {
+    if (!this.isPiperSupported()) return;
+    this.prefetchCache.clear();
+    await this.request<void>({ type: 'remove', modelId });
+  };
+
+  removeAllSavedModels = async (): Promise<void> => {
+    if (!this.isPiperSupported()) return;
+    this.prefetchCache.clear();
+    await this.request<void>({ type: 'removeAll' });
   };
 
   private synthesize(

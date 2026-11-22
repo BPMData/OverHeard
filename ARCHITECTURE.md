@@ -63,6 +63,9 @@ src/rooms/              Shared lecture rooms: teacher publishing, student view, 
 src/tts/                Piper voices, useLecturePlayback (finished lines and live read-aloud),
                         useTwoWayPlayback, liveSegments and useSpeechPlayback re-exports
 src/lib/                Google Drive
+src/storage/            Settings → "Space used on this device": a registry each kind of download
+                        (Piper voices in tts/voiceStorage.ts, Chrome packs in
+                        translation/packStorage.ts) joins with its size and delete handlers
 src/*.ts                Small shared helpers: onDevice, speechRestart, speechDedupe,
                         liveTranslation, useLiveTranslations, packProgress, pipLines, wakeLock
 ```

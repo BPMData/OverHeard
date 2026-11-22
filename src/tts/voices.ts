@@ -716,3 +716,67 @@ export function useVoicePreferences(): [
 
   return [voicePrefs, updateVoicePref];
 }
+
+/**
+ * Download size of each voice model (the .onnx file plus its .onnx.json), measured from Hugging
+ * Face in November 2026. Shown before a download so teachers know what the app will take up.
+ * New voices without an entry use PIPER_DEFAULT_MODEL_BYTES (a typical medium model).
+ */
+export const PIPER_MODEL_BYTES: Readonly<Record<string, number>> = {
+  'es_MX-claude-high': 63127272,
+  'es_MX-ald-medium': 63206183,
+  'pt_BR-faber-medium': 63206149,
+  'pt_BR-cadu-medium': 63228240,
+  'en_US-hfc_female-medium': 63206327,
+  'en_US-kristin-medium': 63536347,
+  'en_US-kusal-medium': 63206178,
+  'en_US-ryan-high': 120790958,
+  'en_GB-alba-medium': 63206182,
+  'en_GB-northern_english_male-medium': 63206141,
+  'en_GB-semaine-medium': 76742787,
+  'vi_VN-vais1000-medium': 63228181,
+  'vi_VN-25hours_single-low': 63108702,
+  'hi_IN-priyamvada-medium': 63521023,
+  'hi_IN-pratham-medium': 63521020,
+  'bn_BD-google-medium': 76789071,
+  'ur_PK-aegis_female-medium': 63520825,
+  'ur_PK-fasih-medium': 64835260,
+  'id_ID-news_tts-medium': 62955094,
+  'sw_CD-lanfrica-medium': 63228119,
+  'tr_TR-dfki-medium': 63206254,
+  'zh_CN-xiao_ya-medium': 63224911,
+  'zh_CN-chaowen-medium': 63226344,
+  'ar_JO-kareem-medium': 63206318,
+  'fr_FR-siwis-medium': 63228353,
+  'fr_FR-tom-medium': 63515997,
+  'fr_FR-upmc-medium': 76738611,
+  'uk_UA-tetiana-high': 114208929,
+  'uk_UA-mykyta-high': 114208928,
+  'uk_UA-oleksa-high': 114208928,
+  'ru_RU-irina-medium': 63206059,
+  'ru_RU-dmitri-medium': 63228181,
+  'fa_IR-magnoliasis-medium': 63228054,
+  'fa_IR-amir-medium': 63228051,
+  'fa_IR-ganji_adabi-medium': 63521014,
+};
+
+export const PIPER_DEFAULT_MODEL_BYTES = 63_227_000;
+
+/** Approximate download size of a voice's model in bytes, or 0 for the browser voice. */
+export function voiceDownloadBytes(voiceId: string): number {
+  const voice = findPiperVoice(voiceId);
+  if (!voice) return 0;
+  return PIPER_MODEL_BYTES[voice.modelId] ?? PIPER_DEFAULT_MODEL_BYTES;
+}
+
+/** "63 MB" style size for a voice picker, or '' for the browser voice. */
+export function voiceDownloadLabel(voiceId: string): string {
+  const bytes = voiceDownloadBytes(voiceId);
+  return bytes ? `${Math.round(bytes / (1024 * 1024))} MB` : '';
+}
+
+/**
+ * The Piper voice runtime (/ort/ and /piper/: ONNX Runtime WebAssembly plus the eSpeak
+ * phonemizer), downloaded once with the first voice and shared by all of them. About 40 MB.
+ */
+export const PIPER_RUNTIME_BYTES = 40_353_000;

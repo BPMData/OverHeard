@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, Copy, Globe, X } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, MAX_LANGUAGES } from '../constants';
 import { LanguageCode } from '../types';
+import { CHROME_PACK_SIZE_HINT } from '../translation/packStorage';
 
 interface LanguageModalProps {
   isOpen: boolean;
@@ -77,7 +78,9 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             <p className="text-sm font-medium px-3 py-2 rounded-[2px] border border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100">
               Choosing a language starts downloading its on-device translation pack (first time
               only, usually about a minute). Pick your languages before class so captions
-              translate on this device, for free, from the first sentence.
+              translate on this device, for free, from the first sentence. Each pack takes
+              space on this device ({CHROME_PACK_SIZE_HINT}; Chrome doesn't say exactly). Settings
+              lists the packs you have.
             </p>
           )}
 
