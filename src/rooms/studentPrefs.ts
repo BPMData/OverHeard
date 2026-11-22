@@ -8,6 +8,8 @@ export interface StudentPrefs {
   isDark: boolean;
   language: LanguageCode | 'en';
   fontSize: number;
+  /** Never send text to an online translator from this page (the student's own choice) */
+  onDeviceOnly: boolean;
 }
 
 export interface PipPrefs {
@@ -19,6 +21,7 @@ const DEFAULT_STUDENT_PREFS: StudentPrefs = {
   isDark: true,
   language: 'es',
   fontSize: 28,
+  onDeviceOnly: false,
 };
 
 export function clampStudentFontSize(value: unknown): number {
@@ -39,7 +42,8 @@ export function loadStudentPrefs(): StudentPrefs {
         ? (parsed.language as LanguageCode | 'en')
         : DEFAULT_STUDENT_PREFS.language;
     const fontSize = clampStudentFontSize(parsed.fontSize);
-    return { isDark, language, fontSize };
+    const onDeviceOnly = parsed.onDeviceOnly === true;
+    return { isDark, language, fontSize, onDeviceOnly };
   } catch {
     return DEFAULT_STUDENT_PREFS;
   }

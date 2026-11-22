@@ -5,15 +5,24 @@ import { useDeviceFirstTranslator } from '../translation/useDeviceFirstTranslato
 import { createStudentTranslator } from './translateStudent';
 import type { RoomSnapshot } from './protocol';
 
-export function useStudentTranslations(snapshot: RoomSnapshot | null, language: LanguageCode | 'en') {
+export function useStudentTranslations(
+  snapshot: RoomSnapshot | null,
+  language: LanguageCode | 'en',
+  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
+) {
   const [translatedBy, setTranslatedBy] = useState<'on-device' | 'gtx' | null>(null);
-  const tryDeviceFirst = useDeviceFirstTranslator(language);
-  const translate = useMemo(() => createStudentTranslator(tryDeviceFirst, setTranslatedBy), [tryDeviceFirst]);
+  const tryDeviceFirst = useDeviceFirstTranslator(language + (onDeviceOnly ? ':local' : ''));
+  const translate = useMemo(
+    () => createStudentTranslator(tryDeviceFirst, setTranslatedBy, { onDeviceOnly }),
+    [tryDeviceFirst, onDeviceOnly],
+  );
   const results = useRef(new Map<string, string | null>());
   const pending = useRef(new Set<string>());
   const [version, refresh] = useState(0);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  // Switching to or from "Only on this device" retries what the other mode couldn't translate
+  useEffect(() => { results.current.clear(); refresh(value => value + 1); }, [onDeviceOnly]);
   const keyFor = (text: string) => `${language}\0${text}`;
 
   // Translate recent lines first, with a bounded queue for late joins and language changes.
@@ -40,10 +49,13 @@ export function useStudentTranslations(snapshot: RoomSnapshot | null, language: 
     }
   }, [snapshot, language, translate, version]);
 
-  const teacherSupplies = language !== 'en' && !!snapshot?.selectedLangs.includes(language);
+  const lastEntry = snapshot?.entries[snapshot.entries.length - 1];
+  // The teacher's computer can have this language selected yet fail to translate it (e.g.
+  // Pashto with "Only on this device"); then this page makes its own live captions too.
+  const teacherSupplies = language !== 'en' && !!snapshot?.selectedLangs.includes(language) &&
+    !lastEntry?.failedLangs[language];
   const liveLangs = useMemo<LanguageCode[]>(
     () => (language === 'en' || teacherSupplies ? [] : [language]), [language, teacherSupplies]);
-  const lastEntry = snapshot?.entries[snapshot.entries.length - 1];
   const studentLive = useLiveTranslations(snapshot?.interim || '', liveLangs, translate, lastEntry?.id ?? '');
 
   const entries = useMemo(() => snapshot?.entries.map(entry => {

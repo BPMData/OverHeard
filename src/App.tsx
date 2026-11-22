@@ -244,6 +244,7 @@ export default function App() {
           onDeviceSupported &&
           (effectiveMtPreference === 'auto' || effectiveMtPreference === 'on-device')
         }
+        onDeviceOnly={onDeviceSupported && effectiveMtPreference === 'on-device'}
         onToggleLang={(code) => {
           // Choosing a language is a click of its own, so start its on-device pack now. Chrome
           // allows one pack download per click, so packs started here don't all have to share
