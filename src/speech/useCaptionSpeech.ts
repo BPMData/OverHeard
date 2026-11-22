@@ -3,7 +3,12 @@ import { createFinalDeduper } from '../speechDedupe';
 import { logSpeechEvent } from '../speechDebug';
 import { withMicAccess } from '../micPermission';
 import { isFailedSession, restartDelay } from '../speechRestart';
-import { isOnDeviceTranslationSupported, prepareOnDeviceSpeech, prepareOnDeviceTranslators } from '../onDevice';
+import {
+  isOnDeviceTranslationSupported,
+  prepareOfflineSpeechIfTranslatorsReady,
+  prepareOnDeviceSpeech,
+  prepareOnDeviceTranslators,
+} from '../onDevice';
 import type { MtPreference } from '../app/settings';
 import { isOffline, speechLocality, wantsLocalSpeech } from '../offline';
 import type { LanguageCode } from '../types';
@@ -213,8 +218,12 @@ export function useCaptionSpeech({
         if (isOnDeviceTranslationSupported()) {
           prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
         }
-        void prepareOnDeviceSpeech('en-US', () => reportPack('speech', -1)).then(() =>
-          reportPack('speech', null)
+        prepareOfflineSpeechIfTranslatorsReady(
+          isOnDeviceTranslationSupported()
+            ? selectedLangsRef.current.map((code) => ({ code, source: 'en' }))
+            : [],
+          [{ key: 'speech', locale: 'en-US' }],
+          reportPack
         );
       }
       begin(false);

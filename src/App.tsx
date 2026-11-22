@@ -8,6 +8,7 @@ import { useCaptionTranscript } from './captions/useCaptionTranscript';
 import { useCaptionSpeech } from './speech/useCaptionSpeech';
 import { useState, useRef, useCallback } from 'react';
 import { MAX_LANGUAGES } from './constants';
+import { prepareOnDeviceTranslators } from './onDevice';
 import type { ConversationLanguage, LanguageCode } from './types';
 import { translateConversationMessage } from './conversation/translateMessage';
 import { saveLectureEntries, type LectureEntry } from './conversation/lectureState';
@@ -149,7 +150,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#090D16] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
+    <div className="min-h-screen flex flex-col bg-[#EAEFF6] dark:bg-[#070B12] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
       <SpeechDebugPanel />
       <AppBanners
         displayMode={displayMode} isEmbeddedIframe={isEmbeddedIframe} hasSpeechApi={hasSpeechApi}
@@ -239,7 +240,24 @@ export default function App() {
         isOpen={isLangModalOpen}
         onClose={() => setIsLangModalOpen(false)}
         selectedLangs={selectedLangs}
-        onToggleLang={handleToggleLanguage}
+        downloadsPacks={
+          onDeviceSupported &&
+          (effectiveMtPreference === 'auto' || effectiveMtPreference === 'on-device')
+        }
+        onToggleLang={(code) => {
+          // Choosing a language is a click of its own, so start its on-device pack now. Chrome
+          // allows one pack download per click, so packs started here don't all have to share
+          // the Listen click later.
+          const adding = !selectedLangs.includes(code) && selectedLangs.length < MAX_LANGUAGES;
+          if (
+            adding &&
+            onDeviceSupported &&
+            (effectiveMtPreference === 'auto' || effectiveMtPreference === 'on-device')
+          ) {
+            prepareOnDeviceTranslators([code], reportPack);
+          }
+          handleToggleLanguage(code);
+        }}
       />
 
       <VoiceSettingsModal

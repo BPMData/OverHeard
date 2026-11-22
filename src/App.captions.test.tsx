@@ -159,13 +159,13 @@ it('translates on this device without sending the caption to /api/mt', async () 
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(mt).not.toHaveBeenCalled();
-  expect(screen.getByText('Last translation: this device')).toBeTruthy();
+  expect(screen.getByTitle(/^Last translation: this device\./)).toBeTruthy();
 });
 
 it('labels a server translation so it is clear the text left the device', async () => {
   await listen();
   await say(true);
-  expect(screen.getByText('Last translation: Google, free')).toBeTruthy();
+  expect(screen.getByTitle(/^Last translation: Google, free\./)).toBeTruthy();
 });
 
 it('never falls back to the server in "On this device" mode, and says so on the page', async () => {
@@ -185,6 +185,7 @@ it('never falls back to the server in "On this device" mode, and says so on the 
 it('clears the English and translated captions after confirmation', async () => {
   await listen();
   await say(true);
+  click('File');
   click('Clear');
   expect(column('Spanish Translation').getByText('es: ' + phrase)).toBeTruthy();
   click('Yes');
@@ -201,6 +202,7 @@ it('downloads the spoken caption and translation in the version 1 lecture format
   });
   await listen();
   await say(true);
+  click('File');
   click('Export JSON');
   expect(download).toHaveBeenCalledTimes(1);
   const link = download.mock.instances[0] as HTMLAnchorElement;

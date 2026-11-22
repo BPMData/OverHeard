@@ -1,17 +1,16 @@
-import { type ComponentProps, type ReactNode, type Dispatch, type SetStateAction, useRef } from 'react';
+import { type ComponentProps, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 import type { DisplayMode, CaptionSegment, LanguageCode } from '../types';
-import { Download, FlaskConical, Globe, HelpCircle, History, Moon, PictureInPicture2, Settings, Sun, Upload } from 'lucide-react';
+import { FlaskConical, Globe, HelpCircle, History, Moon, PictureInPicture2, Settings, Sun } from 'lucide-react';
 import { PackProgressPanel } from '../components/PackProgressPanel';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { JoinRoomForm } from '../rooms/StudentRoom';
-import { parseRoomJson, MAX_ROOM_FILE_BYTES } from '../rooms/protocol';
-import { loadLectureEntries } from '../conversation/lectureState';
-import { OpenFromDriveButton } from '../components/DriveLectureActions';
+import type { parseRoomJson } from '../rooms/protocol';
 import { TestInputBar } from '../captions/TestInputBar';
 import { ListenButton } from './ListenButton';
 import { FontSizeControls } from './FontSizeControls';
 import { ClearTranscriptButton } from './ClearTranscriptButton';
 import { DisplayModeSwitch } from './DisplayModeSwitch';
+import { FileMenu } from './FileMenu';
 
 interface AppHeaderProps {
   selectedLangs: LanguageCode[];
@@ -39,7 +38,7 @@ interface AppHeaderProps {
   listen: ComponentProps<typeof ListenButton>;
   sizing: ComponentProps<typeof FontSizeControls>;
   modes: ComponentProps<typeof DisplayModeSwitch>;
-  clear: ComponentProps<typeof ClearTranscriptButton>;
+  clear: ComponentProps<typeof ClearTranscriptButton> & { segments: CaptionSegment[]; interimTranscript: string };
   testInput: ComponentProps<typeof TestInputBar>;
 }
 
@@ -50,21 +49,21 @@ export function AppHeader({
   handleTogglePip, setImportError, setIsVoiceSettingsOpen, setIsLangModalOpen,
   setIsAboutModalOpen, handleExportJson, listen, sizing, modes, clear, testInput,
 }: AppHeaderProps) {
-  const importFileInputRef = useRef<HTMLInputElement>(null);
-
   return (
-    <header className="border-b border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <header className="oh-chrome-bar border-b border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
+      {/* Two rows: brand, Listen and display controls; then translation and session controls */}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         {/* Left: Brand & Primary Start/Stop Mic Action */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 xl:gap-4">
           <button
             type="button"
             onClick={() => setDisplayMode('columns')}
             aria-label="OverHeard — Go to Columns view"
             title="Back to main Columns view"
-            className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-lg px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
+            className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-[2px] px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
           >
-            <WhiteboatIcon app="overheard" size={28} className="shadow-2xs" />
+            <WhiteboatIcon app="overheard" size={28} />
             <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
               OverHeard
             </span>
@@ -82,173 +81,117 @@ export function AppHeader({
           <PackProgressPanel progress={packProgress} startedAt={packStartedAt} />
         </div>
 
-        {/* Right: Projector Display & Classroom Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Font Size A- / A+ */}
-          <FontSizeControls {...sizing} />
-
-          {/* Show Previous Line Toggle */}
-          <button
-            type="button"
-            onClick={() => setShowPreviousLine((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
-              showPreviousLine
-                ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
-                : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
-            }`}
-            title="Show or hide the preceding caption line"
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>Prev Line</span>
-          </button>
-
-          {/* Columns vs Subtitle Mode */}
-          <DisplayModeSwitch {...modes} />
-
-          <JoinRoomForm />
-          <button
-            type="button"
-            onClick={() => importFileInputRef.current?.click()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-            title="Open an exported OverHeard lecture JSON file"
-          >
-            <Upload className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
-            <span>Import JSON</span>
-          </button>
-          <input
-            ref={importFileInputRef}
-            type="file"
-            accept=".json,application/json"
-            aria-label="Import lecture JSON on home screen"
-            hidden
-            onChange={async (event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              if (!file) return;
-              try {
-                if (file.size > MAX_ROOM_FILE_BYTES) {
-                  throw new Error('Room file is too large (8 MB maximum).');
-                }
-                const raw =
-                  typeof file.text === 'function' ? await file.text() : await new Response(file).text();
-                const imported = parseRoomJson(raw);
-                if (
-                  loadLectureEntries().length > 0 &&
-                  !window.confirm(
-                    'Replace the saved lecture with the imported file? Export JSON first to keep the current transcript.',
-                  )
-                ) {
-                  return;
-                }
-                applyImportedLecture(imported);
-              } catch (err) {
-                setImportError(err instanceof Error ? err.message : 'Could not read room file.');
-              }
-            }}
-          />
-          <OpenFromDriveButton
-            hasExistingEntries={() => loadLectureEntries().length > 0}
-            onImport={(imported) => applyImportedLecture(imported)}
-            onError={(msg) => setImportError(msg)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors whitespace-nowrap"
-            iconClassName="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]"
-          />
-          {/* Pop Out Captions (Document Picture-in-Picture) */}
-          {hasPipApi && (
+          {/* Display: how captions look on the projector */}
+          <div className="flex flex-wrap items-center gap-2">
+            <FontSizeControls {...sizing} />
             <button
               type="button"
-              onClick={handleTogglePip}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
-                pipWindow
-                  ? 'border-emerald-500 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                  : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800'
+              onClick={() => setShowPreviousLine((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
+                showPreviousLine
+                  ? 'oh-btn-active border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE] dark:bg-[#2E2356] text-[#443180] dark:text-[#DDD6FE]'
+                  : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] hover:text-[#0F172A] dark:hover:text-white'
               }`}
-              title="Open floating always-on-top caption window over slides"
+              title="Show or hide the preceding caption line"
             >
-              <PictureInPicture2 className="w-3.5 h-3.5" />
-              <span>{pipWindow ? 'Close Pop-out' : 'Pop out captions'}</span>
+              <History className="w-3.5 h-3.5" />
+              <span>Prev Line</span>
             </button>
-          )}
+            <DisplayModeSwitch {...modes} />
+            {hasPipApi && (
+              <button
+                type="button"
+                onClick={handleTogglePip}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
+                  pipWindow
+                    ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                    : 'oh-btn oh-beckon border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
+                }`}
+                title="Open floating always-on-top caption window over slides"
+                aria-label={pipWindow ? 'Close Pop-out' : 'Pop out captions'}
+              >
+                <PictureInPicture2 className={`w-3.5 h-3.5 ${pipWindow ? '' : 'text-[#D97706] dark:text-[#FACC15]'}`} />
+                <span className="hidden xl:inline">{pipWindow ? 'Close Pop-out' : 'Pop out captions'}</span>
+              </button>
+            )}
+          </div>
 
-          {/* Languages Selector Button */}
-          <button
-            type="button"
-            onClick={() => setIsLangModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-          >
-            <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
-            <span>Languages</span>
-            <span className="font-mono text-[#64748B] dark:text-[#94A3B8]">
-              ({selectedLangs.join(', ')})
-            </span>
-          </button>
+        </div>
 
-          {/* Settings Button */}
-          <button
-            type="button"
-            onClick={() => setIsVoiceSettingsOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-            title="Open voice and privacy settings"
-          >
-            <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
-            <span>Settings</span>
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          {/* Translation: which languages, which translator */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLangModalOpen(true)}
+              aria-label={`Languages (${selectedLangs.join(', ')})`}
+              title="Choose caption languages"
+              className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+            >
+              <Globe className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
+              <span className="hidden 2xl:inline">Languages</span>
+              <span className="px-1.5 py-px rounded-[2px] bg-[#EAEFF6] dark:bg-[#0B111C] text-[10.5px] font-bold uppercase tracking-wide text-[#475569] dark:text-[#A5B4CB]">
+                {selectedLangs.join(' · ')}
+              </span>
+            </button>
+            {translatorPicker}
+            <button
+              type="button"
+              onClick={() => setIsVoiceSettingsOpen(true)}
+              className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+              title="Open voice and privacy settings"
+              aria-label="Settings"
+            >
+              <Settings className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" aria-hidden="true" />
+              <span className="hidden 2xl:inline">Settings</span>
+            </button>
+          </div>
 
-          {/* Translator Picker (live caption provider) */}
-          {translatorPicker}
-
-          {/* Silent Test Input Bar Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsTestBarOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors whitespace-nowrap ${
-              isTestBarOpen
-                ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/10 dark:bg-[#5843A5]/25 text-[#5843A5] dark:text-[#DDD6FE]'
-                : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'
-            }`}
-            title="Toggle silent text input & sample classroom phrases"
-          >
-            <FlaskConical className="w-3.5 h-3.5" />
-            <span>Test Input</span>
-          </button>
-
-          {/* Light / Dark Mode Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsDark((d) => !d)}
-            className="p-2 rounded-lg border border-[#E2E8F0] dark:border-[#1E293B] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          {/* Export Transcript JSON */}
-          <button
-            type="button"
-            onClick={handleExportJson}
-            disabled={segments.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-            title="Export transcript as OverHeard JSON"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export JSON</span>
-          </button>
-
-          {/* Clear Transcript with inline confirmation */}
-          <ClearTranscriptButton {...clear} />
-
-          {/* How to Use OverHeard / Guide & FAQ Modal Button */}
-          <button
-            type="button"
-            onClick={() => setIsAboutModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[#E2E8F0] dark:border-[#1E293B] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-            aria-label="How to use OverHeard: Guide, FAQ, and Privacy"
-            title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]" />
-            <span>Guide &amp; FAQ</span>
-          </button>
+          {/* Session: join a room, lecture file, testing, theme, help */}
+          <div className="flex flex-wrap items-center gap-2">
+            <JoinRoomForm />
+            <FileMenu
+              canExport={segments.length > 0}
+              canClear={clear.segments.length > 0 || !!clear.interimTranscript}
+              applyImportedLecture={applyImportedLecture}
+              setImportError={setImportError}
+              handleExportJson={handleExportJson}
+              requestClear={() => clear.setConfirmClear(true)}
+            />
+            <ClearTranscriptButton {...clear} />
+            <button
+              type="button"
+              onClick={() => setIsTestBarOpen((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
+                isTestBarOpen
+                  ? 'oh-btn-active border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE] dark:bg-[#2E2356] text-[#443180] dark:text-[#DDD6FE]'
+                  : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] hover:text-[#0F172A] dark:hover:text-white'
+              }`}
+              title="Toggle silent text input & sample classroom phrases"
+              aria-label="Test Input"
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Test Input</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDark((d) => !d)}
+              className="oh-btn p-2 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAboutModalOpen(true)}
+              className="oh-btn p-2 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#5843A5] dark:text-[#A78BFA] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors"
+              aria-label="How to use OverHeard: Guide, FAQ, and Privacy"
+              title="Guide & FAQ: how to use OverHeard, plus the privacy notice"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 

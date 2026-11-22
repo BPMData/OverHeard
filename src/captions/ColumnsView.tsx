@@ -38,14 +38,14 @@ export function ColumnsView({
         {/* Column 0: English Source Column */}
         <section
           aria-label="English Captions"
-          className="flex flex-col rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] overflow-hidden"
+          className="flex flex-col rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] overflow-hidden"
         >
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E2E8F0] dark:border-[#1E293B]">
+          <div className="oh-panel-header flex items-center justify-between px-5 py-3 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
             <div className="flex items-center gap-2.5">
               <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
                 English
               </span>
-              <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
+              <span className="text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">
                 en-US · Teacher
               </span>
             </div>
@@ -60,7 +60,7 @@ export function ColumnsView({
             {/* Previous Line (0.68x font size, muted, above hairline divider) */}
             {showPreviousLine && (
               <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
-                <div className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8] mb-1.5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748B] dark:text-[#94A3B8] mb-1.5">
                   Previous line
                 </div>
                 {previousSegment ? (
@@ -110,7 +110,7 @@ export function ColumnsView({
               {/* Live Interim Speech (dimmed) */}
               {interimTranscript.trim().length > 0 && (
                 <div className="pt-2">
-                  <span className="inline-block text-xs font-mono text-[#5843A5] dark:text-[#C4B5FD] mb-1">
+                  <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5843A5] dark:text-[#C4B5FD] mb-1">
                     Speaking live…
                   </span>
                   <p
@@ -144,9 +144,9 @@ export function ColumnsView({
             <section
               key={code}
               aria-label={`${lang.name} Translation`}
-              className="flex flex-col rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] overflow-hidden"
+              className="flex flex-col rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] overflow-hidden"
             >
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E2E8F0] dark:border-[#1E293B]">
+              <div className="oh-panel-header flex items-center justify-between px-5 py-3 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
                 <div className="flex items-center gap-2.5">
                   <CaptionSwatch color={captionColor} />
                   <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
@@ -181,10 +181,10 @@ export function ColumnsView({
                           ? `Read ${lang.name} translation aloud`
                           : 'Translation appears here after a sentence finishes'
                     }
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-xs font-semibold border transition-colors ${
                       isThisColActive
-                        ? 'border-[#5843A5] bg-[#5843A5] text-white dark:border-[#A78BFA] dark:bg-[#5843A5]'
-                        : 'border-[#E2E8F0] dark:border-[#1E293B] text-[#475569] dark:text-[#CBD5E1] hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed'
+                        ? 'oh-btn-primary border-[#443180] bg-[#5843A5] text-white dark:border-[#A78BFA] dark:bg-[#5843A5]'
+                        : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#111827] text-[#334155] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] disabled:opacity-40 disabled:cursor-not-allowed'
                     }`}
                   >
                     {isThisColActive ? (
@@ -217,7 +217,7 @@ export function ColumnsView({
                   <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
                     <div
                       dir="ltr"
-                      className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8] mb-1.5"
+                      className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#64748B] dark:text-[#94A3B8] mb-1.5"
                     >
                       Previous line
                     </div>

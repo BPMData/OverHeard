@@ -8,6 +8,8 @@ interface LanguageModalProps {
   onClose: () => void;
   selectedLangs: LanguageCode[];
   onToggleLang: (code: LanguageCode) => void;
+  /** Choosing a language starts its on-device pack download (Auto / On this device) */
+  downloadsPacks?: boolean;
 }
 
 export const LanguageModal: React.FC<LanguageModalProps> = ({
@@ -15,6 +17,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
   onClose,
   selectedLangs,
   onToggleLang,
+  downloadsPacks = false,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -36,13 +39,13 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="lang-modal-title"
     >
-      <div className="w-full max-w-2xl rounded-xl border border-slate-200 dark:border-[#1E293B] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#1E293B]">
+      <div className="w-full max-w-2xl rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] overflow-hidden">
+        <div className="oh-panel-header flex items-center justify-between px-6 py-3.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
           <div className="flex items-center gap-2.5">
             <Globe className="w-5 h-5 text-[#5843A5] dark:text-[#A78BFA]" />
             <h2 id="lang-modal-title" className="text-lg font-bold tracking-tight">
@@ -57,7 +60,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-[#94A3B8] dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="oh-btn p-1.5 rounded-[2px] border border-transparent hover:border-[#CBD5E1] dark:hover:border-[#2B3952] text-slate-500 hover:text-slate-900 dark:text-[#94A3B8] dark:hover:text-white hover:bg-white dark:hover:bg-[#1E293B] transition-colors"
               aria-label="Close language settings"
             >
               <X className="w-5 h-5" />
@@ -70,6 +73,14 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
           </p>
 
+          {downloadsPacks && (
+            <p className="text-sm font-medium px-3 py-2 rounded-[2px] border border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100">
+              Choosing a language starts downloading its on-device translation pack (first time
+              only, usually about a minute). Pick your languages before class so captions
+              translate on this device, for free, from the first sentence.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {SUPPORTED_LANGUAGES.map((lang) => {
               const isChecked = selectedLangs.includes(lang.code);
@@ -80,12 +91,12 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
               return (
                 <label
                   key={lang.code}
-                  className={`flex items-start gap-3 p-3.5 rounded-lg border transition-colors select-none ${
+                  className={`flex items-start gap-3 p-3.5 rounded-[3px] border transition-colors select-none ${
                     isChecked
-                      ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#5843A5]/8 dark:bg-[#5843A5]/20'
+                      ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE]/70 dark:bg-[#2E2356]/55'
                       : isDisabled
-                      ? 'border-slate-200 dark:border-[#1E293B] opacity-45 cursor-not-allowed'
-                      : 'border-slate-200 dark:border-[#1E293B] hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer'
+                      ? 'border-[#CBD5E1] dark:border-[#243044] opacity-45 cursor-not-allowed'
+                      : 'border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0D1422] hover:border-[#94A3B8] dark:hover:border-[#475569] cursor-pointer'
                   }`}
                 >
                   <input
@@ -93,7 +104,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                     checked={isChecked}
                     disabled={isDisabled}
                     onChange={() => onToggleLang(lang.code)}
-                    className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#5843A5] text-[#5843A5] focus:ring-[#A78BFA]"
+                    className="mt-1 h-4 w-4 rounded-[2px] border-slate-300 accent-[#5843A5] text-[#5843A5] focus:ring-[#A78BFA]"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
@@ -131,7 +142,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
               <button
                 type="button"
                 onClick={handleCopyUrl}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+                className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-slate-700 dark:text-slate-200 hover:bg-[#EDF2F7] dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
               >
                 {copied ? (
                   <>
@@ -148,7 +159,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors whitespace-nowrap"
+                className="oh-btn-primary px-4 py-2 text-xs font-semibold rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors whitespace-nowrap"
               >
                 Done
               </button>

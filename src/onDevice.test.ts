@@ -438,3 +438,37 @@ describe('getOnDeviceAvailability', () => {
     expect(install).not.toHaveBeenCalled();
   });
 });
+
+describe('one pack download per click', () => {
+  it('holds packs Chrome refused for this click and starts each from its own click', async () => {
+    const notAllowed = () => Object.assign(new Error('Requires user activation'), { name: 'NotAllowedError' });
+    // Chrome: the first create() takes the click; the others in the same click are refused
+    let clicksLeft = 1;
+    const create = vi.fn(async ({ targetLanguage }: { targetLanguage: string }) => {
+      if (clicksLeft === 0) throw notAllowed();
+      clicksLeft -= 1;
+      return { translate: async (t: string) => `${targetLanguage}:${t}` };
+    });
+    g.Translator = { availability: async () => 'downloadable', create };
+    const m = await load();
+    const progress = vi.fn();
+
+    m.prepareOnDeviceTranslators(['es', 'hi', 'bn'], progress);
+    await vi.waitFor(() => expect(progress).toHaveBeenCalledWith('es', 1));
+    await vi.waitFor(() => {
+      expect(progress).toHaveBeenCalledWith('hi', m.PACK_NEEDS_CLICK);
+      expect(progress).toHaveBeenCalledWith('bn', m.PACK_NEEDS_CLICK);
+    });
+    // Not failed: the refused packs wait instead of reporting "no pack" (null)
+    expect(progress).not.toHaveBeenCalledWith('hi', null);
+    expect(progress).not.toHaveBeenCalledWith('bn', null);
+
+    clicksLeft = 1;
+    m.startWaitingPack('hi');
+    await vi.waitFor(() => expect(progress).toHaveBeenCalledWith('hi', 1));
+    clicksLeft = 1;
+    m.startWaitingPack('bn');
+    await vi.waitFor(() => expect(progress).toHaveBeenCalledWith('bn', 1));
+    await expect(m.translateOnDevice('Hello', 'bn')).resolves.toBe('bn:Hello');
+  });
+});

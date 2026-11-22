@@ -4,7 +4,7 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
-  background: #f1f5f9;
+  background: #eaeff6;
   color: #172033;
   padding: 12px;
   gap: 8px;
@@ -16,7 +16,16 @@
   gap: 8px;
   font-size: 13px;
 }
-.room-controls { padding: 10px; border: 1px solid #64748b; border-radius: 8px; }
+.room-controls {
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #ffffff;
+}
+.conversation-dark .room-controls {
+  border-color: #243044;
+  background: #111827;
+}
 .room-controls input[readonly] { flex: 1; min-width: 180px; }
 .room-controls small { opacity: .75; }
 .conversation-mode button.room-show-join {
@@ -53,9 +62,14 @@
 .room-pin-field {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #64748b;
-  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+  background: #f8fafc;
   padding-right: 2px;
+}
+.conversation-dark .room-pin-field {
+  border-color: #2b3952;
+  background: #090d16;
 }
 .room-pin-field input {
   border: none !important;
@@ -93,15 +107,14 @@
 }
 .room-history-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   left: 0;
   z-index: 30;
   width: min(360px, calc(100vw - 32px));
   background: #ffffff;
   color: #0f172a;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  border: 2px solid #94a3b8;
+  border-radius: 3px;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -111,7 +124,6 @@
   background: #111827;
   color: #f8fafc;
   border-color: #334155;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
 }
 .room-history-header {
   display: flex;
@@ -174,7 +186,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 9px !important;
-  border-radius: 7px !important;
+  border-radius: 2px !important;
   text-align: left;
   font-size: 12px;
   transition: background-color 0.12s ease, border-color 0.12s ease;
@@ -281,25 +293,43 @@
   justify-content: center;
   padding: 5px 7px !important;
 }
-.room-join input, .room-join button { border: 1px solid #64748b; border-radius: 6px; padding: 6px 9px; }
-.room-join input { width: 160px; background: transparent; }
+.room-join input, .room-join button { border: 1px solid #cbd5e1; border-radius: 2px; padding: 6px 9px; }
+.dark .room-join input, .dark .room-join button,
+.conversation-dark .room-join input, .conversation-dark .room-join button { border-color: #2b3952; }
+.room-join input { width: 160px; background: #f8fafc; }
+@media (max-width: 1279px) { header .room-join input { width: 124px; } }
+.dark .room-join input, .conversation-dark .room-join input { background: #090d16; }
+.room-join button { background: #f8fafc; }
+.dark .room-join button, .conversation-dark .room-join button { background: #162033; }
 .room-join button:disabled { opacity: .5; }
 .conversation-mode[hidden],
 .conversation-mode [hidden] {
   display: none;
 }
 .conversation-dark {
-  background: #101827;
+  background: #070b12;
   color: #e2e8f0;
 }
 .conversation-mode button,
 .conversation-mode select,
 .conversation-mode input {
-  border: 1px solid #64748b;
-  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
   padding: 5px 9px;
-  background: transparent;
+  background: #f8fafc;
   color: inherit;
+}
+.conversation-dark button,
+.conversation-dark select,
+.conversation-dark input {
+  border-color: #2b3952;
+  background: #162033;
+}
+.conversation-mode input {
+  background: #ffffff;
+}
+.conversation-dark input {
+  background: #090d16;
 }
 .conversation-mode select option {
   background: #fff;
@@ -318,6 +348,14 @@
   align-items: center;
   flex-wrap: wrap;
   font-size: 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 8px 10px;
+}
+.conversation-dark .conversation-settings {
+  background: #111827;
+  border-color: #243044;
 }
 .lecture-toolbar {
   column-gap: 8px;
@@ -331,9 +369,14 @@
   max-width: 100%;
 }
 .lecture-tools {
-  border: 1px solid rgb(100 116 139 / 45%);
-  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #ffffff;
   padding: 8px;
+}
+.conversation-dark .lecture-tools {
+  border-color: #243044;
+  background: #111827;
 }
 .lecture-translator-warning {
   margin: 0;
@@ -353,7 +396,7 @@
   margin-right: 4px;
   white-space: nowrap;
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   padding: 2px 4px;
   margin-left: -4px;
   background: transparent;
@@ -381,9 +424,14 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  border: 1px solid #64748b;
-  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
   padding: 3px 7px;
+  background: #f8fafc;
+}
+.conversation-dark .conversation-settings fieldset {
+  border-color: #243044;
+  background: #0d1422;
 }
 .conversation-settings input:not([type='checkbox']) {
   width: 105px;
@@ -414,15 +462,16 @@
 }
 .conversation-bubble {
   max-width: 85%;
-  border: 1px solid #64748b;
-  border-radius: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
   padding: 12px 16px;
   overflow-wrap: anywhere;
   flex-shrink: 0;
   background: #fff;
 }
 .conversation-dark .conversation-bubble {
-  background: #1e293b;
+  border-color: #243044;
+  background: #111827;
 }
 .conversation-bubble.side-a {
   align-self: flex-start;
@@ -554,7 +603,7 @@
 .conversation-next-speaker kbd {
   margin-left: 0.5rem;
   border: 1px solid currentColor;
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 0.1rem 0.35rem;
   font-size: 0.8em;
 }
@@ -563,18 +612,18 @@
   display: inline-flex;
   align-items: center;
   padding: 2px;
-  border-radius: 8px;
+  border-radius: 2px;
   border: 1px solid #cbd5e1;
-  background: #e2e8f0;
+  background: #eaeff6;
   gap: 2px;
 }
 .conversation-dark .conversation-submode {
-  border-color: #1e293b;
+  border-color: #2b3952;
   background: #090d16;
 }
 .conversation-submode button {
   border: none;
-  border-radius: 6px;
+  border-radius: 2px;
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
@@ -591,8 +640,8 @@
   color: #f8fafc;
 }
 .conversation-submode button.is-active {
-  background: #fff;
-  color: #443180;
+  background: #5843a5;
+  color: #ffffff;
 }
 .conversation-langs-btn {
   font-weight: 600;
@@ -604,12 +653,12 @@
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid #cbd5e1;
-  border-radius: 12px;
+  border-radius: 3px;
   background: #ffffff;
   scrollbar-gutter: stable;
 }
 .conversation-dark .lecture-scroller {
-  border-color: #1e293b;
+  border-color: #243044;
   background: #090d16;
 }
 .lecture-grid {
@@ -626,16 +675,16 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px 16px;
-  background: #f8fafc;
+  background: #f1f5f9;
   border-bottom: 1px solid #cbd5e1;
   border-right: 1px solid #e2e8f0;
   font-size: 14px;
   font-weight: 700;
 }
 .conversation-dark .lecture-col-header {
-  background: #111827;
-  border-bottom-color: #1e293b;
-  border-right-color: #1e293b;
+  background: #162033;
+  border-bottom-color: #243044;
+  border-right-color: #243044;
   color: #f8fafc;
 }
 .lecture-col-title {
@@ -838,4 +887,55 @@
 
 .conversation-voice-controls select {
   max-width: min(15rem, 65vw);
+}
+
+/* Aero-lite controls over crisp 2px/3px surfaces */
+.conversation-settings,
+.room-controls,
+.lecture-tools {
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fa 100%);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+.conversation-dark .conversation-settings,
+.conversation-dark .room-controls,
+.conversation-dark .lecture-tools {
+  background: linear-gradient(180deg, #192438 0%, #0f1624 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.lecture-col-header {
+  background: linear-gradient(180deg, #fcfdff 0%, #eaeff7 100%);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+.conversation-dark .lecture-col-header {
+  background: linear-gradient(180deg, #1e2a42 0%, #131c2e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.conversation-mode button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button),
+.room-join button {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 49%, #e6ecf5 50%, #eef3f9 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-color: #b6c2d2;
+}
+.conversation-dark button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button),
+.dark .room-join button,
+.conversation-dark .room-join button {
+  background: linear-gradient(180deg, #243149 0%, #1b2538 49%, #141c2c 50%, #1a2436 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-color: #33435d;
+}
+
+.conversation-mode .conversation-start:not(.is-listening),
+.conversation-mode .conversation-exit,
+.conversation-new,
+.conversation-submode button.is-active {
+  background: linear-gradient(180deg, #7c66cc 0%, #5e47b0 49%, #4c3699 50%, #614bb8 100%);
+  border-color: #3f2b82;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+.conversation-mode .conversation-start.is-listening {
+  background: linear-gradient(180deg, #19c389 0%, #059669 49%, #047857 50%, #09a36f 100%);
+  border-color: #065f46;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
