@@ -89,8 +89,8 @@ describe('on-device translation with Bergamot as the fallback', () => {
 
   it('still fails for languages with neither Chrome nor a Bergamot model', async () => {
     const m = await load();
-    expect(await m.getOnDeviceAvailability('sw')).toBe('unavailable');
-    await expect(m.translateOnDevice('Hi', 'sw')).rejects.toBeInstanceOf(m.OnDeviceUnavailableError);
+    expect(await m.getOnDeviceAvailability('ht')).toBe('unavailable');
+    await expect(m.translateOnDevice('Hi', 'ht')).rejects.toBeInstanceOf(m.OnDeviceUnavailableError);
   });
 
   it('falls back to Bergamot when Chrome errors for a language Bergamot has', async () => {

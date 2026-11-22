@@ -115,6 +115,11 @@ and Turkish (the default for all five).
       Lanfrica), Haitian Creole, Somali, Indonesian, Turkish. Skipped: Arabic (no better than
       Kareem), Persian for Dari (poor), the community Swahili female voice. Names (Baraka, Jean,
       Abdi, Budi, Emre) are placeholders for the owner to vet.
+- [x] **On-device Swahili translation** with Opus-MT (Transformers.js), alongside the Bergamot
+      models; hosted on `BPMData/overheard-translation-models` (see `docs/offline-translation.md`).
+- [ ] **Native-speaker check of on-device Urdu, Swahili and Dari** before relying on them.
+- [ ] **Haitian Creole, Somali, Pashto on-device:** no small model good enough yet (see
+      `docs/offline-translation-spike.md`).
 - [ ] **Bengali has 16 speakers in one model.** Speakers 0 and 3 (Arif) are offered; listen to the rest.
 - [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
       phonemizer, not eSpeak, so Japanese uses the browser voice.

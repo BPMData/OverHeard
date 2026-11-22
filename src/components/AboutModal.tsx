@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { BERGAMOT_ATTRIBUTION } from '../translation/bergamot/models';
+import { BERGAMOT_ATTRIBUTION, OPUS_ATTRIBUTION } from '../translation/bergamot/models';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -259,7 +259,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   How does translation work on this device without Chrome?
                 </div>
                 <p>
-                  Where Chrome&apos;s built-in translator isn&apos;t available (Safari, Firefox, some Chromebooks, and languages Chrome lacks such as Urdu), OverHeard can translate on this device with <a href={BERGAMOT_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Firefox Translations (Bergamot)</a> by Mozilla. Each language downloads its model once (about 20–48 MB) when you click its download button, which shows the size first. Dari uses the Persian model, so its translations are approximate (Iranian Persian, not Afghan Dari). Models and engine are licensed under the <a href={BERGAMOT_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Mozilla Public License 2.0</a>. Delete them anytime in <strong className="text-slate-800 dark:text-slate-200">Settings → Space used on this device</strong>.
+                  Where Chrome&apos;s built-in translator isn&apos;t available (Safari, Firefox, some Chromebooks, and languages Chrome lacks such as Urdu), OverHeard can translate on this device with <a href={BERGAMOT_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Firefox Translations (Bergamot)</a> by Mozilla. Each language downloads its model once (about 20–48 MB) when you click its download button, which shows the size first. Dari uses the Persian model, so its translations are approximate (Iranian Persian, not Afghan Dari). Models and engine are licensed under the <a href={BERGAMOT_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Mozilla Public License 2.0</a>. Swahili, which Bergamot lacks, uses <a href={OPUS_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Opus-MT</a> by Helsinki-NLP (about 132 MB, <a href={OPUS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Apache License 2.0</a>), run with Transformers.js. Delete them anytime in <strong className="text-slate-800 dark:text-slate-200">Settings → Space used on this device</strong>.
                 </p>
               </div>
             </div>

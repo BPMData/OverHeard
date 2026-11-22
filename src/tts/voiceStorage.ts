@@ -87,7 +87,7 @@ export function createVoiceStorageCategory(
       if (runtimeBytes > 0) {
         items.push({
           id: RUNTIME_ITEM_ID,
-          label: 'Voice engine (shared by every voice)',
+          label: 'Voice engine (shared by every voice and on-device Swahili translation)',
           bytes: runtimeBytes,
           removable: true,
         });

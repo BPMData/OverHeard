@@ -1,7 +1,9 @@
-// Saved Bergamot models: one Cache Storage cache, keyed by each file's URL. Cache Storage works in
+// Saved on-device translation models (Bergamot, and Opus-MT for Swahili): one Cache Storage cache, keyed by each file's URL. Cache Storage works in
 // every browser this fallback is for (Safari, Firefox, Chrome), unlike OPFS writes from a page.
 // The service worker keeps this cache across deploys (see public/sw.js).
-import { BERGAMOT_BASE_URL, BERGAMOT_MODELS, modelBytes, type BergamotModel, type BergamotPart } from './models';
+import {
+  BERGAMOT_BASE_URL, modelBytes, modelFileUrl, ON_DEVICE_MODELS, type BergamotModel, type BergamotPart,
+} from './models';
 
 export const BERGAMOT_CACHE_NAME = 'overheard-bergamot-v1';
 /** Item id for files in the cache that belong to no model the app offers now */
@@ -12,6 +14,7 @@ export type CachesLike = Pick<CacheStorage, 'open' | 'has' | 'delete'>;
 
 const getCaches = (): CachesLike | null => (typeof caches === 'undefined' ? null : caches);
 
+/** URL of a Bergamot file by path (Opus-MT files: use modelFileUrl) */
 export const fileUrl = (path: string) => `${BERGAMOT_BASE_URL}/${path}`;
 
 async function openCache(storage: CachesLike | null, create: boolean): Promise<CacheLike | null> {
@@ -83,7 +86,7 @@ export async function downloadAndSaveModel(
   let done = 0;
   const files: Array<{ url: string; bytes: Uint8Array }> = [];
   for (const file of model.files) {
-    const url = fileUrl(file.path);
+    const url = modelFileUrl(model, file);
     const bytes = await downloadFile(url, file, (received) => onProgress(Math.min(0.99, (done + received) / total)), fetchImpl);
     done += file.bytes;
     files.push({ url, bytes });
@@ -103,7 +106,7 @@ export async function isModelSaved(model: BergamotModel, storage: CachesLike | n
   const cache = await openCache(storage, false).catch(() => null);
   if (!cache) return false;
   for (const file of model.files) {
-    if (!(await cache.match(fileUrl(file.path)))) return false;
+    if (!(await cache.match(modelFileUrl(model, file)))) return false;
   }
   return true;
 }
@@ -117,7 +120,7 @@ export async function readSavedModel(
   if (!cache) return null;
   const buffers: Partial<Record<BergamotPart, ArrayBuffer>> = {};
   for (const file of model.files) {
-    const response = await cache.match(fileUrl(file.path));
+    const response = await cache.match(modelFileUrl(model, file));
     if (!response) return null;
     const buffer = await response.arrayBuffer();
     if (buffer.byteLength !== file.bytes) return null;
@@ -137,7 +140,7 @@ export async function savedModelSizes(storage: CachesLike | null = getCaches()):
   const cache = await openCache(storage, false);
   if (!cache) return [];
   const owner = new Map<string, string>();
-  for (const model of BERGAMOT_MODELS) for (const file of model.files) owner.set(fileUrl(file.path), model.lang);
+  for (const model of ON_DEVICE_MODELS) for (const file of model.files) owner.set(modelFileUrl(model, file), model.lang);
   const sizes = new Map<string, number>();
   const present = new Map<string, number>();
   for (const request of await cache.keys()) {
@@ -147,7 +150,7 @@ export async function savedModelSizes(storage: CachesLike | null = getCaches()):
   }
   const result: Array<{ lang: string; bytes: number }> = [];
   let leftovers = sizes.get('') ?? 0;
-  for (const model of BERGAMOT_MODELS) {
+  for (const model of ON_DEVICE_MODELS) {
     const bytes = sizes.get(model.lang);
     if (bytes === undefined) continue;
     // Only some files of a model (an older, interrupted save): count them as leftovers
@@ -163,14 +166,14 @@ export async function removeSavedModel(lang: string, storage: CachesLike | null 
   const cache = await openCache(storage, false);
   if (!cache) return;
   if (lang) {
-    const model = BERGAMOT_MODELS.find((m) => m.lang === lang);
-    for (const file of model?.files ?? []) await cache.delete(fileUrl(file.path));
+    const model = ON_DEVICE_MODELS.find((m) => m.lang === lang);
+    for (const file of model?.files ?? []) await cache.delete(modelFileUrl(model!, file));
     return;
   }
   const complete = new Set((await savedModelSizes(storage)).map((size) => size.lang).filter(Boolean));
   const keep = new Set<string>();
-  for (const model of BERGAMOT_MODELS) {
-    if (complete.has(model.lang)) for (const file of model.files) keep.add(fileUrl(file.path));
+  for (const model of ON_DEVICE_MODELS) {
+    if (complete.has(model.lang)) for (const file of model.files) keep.add(modelFileUrl(model, file));
   }
   for (const request of await cache.keys()) if (!keep.has(request.url)) await cache.delete(request);
 }
