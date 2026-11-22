@@ -76,5 +76,5 @@ export const MT_PROVIDER_LABELS: Record<MtPreference, string> = {
   auto: 'Auto',
   'google-cloud': 'Google Cloud',
   gtx: 'Free (unofficial)',
-  'on-device': 'On this device',
+  'on-device': 'Only on this device',
 };

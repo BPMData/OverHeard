@@ -33,13 +33,13 @@ export function createChromePackStorageCategory(
     id: 'chrome-translation-packs',
     title: 'Chrome language packs',
     description:
-      'Translation packs Chrome downloaded for “On this device” translation. Chrome keeps them for ' +
+      'Translation packs Chrome downloaded for “Only on this device” translation. Chrome keeps them for ' +
       'every website and doesn’t tell websites how big they are.',
     cannotRemoveNote:
       `Chrome doesn’t let websites delete these packs, so OverHeard can’t do it for you. To remove ` +
       `them, copy ${CHROME_PACKS_PAGE} into Chrome’s address bar, press Enter, and click ` +
       `Uninstall next to each language. Chrome downloads a pack again the next time you pick that ` +
-      `language with “On this device” translation.`,
+      `language with “Only on this device” translation.`,
     list: async () => {
       if (!supported()) return [];
       const statuses = await Promise.all(

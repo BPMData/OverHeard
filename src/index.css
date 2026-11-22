@@ -99,6 +99,10 @@
 .conversation-dark .oh-beckon::after {
   background: linear-gradient(90deg, rgba(250, 204, 21, 0.34) 0%, rgba(250, 204, 21, 0.12) 14%, transparent 32%);
 }
+.oh-beckon-wrap {
+  display: inline-flex;
+  border-radius: 2px;
+}
 @keyframes oh-beckon-breathe {
   from { opacity: 0.25; }
   to { opacity: 1; }
@@ -107,8 +111,8 @@
   .oh-beckon::after { animation: none; opacity: 0.7; }
 }
 
-/* Settings button: always gold and always breathing (with .oh-beckon), on every page, so it
-   is easy to find at any moment. Light mode uses a darker gold so the text stays readable.
+/* Settings button: always gold, on every page, so it is easy to find at any moment (the
+   breathing .oh-beckon glow is on the Languages button instead). Light mode uses a darker gold so the text stays readable.
    The doubled class outranks the page toolbars' own button styles. */
 button.oh-settings-btn.oh-settings-btn {
   color: #a16207;
