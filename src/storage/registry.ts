@@ -1,5 +1,5 @@
-// Downloaded things the app keeps on this device (reader voices, language packs, and later
-// MMS voices or Bergamot translation models). Each kind registers a `StorageCategory` here, and
+// Downloaded things the app keeps on this device (reader voices, language packs, MMS voices and
+// Bergamot translation models). Each kind registers a `StorageCategory` here, and
 // Settings → "Space used on this device" lists them all, with sizes and delete buttons.
 //
 // To add a new kind of download: build a StorageCategory (see src/tts/voiceStorage.ts) and

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getOnDeviceAvailability } from '../onDevice';
+import { getChromeAvailability, getOnDeviceAvailability, startWaitingPack } from '../onDevice';
 import { StudentRoom } from './StudentRoom';
 import { emptyLecture } from './protocol';
 import type { RoomSnapshot } from './protocol';
@@ -9,7 +9,19 @@ import type { LectureEntry } from '../conversation/lectureState';
 
 const { translate, prepare } = vi.hoisted(() => ({ translate: vi.fn(), prepare: vi.fn() }));
 vi.mock('./translateStudent', () => ({ createStudentTranslator: () => translate }));
-vi.mock('../onDevice', () => ({ prepareOnDeviceTranslators: prepare, getOnDeviceAvailability: vi.fn(async () => 'unavailable') }));
+vi.mock('../onDevice', () => ({
+  PACK_NEEDS_CLICK: -2,
+  prepareOnDeviceTranslators: prepare,
+  getOnDeviceAvailability: vi.fn(async () => 'unavailable'),
+  // 'downloadable' means Chrome's own pack; 'unavailable' means a Bergamot model would be used
+  getChromeAvailability: vi.fn(async () => 'downloadable'),
+  startWaitingPack: vi.fn(),
+  waitingPackSize: vi.fn(() => ({ size: '34 MB' })),
+}));
+vi.mock('../translation/bergamot/engine', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../translation/bergamot/engine')>(),
+  hasBergamotModel: (lang: string) => ['ur', 'es', 'prs'].includes(lang),
+}));
 class FakeEvents extends EventTarget {
   static instances: FakeEvents[] = [];
   onerror: (() => void) | null = null;
@@ -44,6 +56,21 @@ describe('student lecture view', () => {
     await emit({ ...snapshot(), selectedLangs: [], entries: [] });
     fireEvent.click(await screen.findByRole('button', { name: 'Download language for this device' }));
     expect(prepare).toHaveBeenCalledWith(['es'], expect.any(Function));
+  });
+
+  it('shows the size of an on-device model before downloading it, and starts it on that click', async () => {
+    localStorage.setItem('overheard.studentPrefs', JSON.stringify({ language: 'ur' }));
+    vi.mocked(getOnDeviceAvailability).mockResolvedValueOnce('downloadable');
+    vi.mocked(getChromeAvailability).mockResolvedValueOnce('unavailable');
+    render(<StudentRoom code="science-101" />);
+    await emit({ ...snapshot(), selectedLangs: [], entries: [] });
+    fireEvent.click(await screen.findByRole('button', { name: 'Download Urdu for this device (34 MB)' }));
+    expect(prepare).toHaveBeenCalledWith(['ur'], expect.any(Function));
+    const report = prepare.mock.calls[0][1] as (code: string, progress: number | null) => void;
+    act(() => report('ur', -2));
+    expect(startWaitingPack).toHaveBeenCalledWith('ur');
+    act(() => report('ur', 0.5));
+    expect(screen.getByText('Downloading Urdu… 50%')).toBeTruthy();
   });
 
   it('is read-only and reuses teacher translations without starting a microphone', async () => {

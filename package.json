@@ -26,6 +26,7 @@
     "onnxruntime-web": "1.22.0-dev.20250409-89f8206ba4"
   },
   "devDependencies": {
+    "@browsermt/bergamot-translator": "0.4.9",
     "@diffusionstudio/piper-wasm": "^1.0.0",
     "@mintplex-labs/piper-tts-web": "^1.0.5",
     "@tailwindcss/vite": "^4.3.3",

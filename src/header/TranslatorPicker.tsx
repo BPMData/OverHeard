@@ -1,6 +1,6 @@
 import type { DisplayMode, LanguageCode } from '../types';
 import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
-import { prepareOnDeviceTranslators } from '../onDevice';
+import { hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
 import { useOnline } from '../app/useOnline';
 
 interface TranslatorPickerProps {
@@ -58,7 +58,7 @@ export function TranslatorPicker({
         </option>
         <option value="on-device" disabled={!onDeviceSupported}>
           {MT_PROVIDER_LABELS['on-device']}
-          {onDeviceSupported ? ' (speech too)' : ' (needs desktop Chrome 138+)'}
+          {onDeviceSupported ? (hasChromeTranslator() ? ' (speech too)' : '') : ' (needs a newer browser)'}
         </option>
         {availableProviders.map((p) => (
           <option key={p} value={p} disabled={!online}>

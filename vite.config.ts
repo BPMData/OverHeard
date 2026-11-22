@@ -5,6 +5,12 @@ import fs from 'node:fs';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+const BERGAMOT_WORKER_FILES = [
+  'translator-worker.js',
+  'bergamot-translator-worker.js',
+  'bergamot-translator-worker.wasm',
+];
+
 function copyPiperRuntimesToDist() {
   const ortSrcDir = path.resolve(__dirname, 'node_modules/onnxruntime-web/dist');
   const piperSrcDir = path.resolve(__dirname, 'node_modules/@diffusionstudio/piper-wasm/build');
@@ -36,6 +42,16 @@ function copyPiperRuntimesToDist() {
     }
   }
 
+  // Bergamot on-device translation: a classic worker that loads its WebAssembly next to itself
+  const bergamotSrcDir = path.resolve(__dirname, 'node_modules/@browsermt/bergamot-translator/worker');
+  if (fs.existsSync(bergamotSrcDir)) {
+    const bergamotDestDir = path.join(distDir, 'bergamot');
+    fs.mkdirSync(bergamotDestDir, {recursive: true});
+    for (const file of BERGAMOT_WORKER_FILES) {
+      fs.copyFileSync(path.join(bergamotSrcDir, file), path.join(bergamotDestDir, file));
+    }
+  }
+
   if (fs.existsSync(assetsDir)) {
     for (const file of fs.readdirSync(assetsDir)) {
       if (file.startsWith('ort-wasm')) {
@@ -46,8 +62,9 @@ function copyPiperRuntimesToDist() {
 }
 
 // Directories the service worker saves on first use instead of at install: the Piper
-// runtimes are ~40 MB, too much to push to every student who opens a room link.
-const NOT_PRECACHED = ['ort/', 'piper/', 'assets/aistudio/'];
+// runtimes are ~40 MB and the Bergamot translation engine ~5 MB, too much to push to every
+// student who opens a room link.
+const NOT_PRECACHED = ['ort/', 'piper/', 'bergamot/', 'assets/aistudio/'];
 
 /**
  * Fill in the service worker's install-time file list and version, so one online visit saves
