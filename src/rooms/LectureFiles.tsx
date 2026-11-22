@@ -32,13 +32,16 @@ export function formatLectureFilename(
 export function ExportLectureButton({
   state,
   roomCode,
+  className,
 }: {
   state: Pick<LectureState, 'entries' | 'selectedLangs'>;
   roomCode?: string | null;
+  className?: string;
 }) {
   return (
     <button
       type="button"
+      className={className}
       disabled={state.entries.length === 0}
       onClick={() => {
         const url = URL.createObjectURL(new Blob([roomJson(state)], { type: 'application/json' }));
@@ -54,16 +57,17 @@ export function ExportLectureButton({
   );
 }
 
-export function LectureFiles({ state, onImport, roomCode }: {
+export function LectureFiles({ state, onImport, roomCode, itemClassName }: {
   state: Pick<LectureState, 'entries' | 'selectedLangs'>;
   onImport: (value: Pick<LectureState, 'entries' | 'selectedLangs'>) => void;
   roomCode?: string | null;
+  itemClassName?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   return <>
-    <ExportLectureButton state={state} roomCode={roomCode} />
-    <button type="button" onClick={() => input.current?.click()}>Import JSON</button>
+    <ExportLectureButton state={state} roomCode={roomCode} className={itemClassName} />
+    <button type="button" className={itemClassName} onClick={() => input.current?.click()}>Import JSON</button>
     <input ref={input} type="file" accept=".json,application/json" aria-label="Import lecture JSON" hidden
       onChange={async event => {
         const file = event.target.files?.[0]; event.target.value = '';

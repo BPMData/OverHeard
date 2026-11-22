@@ -12,6 +12,7 @@ import {
 import type { LectureState } from './protocol';
 import { displayRoomUrl, loadShortLinkBase, studentRoomUrl } from './roomLink';
 import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
+import { InfoPopover } from '../components/DropdownMenu';
 
 const STATUS_RANK: Record<RoomLiveStatus, number> = {
   live: 0,
@@ -40,7 +41,8 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
   state: LectureState;
   visible: boolean;
   id?: string;
-  roomCodeRef?: Ref<HTMLInputElement>;
+  /** Focus target for "set up a room first": the Create room button */
+  roomCodeRef?: Ref<HTMLButtonElement>;
   guideSetup?: boolean;
   archiveControls?: ReactNode;
   showSetup?: boolean;
@@ -55,6 +57,8 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
   // Prefill the most recent class code so one posted link works day after day
   const [code, setCode] = useState(() => loadRoomHistory()[0]?.code ?? '');
   const [showJoinCard, setShowJoinCard] = useState(false);
+  // Glow on Show join code until it has been opened once for this room
+  const [joinShownFor, setJoinShownFor] = useState<string | null>(null);
   const [shortBase, setShortBase] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -65,6 +69,13 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
   const [liveStatuses, setLiveStatuses] = useState<Record<string, RoomLiveStatus>>({});
   const historyRef = useRef<HTMLDivElement>(null);
   const pinInputRef = useRef<HTMLInputElement>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const setupRef = useRef<HTMLDivElement>(null);
+  // Room code and PIN live in a small panel opened by Create room or Rejoin room
+  const [setupMode, setSetupMode] = useState<'create' | 'rejoin' | null>(null);
+  const openSetup = (mode: 'create' | 'rejoin') => {
+    setSetupMode(current => (current === mode ? null : mode));
+  };
   const checkSeqRef = useRef(0);
 
   const refreshStatuses = useCallback((entries: RoomHistoryEntry[]) => {
@@ -118,6 +129,29 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
     };
   }, [historyOpen]);
 
+  useEffect(() => {
+    if (!setupMode) return;
+    (code ? pinInputRef : codeInputRef).current?.focus();
+    // Only when the panel opens or switches mode, not on every keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setupMode]);
+  useEffect(() => {
+    if (!setupMode) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (setupRef.current && !setupRef.current.contains(event.target as Node)) setSetupMode(null);
+    };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setSetupMode(null); };
+    document.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [setupMode]);
+  useEffect(() => {
+    if (room) setSetupMode(null);
+  }, [room]);
+
   const toggleHistory = () => {
     if (historyOpen) {
       setHistoryOpen(false);
@@ -165,13 +199,16 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
     {room ? <>
       <strong>Room: {room.code}</strong>
       <input aria-label="Student room link" value={link} readOnly onFocus={event => event.target.select()} />
-      <button type="button" onClick={async () => {
+      <button type="button" aria-label={copied ? 'Link copied' : 'Copy student link'} onClick={async () => {
         try { await navigator.clipboard.writeText(link); setCopied(true); }
         catch { setCopied(false); }
-      }}>{copied ? 'Link copied' : 'Copy student link'}</button>
-      <button type="button" className="room-show-join inline-flex items-center gap-1.5" onClick={() => setShowJoinCard(true)}>
+      }}>{copied ? 'Link copied' : <>Copy<span className="oh-wide-only"> student</span> link</>}</button>
+      <button type="button" className={`room-show-join inline-flex items-center gap-1.5${joinShownFor === room.code ? '' : ' oh-beckon'}`}
+        aria-label="Show join code"
+        onClick={() => { setShowJoinCard(true); setJoinShownFor(room.code); }}>
         <Presentation size={14} aria-hidden="true" />
-        <span>Show join code</span>
+        <span className="oh-wide-xl">Show join code</span>
+        <span className="oh-narrow-xl">Join code</span>
       </button>
       {showJoinCard && (
         <div className="room-join-card" role="dialog" aria-modal="true" aria-label="Join this room"
@@ -192,38 +229,83 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
         </div>
       )}
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
-    </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
-      <input ref={roomCodeRef} aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
-        autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
-      <span className="room-pin-field">
-        <input
-          ref={pinInputRef}
-          type="text"
-          className={showPin ? undefined : 'room-pin-masked'}
-          aria-label="Room PIN"
-          placeholder="Room PIN (4+ chars)"
-          value={pin}
-          maxLength={20}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          data-lpignore="true"
-          data-1p-ignore="true"
-          onChange={event => { setPin(event.target.value); clearRetry(); }}
-        />
+    </> : <div className="room-setup">
+      <div className="room-setup-anchor" ref={setupRef}>
         <button
           type="button"
-          className="room-pin-toggle"
-          aria-label={showPin ? 'Hide room PIN' : 'Show room PIN'}
-          title={showPin ? 'Hide PIN' : 'Show PIN'}
-          onClick={() => setShowPin(value => !value)}
+          ref={roomCodeRef}
+          className={`conversation-start oh-beckon${setupMode === 'create' ? ' is-open' : ''}`}
+          aria-expanded={setupMode === 'create'}
+          disabled={busy || !online}
+          title={online ? 'Enter a room code and PIN to open a room for students' : OFFLINE_TITLE}
+          onClick={() => openSetup('create')}
         >
-          {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
+          {busy && setupMode !== 'rejoin' ? 'Connecting…' : 'Create room'}
         </button>
-      </span>
-      <button type="submit" className="conversation-start" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE}>{busy ? 'Connecting…' : 'Create room'}</button>
-      <button type="button" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE} onClick={() => { setCopied(false); void rejoin(code, pin); }}>Rejoin room</button>
+        <button
+          type="button"
+          className={setupMode === 'rejoin' ? 'is-open' : undefined}
+          aria-expanded={setupMode === 'rejoin'}
+          disabled={busy || !online}
+          title={online ? 'Reopen a room you created before, with its code and PIN' : OFFLINE_TITLE}
+          onClick={() => openSetup('rejoin')}
+        >
+          Rejoin room
+        </button>
+        {setupMode && (
+          <form
+            className="room-setup-panel"
+            role="dialog"
+            aria-label={setupMode === 'create' ? 'Create a room' : 'Rejoin a room'}
+            autoComplete="off"
+            onSubmit={event => {
+              event.preventDefault();
+              setCopied(false);
+              if (setupMode === 'create') void create(code, pin);
+              else void rejoin(code, pin);
+            }}
+          >
+            <label className="room-setup-field">
+              <span>{setupMode === 'create' ? 'Room code (optional)' : 'Room code'}</span>
+              <input ref={codeInputRef} aria-label="Room code (optional for new)" placeholder="e.g. murphy-p3" value={code}
+                autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
+            </label>
+            <label className="room-setup-field">
+              <span>PIN (4+ characters)</span>
+              <span className="room-pin-field">
+                <input
+                  ref={pinInputRef}
+                  type="text"
+                  className={showPin ? undefined : 'room-pin-masked'}
+                  aria-label="Room PIN"
+                  placeholder="PIN"
+                  value={pin}
+                  maxLength={20}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  onChange={event => { setPin(event.target.value); clearRetry(); }}
+                />
+                <button
+                  type="button"
+                  className="room-pin-toggle"
+                  aria-label={showPin ? 'Hide room PIN' : 'Show room PIN'}
+                  title={showPin ? 'Hide PIN' : 'Show PIN'}
+                  onClick={() => setShowPin(value => !value)}
+                >
+                  {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </span>
+            </label>
+            <button type="submit" className="conversation-start room-setup-submit" disabled={busy || !online}>
+              {busy ? 'Connecting…' : setupMode === 'create' ? 'Create' : 'Rejoin'}
+            </button>
+          </form>
+        )}
+      </div>
       <div className="room-history-wrap" ref={historyRef}>
         <button
           type="button"
@@ -297,6 +379,7 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
                           setCopied(false);
                           clearRetry();
                           setHistoryOpen(false);
+                          setSetupMode('rejoin');
                           pinInputRef.current?.focus();
                         }}
                       >
@@ -313,11 +396,13 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
           </div>
         )}
       </div>
-    </form>}
+    </div>}
     {archiveControls}
     {(status || canRetry) && (
       <span className="room-status" aria-live="polite">
-        <span>{status}</span>
+        {status === 'Sharing live'
+          ? <span className="room-live"><span className="room-live-dot" aria-hidden="true" /><span className="oh-wide-xl">Sharing live</span><span className="oh-narrow-xl">Live</span></span>
+          : <span>{status}</span>}
         {canRetry && !busy && (
           <button type="button" className="room-retry-btn" onClick={() => void retryLast()}>
             Retry
@@ -325,10 +410,14 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
         )}
       </span>
     )}
-    {!room && <small>{!online
-      ? 'You’re offline. Rooms need an internet connection; you can still start the lecture on this device.'
-      : guideSetup
-      ? 'Create or rejoin a room, then click Start lecture. You can share the join code before you start.'
-      : 'Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.'}</small>}
+    {!room && !online && (
+      <small>You’re offline. Rooms need an internet connection; you can still start the lecture on this device.</small>
+    )}
+    {!room && online && (
+      <InfoPopover label="How rooms work">
+        {guideSetup && <>Create or rejoin a room, then click Start lecture. You can share the join code before you start.<br /><br /></>}
+        Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.
+      </InfoPopover>
+    )}
   </div>;
 }

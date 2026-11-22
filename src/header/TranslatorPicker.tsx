@@ -30,7 +30,7 @@ export function TranslatorPicker({
       title={
         lastUsedProvider
           ? `Last caption translated by: ${MT_PROVIDER_LABELS[lastUsedProvider]}`
-          : 'Which translator powers live captions. On-device first uses online translation temporarily if the local model is unavailable.'
+          : 'Which translator powers live captions. On-device 1st translates on this device and uses online translation only if the local model is unavailable.'
       }
     >
       <span className="hidden 2xl:inline text-[#64748B] dark:text-[#94A3B8]">Translator</span>
@@ -47,11 +47,11 @@ export function TranslatorPicker({
             prepareOnDeviceTranslators(selectedLangs, reportPack);
           }
         }}
-        className="bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
+        className="oh-fit-select bg-transparent font-semibold outline-none cursor-pointer text-[#0F172A] dark:text-[#F8FAFC] [&>option]:text-[#0F172A]"
       >
-        <option value="auto">
+        <option value="auto" title={onDeviceSupported ? 'Translate on this device first; use online translation only if that fails' : undefined}>
           {onDeviceSupported
-            ? 'On-device first (online fallback)'
+            ? 'On-device 1st'
             : availableProviders[0]
               ? `Auto (${MT_PROVIDER_LABELS[availableProviders[0]]})`
               : 'Auto'}

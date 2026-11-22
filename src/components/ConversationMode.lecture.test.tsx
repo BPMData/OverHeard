@@ -47,10 +47,10 @@ it('opens and focuses room setup before starting a lecture with simple controls'
   expect(screen.queryByRole('textbox', { name: /Room code/ })).toBeNull();
   const share = screen.getByRole('button', { name: 'Share room code with students' });
   fireEvent.click(share);
-  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Room code/ }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Create room' }));
   fireEvent.click(share);
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /Room code/ }));
+  expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Create room' }));
   expect(FakeRecognition.instances).toHaveLength(0);
 });
 
@@ -67,8 +67,9 @@ it('shows Clear lecture in simple controls only after the room is ended', async 
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
   fireEvent.click(screen.getByRole('button', { name: 'Share room code with students' }));
-  fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+  fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '1234' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create' }));
   await waitFor(() => expect(screen.getByText('Room: bio-p2')).toBeTruthy());
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Share room code with students' })).toBeNull());
 
@@ -205,6 +206,7 @@ describe('ConversationMode Lecture mode', () => {
 
     // Confirm Clear lecture removes rows
     vi.stubGlobal('confirm', vi.fn(() => true));
+    fireEvent.click(screen.getByRole('button', { name: 'File' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear lecture' }));
     expect(screen.queryByText('First lecture sentence')).toBeNull();
   });
@@ -402,19 +404,31 @@ it('streams live translations through a long run-on sentence without a pause', a
   expect(longest).toBeLessThan(200);
 });
 
-it('offers reading while the teacher talks only once Read aloud is on', () => {
+it('chooses when to read aloud from the Read menu, which closes after each choice', () => {
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
-  const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
-  expect(live.checked).toBe(false);
-  expect(live.disabled).toBe(true);
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
-  expect(live.disabled).toBe(false);
-  fireEvent.click(live);
-  expect(live.checked).toBe(true);
-  expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(true);
+  const saved = () => JSON.parse(localStorage.getItem('overheard.conversation')!);
+  const choose = (mode: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /^Read aloud: / }));
+    fireEvent.click(screen.getByRole('radio', { name: mode }));
+    expect(screen.queryByRole('radio', { name: mode })).toBeNull();
+  };
+  expect(screen.getByRole('button', { name: 'Read aloud: Off' })).toBeTruthy();
+
+  choose('While I talk (headphones)');
+  expect(screen.getByRole('button', { name: 'Read aloud: While I talk (headphones)' })).toBeTruthy();
+  expect(saved().lectureLiveReadAloud).toBe(true);
+
+  choose('Off');
+  expect(screen.getByRole('button', { name: 'Read aloud: Off' })).toBeTruthy();
+  expect(saved().lectureLiveReadAloud).toBe(false);
+
+  // Turning reading back on after each pause doesn't silently turn "While I talk" back on
+  choose('After I finish speaking');
+  expect(screen.getByRole('button', { name: 'Read aloud: After I finish speaking' })).toBeTruthy();
+  expect(saved().lectureLiveReadAloud).toBe(false);
 });
 
 it('pops the teacher lecture out into a floating window from the full toolbar', async () => {
@@ -443,28 +457,7 @@ it('pops the teacher lecture out into a floating window from the full toolbar', 
   expect(win.close).toHaveBeenCalled();
 });
 
-it('clears "While I talk" when Read aloud is turned off, instead of leaving it greyed out and ticked', () => {
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
-  const readAloud = screen.getByRole('checkbox', { name: 'Read aloud' });
-  const live = screen.getByRole('checkbox', { name: 'While I talk (headphones)' }) as HTMLInputElement;
-  fireEvent.click(readAloud);
-  fireEvent.click(live);
-  expect(live.checked).toBe(true);
-
-  fireEvent.click(readAloud);
-  expect(live.disabled).toBe(true);
-  expect(live.checked).toBe(false);
-  expect(JSON.parse(localStorage.getItem('overheard.conversation')!).lectureLiveReadAloud).toBe(false);
-
-  // Turning Read aloud back on doesn't silently turn "While I talk" back on
-  fireEvent.click(readAloud);
-  expect(live.checked).toBe(false);
-});
-
-it('keeps Settings and a purple exit to the previous view in the simple lecture toolbar', () => {
+it('keeps Settings and an exit to the previous view in the simple lecture toolbar', () => {
   render(<ConversationMode active fontSize={32} isDark translate={vi.fn()} returnView="subtitle"
     selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));

@@ -34,7 +34,7 @@ import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { LectureControlsSetting } from './LectureControlsSetting';
 import { useConversationSettings } from './useConversationSettings';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Settings as SettingsIcon } from 'lucide-react';
+import { HelpCircle, Maximize2, Minimize2, Settings as SettingsIcon } from 'lucide-react';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { piperClient } from '../tts/piperClient';
@@ -122,7 +122,7 @@ export function ConversationMode({
   const [shareSetupOpen, setShareSetupOpen] = useState(false);
   const online = useOnline();
   const roomControlsId = useId();
-  const roomCodeRef = useRef<HTMLInputElement>(null);
+  const roomCodeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (shareSetupOpen) roomCodeRef.current?.focus();
   }, [shareSetupOpen]);
@@ -429,6 +429,44 @@ export function ConversationMode({
       <span>Settings</span>
     </button>
   );
+  const driveArchive = (className: string) => (
+    <>
+      <SaveLectureToDriveControl
+        label="Save room archive to Drive"
+        state={lectureState}
+        roomCode={activeRoomCode}
+        className={className}
+        onSaved={(result) => {
+          setUiError('');
+          setDriveStatus({
+            message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
+            link: result.file.webViewLink,
+          });
+        }}
+        onError={(msg) => {
+          if (msg) setDriveStatus(null);
+          setUiError(msg);
+        }}
+      />
+      <OpenFromDriveButton
+        label="Open room archive from Drive"
+        className={className}
+        hasExistingEntries={() => lecture.entries.length > 0}
+        onImport={(imported, file) => {
+          setUiError('');
+          lecture.replace(imported.entries);
+          onSetLanguages?.(imported.selectedLangs);
+          setDriveStatus({
+            message: `Opened "${file.name}" from Google Drive.`,
+          });
+        }}
+        onError={(msg) => {
+          if (msg) setDriveStatus(null);
+          setUiError(msg);
+        }}
+      />
+    </>
+  );
   const returnViewName = returnView === 'subtitle' ? 'Subtitle' : 'Columns';
   return (
     <div
@@ -479,8 +517,17 @@ export function ConversationMode({
               {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
             </button>
             {onOpenLanguages && (
-              <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
-                Languages{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}
+              <button
+                type="button"
+                className="conversation-langs-btn"
+                onClick={onOpenLanguages}
+                aria-label={`Languages${targetLangs.length > 0 ? `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}` : ''}`}
+              >
+                Languages
+                <span className="oh-wide-xl">{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}</span>
+                {targetLangs.length > 0 && (
+                  <span className="oh-narrow-xl conversation-lang-chip">{targetLangs.map(code => code.toUpperCase()).join(' · ')}</span>
+                )}
               </button>
             )}
             {!showAllControls && !activeRoomCode && (
@@ -520,6 +567,8 @@ export function ConversationMode({
         <div className="conversation-control-group" role="group" aria-label="Display settings">
           {voiceSettingsButton}
           <button
+            aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+            title={fullscreen ? 'Exit full screen' : 'Full screen'}
             onClick={() => {
               if (fullscreen) void document.exitFullscreen();
               else
@@ -528,7 +577,10 @@ export function ConversationMode({
                   .catch(() => setUiError('Full screen is unavailable in this browser.'));
             }}
           >
-            {fullscreen ? 'Exit full screen' : 'Full screen'}
+            <span className="oh-narrow-xl" aria-hidden="true">
+              {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </span>
+            <span className="oh-wide-xl">{fullscreen ? 'Exit full screen' : 'Full screen'}</span>
           </button>
           {onAdjustFont && (
             <div className="conversation-font-controls" role="group" aria-label="Text size">
@@ -560,8 +612,10 @@ export function ConversationMode({
                 ...current,
                 showAllLectureControls: !current.showAllLectureControls,
               }))}
+              aria-label={showAllControls ? 'Use simple controls' : 'Show all controls'}
             >
-              {showAllControls ? 'Use simple controls' : 'Show all controls'}
+              <span className="oh-wide-xl">{showAllControls ? 'Use simple controls' : 'Show all controls'}</span>
+              <span className="oh-narrow-xl">{showAllControls ? 'Simple' : 'All controls'}</span>
             </button>
           )}
           <button
@@ -569,8 +623,9 @@ export function ConversationMode({
             className="conversation-exit"
             onClick={exit}
             title={`Leave ${isLecture ? 'Lecture' : 'Two-way'} and go back to ${returnViewName} view`}
+            aria-label={`Back to ${returnViewName} view`}
           >
-            <span aria-hidden="true">← </span>Back to {returnViewName} view
+            <span aria-hidden="true">← </span><span className="oh-wide-xl">Back to </span>{returnViewName}<span className="oh-wide-xl"> view</span>
           </button>
           <button
             type="button"
@@ -580,17 +635,32 @@ export function ConversationMode({
             title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>{isLecture ? 'Help' : 'Guide & FAQ'}</span>
+            <span className="oh-wide-xl">{isLecture ? 'Help' : 'Guide & FAQ'}</span>
           </button>
         </div>
       </div>
-      {isLecture && (
-        <>
-          {!showAllControls && onDeviceTranslationFailing && (
-            <p className="lecture-translator-warning" role="alert">
-              On-device translation failed. Open all controls to choose another translator.
-            </p>
-          )}
+      {isLecture && !showAllControls && onDeviceTranslationFailing && (
+        <p className="lecture-translator-warning" role="alert">
+          On-device translation failed. Open all controls to choose another translator.
+        </p>
+      )}
+      {/* Room setup and lecture tools share one row when they fit */}
+      <div className="lecture-bar">
+        <TeacherRoomControls
+          id={roomControlsId}
+          roomCodeRef={roomCodeRef}
+          guideSetup={!showAllControls}
+          showSetup={showAllControls || shareSetupOpen}
+          archiveControls={isLecture && !showAllControls && driveArchive('inline-flex items-center gap-1.5')}
+          state={lectureState}
+          visible={isLecture}
+          onRoomCodeChange={handleRoomCodeChange}
+          onRestore={restored => {
+            lecture.replace(restored.entries, { preserveIds: true });
+            if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
+          }}
+        />
+        {isLecture && (
           <div
             id={lectureToolsId}
             className="conversation-settings lecture-tools"
@@ -617,8 +687,13 @@ export function ConversationMode({
               setLectureReadAloud={setLectureReadAloud}
               settings={settings}
               setSettings={setSettings}
+              fileMenuExtras={driveArchive('oh-menu-item')}
             />
           </div>
+        )}
+      </div>
+      {isLecture && (
+        <>
           {lecturePlayback.status !== 'idle' && (
             <div className="conversation-settings" role="group" aria-label="Active audio playback">
               <PlaybackToolbar
@@ -631,57 +706,6 @@ export function ConversationMode({
           )}
         </>
       )}
-      <TeacherRoomControls
-        id={roomControlsId}
-        roomCodeRef={roomCodeRef}
-        guideSetup={!showAllControls}
-        showSetup={showAllControls || shareSetupOpen}
-        archiveControls={isLecture && (
-          <>
-            <SaveLectureToDriveControl
-              label="Save room archive to Drive"
-              state={lectureState}
-              roomCode={activeRoomCode}
-              className="inline-flex items-center gap-1.5"
-              onSaved={(result) => {
-                setUiError('');
-                setDriveStatus({
-                  message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
-                  link: result.file.webViewLink,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-            <OpenFromDriveButton
-              label="Open room archive from Drive"
-              className="inline-flex items-center gap-1.5"
-              hasExistingEntries={() => lecture.entries.length > 0}
-              onImport={(imported, file) => {
-                setUiError('');
-                lecture.replace(imported.entries);
-                onSetLanguages?.(imported.selectedLangs);
-                setDriveStatus({
-                  message: `Opened "${file.name}" from Google Drive.`,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-          </>
-        )}
-        state={lectureState}
-        visible={isLecture}
-        onRoomCodeChange={handleRoomCodeChange}
-        onRestore={restored => {
-          lecture.replace(restored.entries, { preserveIds: true });
-          if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
-        }}
-      />
       {isLecture ? (
         <LectureView
           packPanel={packPanel}
