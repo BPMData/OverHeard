@@ -1,10 +1,11 @@
 // "Downloaded voices" in Settings → Space used on this device: the Piper voice models saved in
-// OPFS by the voice worker, plus the shared voice runtime the service worker keeps.
+// OPFS by the voice worker, plus the shared voice runtime the service worker keeps. Meta MMS
+// voices (a second engine in the same worker) are their own category, "Downloaded Meta MMS voices".
 import { LANGUAGE_MAP } from '../constants';
 import type { LanguageCode } from '../types';
 import type { StorageCategory, StoredItem } from '../storage/registry';
 import type { SpeechClient } from './piperClient';
-import { PIPER_VOICES, type PiperLanguage } from './voices';
+import { PIPER_VOICES, voiceDownloadLabel, type PiperLanguage } from './voices';
 
 /** Cache the service worker keeps the voice runtime in (see public/sw.js). */
 export const RUNTIME_CACHE_NAME = 'overheard-runtime-v1';
@@ -20,7 +21,8 @@ function languageName(lang: PiperLanguage): string {
 /** "Spanish · Claude (Female · MX)". One model can hold several voices; they're all named. */
 export function savedVoiceLabel(modelId: string): string {
   const voices = PIPER_VOICES.filter((voice) => voice.modelId === modelId);
-  if (voices.length === 0) return modelId;
+  // A voice the app no longer offers (Swahili Lanfrica, for example) can still be on disk.
+  if (voices.length === 0) return `Voice no longer offered (${modelId})`;
   return `${languageName(voices[0].lang)} · ${voices.map((voice) => voice.label).join(', ')}`;
 }
 
@@ -99,6 +101,42 @@ export function createVoiceStorageCategory(
     removeAll: async () => {
       await client.removeAllSavedModels?.();
       await removeRuntime(cacheStorage());
+    },
+  };
+}
+
+const MMS_LEFTOVERS_ITEM_ID = 'mms-leftovers';
+
+export function createMmsVoiceStorageCategory(client: SpeechClient): StorageCategory {
+  const typicalSize = voiceDownloadLabel(PIPER_VOICES.find((voice) => voice.engine === 'mms')?.id ?? '') || 'about 28 MB';
+  return {
+    id: 'mms-voices',
+    title: 'Downloaded Meta MMS voices',
+    description:
+      'Meta MMS reader voices (Swahili, Haitian Creole, Somali, Indonesian, Turkish) saved on this ' +
+      'device so read-aloud starts fast and works offline. They use the same voice engine as the voices above. ' +
+      'A deleted voice downloads again the next time it reads aloud (you need to be online).',
+    removeAllLabel: 'delete all downloaded Meta MMS voices',
+    afterRemoveNote:
+      `Read-aloud will need to download each Meta MMS voice again (${typicalSize} each) before it can speak, ` +
+      'and won’t work offline until you save the voices again.',
+    afterRemoveItemNote:
+      `Read-aloud will need to download it again (${typicalSize}) before this voice can speak, ` +
+      'and it won’t work offline until you save it again.',
+    list: async () => {
+      const sizes = await (client.listSavedSizes?.('mms') ?? Promise.resolve([])).catch(() => []);
+      const items: StoredItem[] = sizes.map(({ modelId, bytes }) =>
+        modelId
+          ? { id: modelId, label: savedVoiceLabel(modelId), bytes, removable: true }
+          : { id: MMS_LEFTOVERS_ITEM_ID, label: 'Unfinished Meta MMS voice downloads', bytes, removable: true },
+      );
+      return items.sort((a, b) => a.label.localeCompare(b.label));
+    },
+    removeItem: async (id) => {
+      await client.removeSavedModel?.(id === MMS_LEFTOVERS_ITEM_ID ? '' : id, 'mms');
+    },
+    removeAll: async () => {
+      await client.removeAllSavedModels?.('mms');
     },
   };
 }

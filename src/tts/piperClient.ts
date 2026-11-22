@@ -4,6 +4,7 @@ import {
   findPiperVoice,
   hasPiperVoices,
   resolveVoiceId,
+  type VoiceEngine,
 } from './voices';
 
 export interface PiperModelStatus {
@@ -38,14 +39,17 @@ export interface SpeechClient {
   unlockAudio: () => void;
   /** Download a voice and the shared voice runtime now, so read-aloud works offline later. */
   saveForOffline?: (voiceId: string) => Promise<void>;
-  /** Model ids of the Piper voices already saved on this device. */
+  /** Model ids of the voices (Piper and MMS) already saved on this device. */
   listSavedModels?: () => Promise<string[]>;
-  /** Bytes on disk per saved model id. modelId '' collects leftover files (interrupted downloads). */
-  listSavedSizes?: () => Promise<SavedModelSize[]>;
+  /**
+   * Bytes on disk per saved model id of one engine (default Piper). modelId '' collects
+   * leftover files (interrupted downloads).
+   */
+  listSavedSizes?: (engine?: VoiceEngine) => Promise<SavedModelSize[]>;
   /** Delete one saved voice model ('' deletes the leftovers). It downloads again when next used. */
-  removeSavedModel?: (modelId: string) => Promise<void>;
-  /** Delete every saved voice model. */
-  removeAllSavedModels?: () => Promise<void>;
+  removeSavedModel?: (modelId: string, engine?: VoiceEngine) => Promise<void>;
+  /** Delete every saved voice model of one engine (default Piper). */
+  removeAllSavedModels?: (engine?: VoiceEngine) => Promise<void>;
 }
 
 export interface SavedModelSize {
@@ -306,21 +310,21 @@ export class PiperPlaybackClient implements SpeechClient {
     return this.request<string[]>({ type: 'listStored' });
   };
 
-  listSavedSizes = async (): Promise<SavedModelSize[]> => {
+  listSavedSizes = async (engine: VoiceEngine = 'piper'): Promise<SavedModelSize[]> => {
     if (!this.isPiperSupported()) return [];
-    return this.request<SavedModelSize[]>({ type: 'listStoredSizes' });
+    return this.request<SavedModelSize[]>({ type: 'listStoredSizes', engine });
   };
 
-  removeSavedModel = async (modelId: string): Promise<void> => {
+  removeSavedModel = async (modelId: string, engine: VoiceEngine = 'piper'): Promise<void> => {
     if (!this.isPiperSupported()) return;
     this.prefetchCache.clear();
-    await this.request<void>({ type: 'remove', modelId });
+    await this.request<void>({ type: 'remove', modelId, engine });
   };
 
-  removeAllSavedModels = async (): Promise<void> => {
+  removeAllSavedModels = async (engine: VoiceEngine = 'piper'): Promise<void> => {
     if (!this.isPiperSupported()) return;
     this.prefetchCache.clear();
-    await this.request<void>({ type: 'removeAll' });
+    await this.request<void>({ type: 'removeAll', engine });
   };
 
   private synthesize(

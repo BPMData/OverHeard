@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs';
+export type PiperLanguage =
+  | 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs'
+  | 'ht' | 'so';
+
+/** Which engine speaks a voice: Piper (eSpeak/pinyin phonemes) or Meta MMS (characters). */
+export type VoiceEngine = 'piper' | 'mms';
 
 export interface PiperVoiceOption {
   id: string;
@@ -15,6 +20,60 @@ export interface PiperVoiceOption {
   useRhasspyRepo?: boolean;
   /** Chinese voices that take pinyin instead of eSpeak phonemes (see pinyin.ts). */
   phonemeType?: 'pinyin';
+  /** Omitted for Piper. MMS voices download from MMS_VOICE_BASE_URL (see mmsVoiceUrl). */
+  engine?: VoiceEngine;
+  /** MMS: ISO 639-3 code of the facebook/mms-tts-<iso3> model, also the MMS_VOCABS key */
+  mmsIso3?: string;
+  /** Download size in bytes, shown before the voice downloads (Piper: see PIPER_MODEL_BYTES) */
+  downloadBytes?: number;
+}
+
+/**
+ * Where the MMS voices are served from: a GitHub Pages site (CORS *, allowed on school Wi-Fi)
+ * holding mms-tts-<iso3>/model_quantized.onnx, converted once from facebook/mms-tts-<iso3>.
+ * VITE_MMS_VOICE_BASE_URL overrides it at build time (a local copy for testing, for example).
+ */
+export const MMS_VOICE_BASE_URL: string =
+  (import.meta.env?.VITE_MMS_VOICE_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://bpmdata.github.io/overheard-voices';
+
+/** Attribution the CC BY-NC 4.0 license of the MMS models asks for. */
+export const MMS_ATTRIBUTION = {
+  text: 'Meta MMS text-to-speech (Pratap et al., 2023), CC BY-NC 4.0, converted to ONNX',
+  licenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/',
+  modelUrl: (iso3: string) => `https://huggingface.co/facebook/mms-tts-${iso3}`,
+} as const;
+
+export function voiceEngine(voice: Pick<PiperVoiceOption, 'engine'>): VoiceEngine {
+  return voice.engine ?? 'piper';
+}
+
+export function mmsVoiceUrl(voice: Pick<PiperVoiceOption, 'mmsIso3'>): string {
+  return `${MMS_VOICE_BASE_URL}/mms-tts-${voice.mmsIso3}/model_quantized.onnx`;
+}
+
+// Meta MMS voices are all single-speaker VITS models with int8 weights, about 28 MB each.
+function mmsVoice(
+  lang: PiperLanguage,
+  iso3: string,
+  shortName: string,
+  gender: 'female' | 'male',
+  downloadBytes: number,
+): PiperVoiceOption {
+  const genderLabel = gender === 'female' ? 'Female' : 'Male';
+  return {
+    id: `mms-tts-${iso3}`,
+    lang,
+    label: `${shortName} (${genderLabel} · Meta MMS)`,
+    shortName,
+    gender,
+    modelId: `mms-tts-${iso3}`,
+    hfPath: '',
+    speakerId: 0,
+    engine: 'mms',
+    mmsIso3: iso3,
+    downloadBytes,
+  };
 }
 
 export const BROWSER_VOICE_ID = 'browser';
@@ -266,7 +325,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     useRhasspyRepo: true,
   },
 
-  // Indonesian
+  // Indonesian. MMS is the default: the Piper News voice sounds robotic.
+  mmsVoice('id', 'ind', 'Budi', 'male', 29_826_555),
   {
     id: 'id_ID-news_tts-medium',
     lang: 'id',
@@ -279,20 +339,11 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     useRhasspyRepo: true,
   },
 
-  // Swahili
-  {
-    id: 'sw_CD-lanfrica-medium',
-    lang: 'sw',
-    label: 'Lanfrica (Male · CD)',
-    gender: 'male',
-    shortName: 'Lanfrica',
-    modelId: 'sw_CD-lanfrica-medium',
-    hfPath: 'sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx',
-    speakerId: 0,
-    useRhasspyRepo: true,
-  },
+  // Swahili. MMS replaced Piper's Lanfrica voice, which sounded poor.
+  mmsVoice('sw', 'swh', 'Baraka', 'male', 29_827_343),
 
-  // Turkish
+  // Turkish. MMS is the default: the Piper DFKI voice is whispery.
+  mmsVoice('tr', 'tur', 'Emre', 'male', 29_828_131),
   {
     id: 'tr_TR-dfki-medium',
     lang: 'tr',
@@ -483,6 +534,10 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     speakerId: 0,
     useRhasspyRepo: true,
   },
+
+  // Haitian Creole and Somali: Meta MMS only (no Piper voice exists).
+  mmsVoice('ht', 'hat', 'Jean', 'male', 29_825_964),
+  mmsVoice('so', 'som', 'Abdi', 'male', 29_824_978),
 ];
 
 export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
@@ -493,15 +548,17 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   hi: 'hi_IN-priyamvada-medium',
   bn: 'bn_BD-google-medium:0',
   ur: 'ur_PK-aegis_female-medium',
-  id: 'id_ID-news_tts-medium',
-  sw: 'sw_CD-lanfrica-medium',
-  tr: 'tr_TR-dfki-medium',
+  id: 'mms-tts-ind',
+  sw: 'mms-tts-swh',
+  tr: 'mms-tts-tur',
   zh: 'zh_CN-xiao_ya-medium',
   ar: 'ar_JO-kareem-medium',
   fr: 'fr_FR-siwis-medium',
   uk: 'uk_UA-tetiana-high',
   ru: 'ru_RU-irina-medium',
   prs: 'fa_IR-magnoliasis-medium',
+  ht: 'mms-tts-hat',
+  so: 'mms-tts-som',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -618,6 +675,18 @@ export function voicePreviewText(
         englishHint: `Hi, I'm ${shortName}. Shall I read Dari for you?`,
       };
     }
+    case 'ht': {
+      return {
+        spoken: `Bonjou, mwen se ${shortName}. Èske m ka li kreyòl ayisyen pou ou?`,
+        englishHint: `Hi, I'm ${shortName}. Can I read Haitian Creole for you?`,
+      };
+    }
+    case 'so': {
+      return {
+        spoken: `Salaan, waxaan ahay ${shortName}. Ma kuu akhriyaa af Soomaali?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Somali for you?`,
+      };
+    }
     case 'zh': {
       return {
         spoken: `你好，我是${shortName}。要我为你朗读中文吗？`,
@@ -731,7 +800,6 @@ export const PIPER_MODEL_BYTES: Readonly<Record<string, number>> = {
   'ur_PK-aegis_female-medium': 63520825,
   'ur_PK-fasih-medium': 64835260,
   'id_ID-news_tts-medium': 62955094,
-  'sw_CD-lanfrica-medium': 63228119,
   'tr_TR-dfki-medium': 63206254,
   'zh_CN-xiao_ya-medium': 63224911,
   'zh_CN-chaowen-medium': 63226344,
@@ -755,6 +823,7 @@ export const PIPER_DEFAULT_MODEL_BYTES = 63_227_000;
 export function voiceDownloadBytes(voiceId: string): number {
   const voice = findPiperVoice(voiceId);
   if (!voice) return 0;
+  if (voice.downloadBytes) return voice.downloadBytes;
   return PIPER_MODEL_BYTES[voice.modelId] ?? PIPER_DEFAULT_MODEL_BYTES;
 }
 

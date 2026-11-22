@@ -60,11 +60,11 @@ src/components/         ConversationMode (mode switching, shared settings and li
                         TwoWayView, LectureView, LectureTranscript, PipSubtitlePortal, modals
 src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
 src/rooms/              Shared lecture rooms: teacher publishing, student view, protocol
-src/tts/                Piper voices, useLecturePlayback (finished lines and live read-aloud),
+src/tts/                Piper and Meta MMS voices (mmsEngine, mmsTokenizer), useLecturePlayback (finished lines and live read-aloud),
                         useTwoWayPlayback, liveSegments and useSpeechPlayback re-exports
 src/lib/                Google Drive
 src/storage/            Settings → "Space used on this device": a registry each kind of download
-                        (Piper voices in tts/voiceStorage.ts, Chrome packs in
+                        (Piper and MMS voices in tts/voiceStorage.ts, Chrome packs in
                         translation/packStorage.ts) joins with its size and delete handlers
 src/*.ts                Small shared helpers: onDevice, speechRestart, speechDedupe,
                         liveTranslation, useLiveTranslations, packProgress, pipLines, wakeLock
@@ -267,5 +267,13 @@ Do these only after steps 0–9 (including 8b), each as its own PR, with a note 
 - The Piper worker (`src/tts/piperWorker.ts`) runs one job at a time and warms each voice
   with a throwaway synthesis on preload. Test voice changes in real Chrome, because the
   voice models download from Hugging Face.
+- Voices have two engines (`engine` in `src/tts/voices.ts`). Piper voices go through
+  `@mintplex-labs/piper-tts-web`. Meta MMS voices (`mms-tts-<iso3>`: Swahili, Haitian Creole,
+  Somali, Indonesian, Turkish) are VITS models with a character tokenizer, run directly with
+  ONNX Runtime in the same worker (`src/tts/mmsEngine.ts`), saved in OPFS under `mms/`, and
+  listed as their own storage category. They download from `MMS_VOICE_BASE_URL`
+  (`https://bpmdata.github.io/overheard-voices`, repo `BPMData/overheard-voices`), int8
+  conversions of `facebook/mms-tts-<iso3>` (CC BY-NC 4.0: keep the attribution in Settings).
+  To convert another language, see `docs/mms-voices.md`.
 - Live rooms keep state in one process. Don't add anything that assumes more than one
   Cloud Run instance (see `ROOMS.md`).

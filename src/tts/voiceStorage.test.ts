@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SpeechClient } from './piperClient';
-import { createVoiceStorageCategory, RUNTIME_CACHE_NAME, savedVoiceLabel } from './voiceStorage';
+import { createMmsVoiceStorageCategory, createVoiceStorageCategory, RUNTIME_CACHE_NAME, savedVoiceLabel } from './voiceStorage';
 
 function fakeCaches(entries: Record<string, number>) {
   const store = new Map(Object.entries(entries));
@@ -40,7 +40,8 @@ describe('downloaded voices storage', () => {
   it('names a saved model by language and every voice it holds', () => {
     expect(savedVoiceLabel('es_MX-claude-high')).toBe('Spanish · Claude (Female · MX)');
     expect(savedVoiceLabel('fr_FR-upmc-medium')).toBe('French · Jessica (Female · FR), Pierre (Male · FR)');
-    expect(savedVoiceLabel('unknown-model')).toBe('unknown-model');
+    expect(savedVoiceLabel('unknown-model')).toBe('Voice no longer offered (unknown-model)');
+    expect(savedVoiceLabel('mms-tts-swh')).toBe('Swahili · Baraka (Male · Meta MMS)');
   });
 
   it('lists saved voices, unfinished downloads and the shared voice engine with their sizes', async () => {
@@ -93,5 +94,41 @@ describe('downloaded voices storage', () => {
   it('lists nothing when voices are unsupported or there is no cache', async () => {
     const category = createVoiceStorageCategory(client({}), () => null);
     expect(await category.list()).toEqual([]);
+  });
+});
+
+describe('downloaded Meta MMS voices storage', () => {
+  it('lists saved MMS voices and leftovers from the MMS engine only', async () => {
+    const listSavedSizes = vi.fn(async (engine?: string) =>
+      engine === 'mms'
+        ? [
+            { modelId: 'mms-tts-tur', bytes: 38_297_495 },
+            { modelId: 'mms-tts-hat', bytes: 38_295_388 },
+            { modelId: '', bytes: 500 },
+          ]
+        : [{ modelId: 'es_MX-claude-high', bytes: 63_127_272 }],
+    );
+    const category = createMmsVoiceStorageCategory(client({ listSavedSizes }));
+    expect(category.id).toBe('mms-voices');
+    const items = await category.list();
+    expect(items.map(({ id, label, bytes }) => [id, label, bytes])).toEqual([
+      ['mms-tts-hat', 'Haitian Creole · Jean (Male · Meta MMS)', 38_295_388],
+      ['mms-tts-tur', 'Turkish · Emre (Male · Meta MMS)', 38_297_495],
+      ['mms-leftovers', 'Unfinished Meta MMS voice downloads', 500],
+    ]);
+    expect(listSavedSizes).toHaveBeenCalledWith('mms');
+    expect(category.afterRemoveItemNote).toContain('28 MB');
+  });
+
+  it('deletes one MMS voice, the leftovers, or all of them', async () => {
+    const removeSavedModel = vi.fn(async () => undefined);
+    const removeAllSavedModels = vi.fn(async () => undefined);
+    const category = createMmsVoiceStorageCategory(client({ removeSavedModel, removeAllSavedModels }));
+    await category.removeItem!('mms-tts-swh');
+    expect(removeSavedModel).toHaveBeenLastCalledWith('mms-tts-swh', 'mms');
+    await category.removeItem!('mms-leftovers');
+    expect(removeSavedModel).toHaveBeenLastCalledWith('', 'mms');
+    await category.removeAll!();
+    expect(removeAllSavedModels).toHaveBeenCalledWith('mms');
   });
 });
