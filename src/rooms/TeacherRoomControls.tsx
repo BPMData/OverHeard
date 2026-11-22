@@ -265,9 +265,13 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
               else void rejoin(code, pin);
             }}
           >
+            <button type="button" className="room-setup-close" aria-label={setupMode === 'create' ? 'Close without creating a room' : 'Close without rejoining'}
+              title="Close" onClick={() => setSetupMode(null)}>
+              <X size={16} aria-hidden="true" />
+            </button>
             <label className="room-setup-field">
-              <span>{setupMode === 'create' ? 'Room code (optional)' : 'Room code'}</span>
-              <input ref={codeInputRef} aria-label="Room code (optional for new)" placeholder="e.g. murphy-p3" value={code}
+              <span>{setupMode === 'create' ? 'Room code (blank = random)' : 'Room code'}</span>
+              <input ref={codeInputRef} aria-label="Room code (blank picks a random one)" placeholder="e.g. murphy-p3" value={code}
                 autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
             </label>
             <label className="room-setup-field">
