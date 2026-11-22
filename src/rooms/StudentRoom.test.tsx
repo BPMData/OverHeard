@@ -17,6 +17,7 @@ vi.mock('../onDevice', () => ({
   getChromeAvailability: vi.fn(async () => 'downloadable'),
   startWaitingPack: vi.fn(),
   waitingPackSize: vi.fn(() => ({ size: '34 MB' })),
+  isOnDeviceTranslationSupported: vi.fn(() => true),
 }));
 vi.mock('../translation/bergamot/engine', async (importOriginal) => ({
   ...await importOriginal<typeof import('../translation/bergamot/engine')>(),
@@ -293,6 +294,28 @@ describe('student lecture view', () => {
 
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
+  });
+});
+
+describe('student translator choice', () => {
+  it('lets a student keep translation on their device, saves it, and names a language that needs online', async () => {
+    render(<StudentRoom code="science-101" />);
+    await emit({ ...snapshot(), selectedLangs: ['ps'], entries: [] });
+    fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'ps' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Translate'), { target: { value: 'on-device' } });
+    expect((await screen.findByRole('alert')).textContent).toContain('⚠ Pashto: “Only on this device” can’t translate this language here');
+    expect(JSON.parse(localStorage.getItem('overheard.studentPrefs')!).onDeviceOnly).toBe(true);
+    expect(prepare).toHaveBeenCalledWith(['ps']);
+  });
+
+  it('makes its own live captions when the teacher selected the language but could not translate it', async () => {
+    render(<StudentRoom code="science-101" />);
+    const failed = { ...entry, translations: {}, failedLangs: { ps: true } };
+    await emit({ ...snapshot(), selectedLangs: ['ps'], entries: [failed], interim: 'The cell membrane' });
+    fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'ps' } });
+    await waitFor(() => expect(translate).toHaveBeenCalledWith('The cell membrane', 'ps'));
+    expect(translate).toHaveBeenCalledWith('Welcome to science', 'ps');
   });
 });
 

@@ -57,7 +57,7 @@ export function TranslatorPicker({
     fromEnglish(selectedLangs),
     effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation',
   );
-  const needOnlineNotice = needOnlineText(needOnline);
+  const needOnlineNotice = needOnlineText(needOnline, { rooms: true });
   const tip = (preference: MtPreference) =>
     translatorTooltip(preference, onDeviceSupported, availableProviders[0]);
   return (

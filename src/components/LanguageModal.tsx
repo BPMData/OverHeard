@@ -3,7 +3,7 @@ import { Check, Copy, Globe, X } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, MAX_LANGUAGES } from '../constants';
 import { LanguageCode } from '../types';
 import { CHROME_PACK_SIZE_HINT } from '../translation/packStorage';
-import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
+import { STUDENTS_STILL_TRANSLATE, fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 
 interface LanguageModalProps {
   isOpen: boolean;
@@ -94,8 +94,9 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             <p role="alert" className="text-sm font-semibold px-3 py-2 rounded-[2px] border border-red-600/60 bg-red-600/10 text-red-800 dark:text-red-200">
               ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate{' '}
               {needOnline.length > 1 ? 'these languages' : 'this language'}, so{' '}
-              {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated. Choose{' '}
-              <strong>On-device first</strong> or an online translator in the Translator menu.
+              {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated on this screen. Choose{' '}
+              <strong>On-device first</strong> or an online translator in the Translator menu.{' '}
+              {STUDENTS_STILL_TRANSLATE}
             </p>
           )}
 

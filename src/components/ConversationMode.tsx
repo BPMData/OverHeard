@@ -117,7 +117,7 @@ export function ConversationMode({
     isLecture ? fromEnglish(targetLangs) : bothWays(settings.a.lang, settings.b.lang),
     mtPreference === 'on-device' && active,
   );
-  const needOnlineNotice = needOnlineText(needOnline);
+  const needOnlineNotice = needOnlineText(needOnline, { rooms: isLecture });
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const [sender, setSender] = useState<Side>('a');
   const [text, setText] = useState('');
@@ -648,7 +648,7 @@ export function ConversationMode({
       </div>
       {needOnline.length > 0 ? (
         <p className="lecture-translator-warning" role="alert" title={needOnlineNotice.title}>
-          ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate {needOnline.length > 1 ? 'these languages' : 'this language'}, so {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated.
+          ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate {needOnline.length > 1 ? 'these languages' : 'this language'}, so {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated on this screen{isLecture ? ` (students in a live room still get ${needOnline.length > 1 ? 'them' : 'it'} online)` : ''}.
           {isLecture && !showAllControls
             ? ' Open all controls and choose On-device first or an online translator.'
             : ' Choose On-device first or an online translator.'}
