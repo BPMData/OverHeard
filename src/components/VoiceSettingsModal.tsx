@@ -8,6 +8,7 @@ import { notifyStorageChanged, type StorageCategory } from '../storage/registry'
 import {
   BROWSER_VOICE_ID,
   findPiperVoice,
+  MMS_ATTRIBUTION,
   resolveVoiceId,
   useVoicePreferences,
   voiceDownloadLabel,
@@ -93,6 +94,18 @@ const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
     title: 'Turkish · Türkçe',
     selectAriaLabel: 'Default Turkish voice',
     previewAriaLabel: 'Preview Turkish voice',
+  },
+  {
+    code: 'ht',
+    title: 'Haitian Creole · Kreyòl Ayisyen',
+    selectAriaLabel: 'Default Haitian Creole voice',
+    previewAriaLabel: 'Preview Haitian Creole voice',
+  },
+  {
+    code: 'so',
+    title: 'Somali · Soomaali',
+    selectAriaLabel: 'Default Somali voice',
+    previewAriaLabel: 'Preview Somali voice',
   },
   {
     code: 'zh',
@@ -334,10 +347,12 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               </div>
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
                 Choose your default reader voice for each language that has one. Your choices
-                save automatically on this device and Piper neural voice models download on demand.
+                save automatically on this device and neural voice models (Piper, and Meta MMS
+                for Swahili, Haitian Creole, Somali, Indonesian and Turkish) download on demand.
                 To use read-aloud offline, click Save offline on a voice while you're online.
-                Each voice takes about 60 MB (a few take up to 115 MB), and the first one also
-                downloads the voice engine (about 40 MB). The list shows each voice's size.
+                Each Piper voice takes about 60 MB (a few take up to 115 MB), each Meta MMS voice
+                about 28 MB, and the first one also downloads the voice engine (about 40 MB).
+                The list shows each voice's size.
               </p>
             </div>
 
@@ -351,6 +366,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               {VOICE_SETTINGS_LANGUAGES.map(
                 ({ code, title, selectAriaLabel, previewAriaLabel }) => {
                   const selectedVoiceId = resolveVoiceId(code, voicePrefs);
+                  const selectedVoice = findPiperVoice(selectedVoiceId);
                   const canSave =
                     Boolean(client.saveForOffline) &&
                     savedModels !== null &&
@@ -461,6 +477,24 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                       >
                         <p className="italic">“{preview.spoken}”</p>
                         {code !== 'en' && <p className="opacity-75">{preview.englishHint}</p>}
+                        {selectedVoice?.engine === 'mms' && selectedVoice.mmsIso3 && (
+                          <p className="opacity-75" data-testid="mms-attribution">
+                            Voice:{' '}
+                            <a
+                              href={MMS_ATTRIBUTION.modelUrl(selectedVoice.mmsIso3)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              {MMS_ATTRIBUTION.text}
+                            </a>{' '}
+                            (
+                            <a href={MMS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">
+                              license
+                            </a>
+                            ). Non-commercial use only.
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
@@ -502,7 +536,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                   <p>
                     If you select <strong>On this device</strong> in the <strong>Translator</strong>{' '}
                     menu (with
-                    supported browser speech and language packs installed, plus local Piper reader
+                    supported browser speech and language packs installed, plus local Piper or Meta MMS reader
                     voices), speech recognition, translation, and playback all stay inside your
                     browser —{' '}
                     <strong>

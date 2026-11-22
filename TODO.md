@@ -104,12 +104,17 @@ refactor steps that don't change behavior, plus the larger consolidations to do 
 The first twelve languages came from the languages most spoken at home in the U.S. The
 international additions so far are Hindi, Bengali, Urdu, Indonesian, Japanese, Swahili and
 Turkish. Piper reader voices exist for English, Spanish, Portuguese, Vietnamese, Hindi, Bengali,
-Urdu, Indonesian, Swahili and Turkish.
+Urdu, Indonesian and Turkish; Meta MMS voices for Swahili, Haitian Creole, Somali, Indonesian
+and Turkish (the default for all five).
 
 - [x] **Reader voices for Arabic, Chinese, French, Ukrainian, Russian and Dari** are picked and in
       `src/tts/voices.ts` (Dari uses Iranian Persian voices; Chinese needs `src/tts/pinyin.ts`).
       Dropped: Ukrainian `ukrainian_tts` (a `text`-type model the bundled phonemizer can't run),
       French `gilles`/`mls_1840`, Russian `denis`/`ruslan`, Persian `gyro`/`reza_ibrahim`/`ganji`.
+- [x] **Meta MMS as a second voice engine** (`src/tts/mmsEngine.ts`): Swahili (replaced Piper's
+      Lanfrica), Haitian Creole, Somali, Indonesian, Turkish. Skipped: Arabic (no better than
+      Kareem), Persian for Dari (poor), the community Swahili female voice. Names (Baraka, Jean,
+      Abdi, Budi, Emre) are placeholders for the owner to vet.
 - [ ] **Bengali has 16 speakers in one model.** Speakers 0 and 3 (Arif) are offered; listen to the rest.
 - [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
       phonemizer, not eSpeak, so Japanese uses the browser voice.

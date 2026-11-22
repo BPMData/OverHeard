@@ -1,7 +1,20 @@
 import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, stored, type Progress } from '@mintplex-labs/piper-tts-web';
 import { boostQuietWav } from './loudness';
+import {
+  createMmsSession,
+  isMmsSaved,
+  loadMmsModel,
+  mmsStoredIds,
+  mmsStoredSizes,
+  predictMms,
+  removeAllMmsModels,
+  removeMmsModel,
+  type MmsSession,
+  type OrtLike,
+} from './mmsEngine';
 import { pinyinPhonemeIds, splitChineseForSpeech } from './pinyin';
-import { PIPER_VOICES } from './voices';
+import { mmsVoiceUrl, PIPER_VOICES, voiceEngine, type PiperVoiceOption, type VoiceEngine } from './voices';
+import { encodeWav } from './wav';
 
 const PIPER_WASM_PATHS = {
   onnxWasm: {
@@ -14,7 +27,13 @@ const PIPER_WASM_PATHS = {
 
 const MAX_CACHED_SESSIONS = 2;
 
+const MMS_VOICES = new Map<string, PiperVoiceOption>(
+  PIPER_VOICES.filter((voice) => voiceEngine(voice) === 'mms').map((voice) => [voice.modelId, voice]),
+);
+const MMS_MODEL_IDS: ReadonlySet<string> = new Set(MMS_VOICES.keys());
+
 for (const voice of PIPER_VOICES) {
+  if (voiceEngine(voice) === 'mms') continue;
   const map = PATH_MAP as Record<string, string>;
   if (voice.useRhasspyRepo) {
     map[voice.modelId] = `../../../../rhasspy/piper-voices/resolve/main/${voice.hfPath}`;
@@ -27,9 +46,9 @@ type IncomingMessage =
   | { type: 'preload'; modelId: string }
   | { type: 'save'; requestId: number; modelId: string }
   | { type: 'listStored'; requestId: number }
-  | { type: 'listStoredSizes'; requestId: number }
-  | { type: 'remove'; requestId: number; modelId: string }
-  | { type: 'removeAll'; requestId: number }
+  | { type: 'listStoredSizes'; requestId: number; engine?: VoiceEngine }
+  | { type: 'remove'; requestId: number; modelId: string; engine?: VoiceEngine }
+  | { type: 'removeAll'; requestId: number; engine?: VoiceEngine }
   | { type: 'cancelJob'; jobId: number }
   | { type: 'synthesize'; jobId: number; modelId: string; speakerId: number; text: string };
 
@@ -63,6 +82,9 @@ const PINYIN_SCALES: Record<string, [number, number, number]> = {
   'zh_CN-chaowen-medium': [0.5, 1.0, 0.333],
 };
 const PINYIN_SAMPLE_RATE = 22050;
+// Meta MMS sessions (see mmsEngine.ts), created directly with ONNX Runtime.
+const mmsSessions = new Map<string, MmsSession>();
+let ortModule: OrtLike | null = null;
 const pinyinModels = new Set(PIPER_VOICES.filter((v) => v.phonemeType === 'pinyin').map((v) => v.modelId));
 let queue: Promise<void> = Promise.resolve();
 
@@ -103,7 +125,6 @@ async function predictPinyin(modelId: string, text: string): Promise<Blob> {
   if (!session || !scales || !ort) throw new Error('Chinese voice is not loaded');
   const pieces = splitChineseForSpeech(text);
   const clips: Float32Array[] = [];
-  const gap = new Float32Array(Math.round(PINYIN_SAMPLE_RATE * 0.15));
   for (const piece of pieces) {
     const ids = pinyinPhonemeIds(piece);
     if (ids.length <= 2) continue;
@@ -112,36 +133,10 @@ async function predictPinyin(modelId: string, text: string): Promise<Blob> {
       input_lengths: new ort.Tensor('int64', [ids.length], [1]),
       scales: new ort.Tensor('float32', Float32Array.from(scales), [3]),
     });
-    if (clips.length) clips.push(gap);
     clips.push(output.data);
   }
   if (clips.length === 0) throw new Error('No Chinese text to speak.');
-  const total = clips.reduce((sum, clip) => sum + clip.length, 0);
-  const wav = new DataView(new ArrayBuffer(44 + total * 2));
-  const writeText = (offset: number, value: string) => {
-    for (let n = 0; n < value.length; n += 1) wav.setUint8(offset + n, value.charCodeAt(n));
-  };
-  writeText(0, 'RIFF');
-  wav.setUint32(4, 36 + total * 2, true);
-  writeText(8, 'WAVEfmt ');
-  wav.setUint32(16, 16, true);
-  wav.setUint16(20, 1, true);
-  wav.setUint16(22, 1, true);
-  wav.setUint32(24, PINYIN_SAMPLE_RATE, true);
-  wav.setUint32(28, PINYIN_SAMPLE_RATE * 2, true);
-  wav.setUint16(32, 2, true);
-  wav.setUint16(34, 16, true);
-  writeText(36, 'data');
-  wav.setUint32(40, total * 2, true);
-  let at = 44;
-  for (const clip of clips) {
-    for (let n = 0; n < clip.length; n += 1) {
-      const v = Math.max(-1, Math.min(1, clip[n]));
-      wav.setInt16(at, v < 0 ? v * 32768 : v * 32767, true);
-      at += 2;
-    }
-  }
-  return new Blob([wav], { type: 'audio/x-wav' });
+  return encodeWav(clips, PINYIN_SAMPLE_RATE);
 }
 
 function predictFor(session: TtsSession, modelId: string, text: string): Promise<Blob> {
@@ -149,7 +144,87 @@ function predictFor(session: TtsSession, modelId: string, text: string): Promise
 }
 
 function warmupText(modelId: string): string {
-  return pinyinModels.has(modelId) ? '你好。' : 'Hello.';
+  if (pinyinModels.has(modelId)) return '你好。';
+  return MMS_VOICES.has(modelId) ? 'Halo.' : 'Hello.';
+}
+
+/** Loads a voice of either engine and returns how to speak with it. */
+async function prepareVoice(modelId: string): Promise<(text: string) => Promise<Blob>> {
+  if (MMS_VOICES.has(modelId)) {
+    const mms = await ensureMmsSession(modelId);
+    const ort = await loadOrt();
+    return (text) => predictMms(ort, mms, text);
+  }
+  const session = await ensureSession(modelId);
+  return (text) => predictFor(session, modelId, text);
+}
+
+/** The same ONNX Runtime the Piper library uses, set up the way the library sets it up. */
+async function loadOrt(): Promise<OrtLike> {
+  if (ortModule) return ortModule;
+  await installSpeakerInterceptor();
+  const imported = await import('onnxruntime-web/wasm');
+  const ort = (imported.default ?? imported) as unknown as OrtLike;
+  if (ort.env?.wasm) {
+    ort.env.wasm.numThreads = navigator.hardwareConcurrency;
+    ort.env.wasm.wasmPaths = PIPER_WASM_PATHS.onnxWasm;
+  }
+  ortModule = ort;
+  return ort;
+}
+
+async function ensureMmsSession(modelId: string): Promise<MmsSession> {
+  const cached = mmsSessions.get(modelId);
+  if (cached) {
+    mmsSessions.delete(modelId);
+    mmsSessions.set(modelId, cached);
+    return cached;
+  }
+  const voice = MMS_VOICES.get(modelId);
+  if (!voice) throw new Error(`Unknown voice ${modelId}`);
+  await verifyOpfs();
+  const ort = await loadOrt();
+  if (mmsSessions.size >= MAX_CACHED_SESSIONS) {
+    const oldest = mmsSessions.keys().next().value;
+    if (oldest) {
+      void mmsSessions.get(oldest)?.session.release?.().catch(() => undefined);
+      mmsSessions.delete(oldest);
+    }
+  }
+  const alreadySaved = await isMmsSaved(modelId).catch(() => false);
+  workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress: alreadySaved ? undefined : 0 });
+  try {
+    const { bytes } = await loadMmsModel(voice, mmsVoiceUrl(voice), (progress) =>
+      workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress }),
+    );
+    const mms = await createMmsSession(ort, voice, bytes);
+    savedLoadFailures.delete(modelId);
+    mmsSessions.set(modelId, mms);
+    workerScope.postMessage({ type: 'status', modelId, status: 'ready', progress: 100 });
+    return mms;
+  } catch (error) {
+    // Same policy as Piper voices: drop a fresh download that won't load, but keep a saved
+    // voice unless it fails twice (one failure is usually low memory, not a bad file).
+    const failures = alreadySaved ? (savedLoadFailures.get(modelId) ?? 0) + 1 : 0;
+    if (alreadySaved && failures < 2) {
+      savedLoadFailures.set(modelId, failures);
+    } else {
+      savedLoadFailures.delete(modelId);
+      await removeMmsModel(modelId, MMS_MODEL_IDS).catch(() => undefined);
+    }
+    const message = error instanceof Error ? error.message : 'Failed to load MMS voice';
+    workerScope.postMessage({ type: 'status', modelId, status: 'error', error: message });
+    throw error;
+  }
+}
+
+/** Every saved voice's model id, Piper and MMS. */
+async function storedModelIds(): Promise<string[]> {
+  const [piper, mms] = await Promise.all([
+    stored().catch(() => [] as string[]),
+    mmsStoredIds(MMS_MODEL_IDS).catch(() => [] as string[]),
+  ]);
+  return [...piper, ...mms];
 }
 
 function isValidWav(buffer: ArrayBuffer): boolean {
@@ -287,6 +362,7 @@ function forgetModel(modelId: string): void {
   sessionCache.delete(modelId);
   warmedModels.delete(modelId);
   pinyinSessions.delete(modelId);
+  mmsSessions.delete(modelId);
   savedLoadFailures.delete(modelId);
 }
 
@@ -311,11 +387,16 @@ async function removeModel(modelId: string): Promise<void> {
   }
 }
 
-async function removeAllModels(): Promise<void> {
+async function removeAllModels(engine: VoiceEngine): Promise<void> {
+  if (engine === 'mms') {
+    for (const modelId of MMS_MODEL_IDS) forgetModel(modelId);
+    await removeAllMmsModels();
+    return;
+  }
   sessionCache.clear();
-  warmedModels.clear();
+  for (const modelId of warmedModels) if (!MMS_VOICES.has(modelId)) warmedModels.delete(modelId);
   pinyinSessions.clear();
-  savedLoadFailures.clear();
+  for (const modelId of savedLoadFailures.keys()) if (!MMS_VOICES.has(modelId)) savedLoadFailures.delete(modelId);
   (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
   const root = await navigator.storage.getDirectory();
   await root.removeEntry(PIPER_DIR, { recursive: true }).catch((error: unknown) => {
@@ -337,7 +418,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   }
 
   if (data.type === 'listStored') {
-    void stored().then(
+    void storedModelIds().then(
       (modelIds) => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds }),
       () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] }),
     );
@@ -345,7 +426,8 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   }
 
   if (data.type === 'listStoredSizes') {
-    void storedSizes().then(
+    const sizes = data.engine === 'mms' ? mmsStoredSizes(MMS_MODEL_IDS) : storedSizes();
+    void sizes.then(
       (sizes) => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes }),
       () => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes: [] }),
     );
@@ -356,8 +438,11 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
     // Run in the job queue, so a delete never pulls a file out from under a voice that is loading.
     runSerialized(async () => {
       try {
-        if (data.type === 'remove') await removeModel(data.modelId);
-        else await removeAllModels();
+        if (data.type === 'remove' && data.engine === 'mms') {
+          forgetModel(data.modelId);
+          await removeMmsModel(data.modelId, MMS_MODEL_IDS);
+        } else if (data.type === 'remove') await removeModel(data.modelId);
+        else await removeAllModels(data.engine ?? 'piper');
         workerScope.postMessage({ type: 'removed', requestId: data.requestId, ok: true });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not delete voice';
@@ -372,10 +457,10 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
     // fetches the shared runtimes (/ort/, /piper/) so the service worker keeps them.
     runSerialized(async () => {
       try {
-        const session = await ensureSession(data.modelId);
+        const speak = await prepareVoice(data.modelId);
         if (!warmedModels.has(data.modelId)) {
           warmedModels.add(data.modelId);
-          await predictFor(session, data.modelId, warmupText(data.modelId));
+          await speak(warmupText(data.modelId));
         }
         workerScope.postMessage({ type: 'saved', requestId: data.requestId, ok: true });
       } catch (error) {
@@ -389,10 +474,10 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   if (data.type === 'preload') {
     runSerialized(async () => {
       try {
-        const session = await ensureSession(data.modelId);
+        const speak = await prepareVoice(data.modelId);
         if (!warmedModels.has(data.modelId)) {
           warmedModels.add(data.modelId);
-          await predictFor(session, data.modelId, warmupText(data.modelId)).catch(() => undefined);
+          await speak(warmupText(data.modelId)).catch(() => undefined);
         }
       } catch {
         // Status error already posted by ensureSession.
@@ -405,10 +490,10 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
     runSerialized(async () => {
       if (cancelledJobs.has(data.jobId)) return;
       try {
-        const session = await ensureSession(data.modelId);
+        const speak = await prepareVoice(data.modelId);
         if (cancelledJobs.has(data.jobId)) return;
         activeSpeakerId = data.speakerId;
-        const wavBlob = await predictFor(session, data.modelId, data.text);
+        const wavBlob = await speak(data.text);
         if (cancelledJobs.has(data.jobId)) return;
         const wavBuffer = boostQuietWav(await wavBlob.arrayBuffer());
         if (!isValidWav(wavBuffer)) {

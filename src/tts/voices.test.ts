@@ -56,9 +56,11 @@ describe('Piper voice catalog and preferences', () => {
       'ur_PK-aegis_female-medium',
       'ur_PK-fasih-medium',
     ]);
-    expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['id_ID-news_tts-medium']);
-    expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
-    expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
+    expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['mms-tts-ind', 'id_ID-news_tts-medium']);
+    expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['mms-tts-swh']);
+    expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['mms-tts-tur', 'tr_TR-dfki-medium']);
+    expect(voicesForLanguage('ht').map((v) => v.id)).toEqual(['mms-tts-hat']);
+    expect(voicesForLanguage('so').map((v) => v.id)).toEqual(['mms-tts-som']);
     expect(voicesForLanguage('zh').map((v) => v.id)).toEqual(['zh_CN-xiao_ya-medium', 'zh_CN-chaowen-medium']);
     expect(voicesForLanguage('ar').map((v) => v.id)).toEqual(['ar_JO-kareem-medium']);
     expect(voicesForLanguage('fr').map((v) => v.id)).toEqual([
@@ -72,7 +74,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('prs').map((v) => v.shortName)).toEqual(['Magnoliasis', 'Amir', 'Ganji Adabi']);
     expect(voicesForLanguage('zh').every((v) => v.phonemeType === 'pinyin')).toBe(true);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(40);
+    expect(PIPER_VOICES).toHaveLength(44);
     expect(voicesForLanguage('ps')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -90,7 +92,7 @@ describe('Piper voice catalog and preferences', () => {
       useRhasspyRepo: true,
     });
     for (const voice of PIPER_VOICES.filter((v) =>
-      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang)
+      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang) && v.engine !== 'mms'
     )) {
       // These models are newer than the default mirror, so they load from rhasspy.
       expect(voice.useRhasspyRepo).toBe(true);
@@ -183,8 +185,10 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicePreviewText('vi', 'vi_VN-vais1000-medium').spoken).toContain('tiếng Việt');
     expect(voicePreviewText('ur', 'ur_PK-fasih-medium').spoken).toContain('میں Fasih ہوں');
     expect(voicePreviewText('id', 'id_ID-news_tts-medium').spoken).toContain('bahasa Indonesia');
-    expect(voicePreviewText('sw', 'sw_CD-lanfrica-medium').spoken).toContain('Kiswahili');
+    expect(voicePreviewText('sw', 'mms-tts-swh').spoken).toBe('Habari, mimi ni Baraka. Nikusomee Kiswahili?');
     expect(voicePreviewText('tr', 'tr_TR-dfki-medium').spoken).toContain('Türkçe');
+    expect(voicePreviewText('ht', 'mms-tts-hat').spoken).toContain('kreyòl ayisyen');
+    expect(voicePreviewText('so', 'mms-tts-som').spoken).toContain('af Soomaali');
   });
 });
 
@@ -198,5 +202,34 @@ describe('voice download sizes', () => {
     expect(voiceDownloadLabel('es_MX-claude-high')).toBe('60 MB');
     expect(voiceDownloadLabel('uk_UA-tetiana-high')).toBe('109 MB');
     expect(voiceDownloadLabel(BROWSER_VOICE_ID)).toBe('');
+  });
+});
+
+describe('Meta MMS voices', () => {
+  it('are a second engine with their own download URL, size and attribution', async () => {
+    const { MMS_ATTRIBUTION, mmsVoiceUrl, voiceDownloadLabel, voiceEngine } = await import('./voices');
+    const mms = PIPER_VOICES.filter((voice) => voiceEngine(voice) === 'mms');
+    expect(mms.map((voice) => voice.mmsIso3)).toEqual(['ind', 'swh', 'tur', 'hat', 'som']);
+    for (const voice of mms) {
+      expect(voice).toMatchObject({ id: `mms-tts-${voice.mmsIso3}`, modelId: `mms-tts-${voice.mmsIso3}`, gender: 'male' });
+      expect(voice.label).toContain('Meta MMS');
+      expect(voiceDownloadLabel(voice.id)).toBe('28 MB');
+      expect(mmsVoiceUrl(voice)).toBe(
+        `https://bpmdata.github.io/overheard-voices/mms-tts-${voice.mmsIso3}/model_quantized.onnx`,
+      );
+    }
+    expect(voiceEngine(findPiperVoice('tr_TR-dfki-medium')!)).toBe('piper');
+    expect(MMS_ATTRIBUTION.text).toContain('CC BY-NC 4.0');
+  });
+
+  it('are the defaults for Swahili, Indonesian, Turkish, Haitian Creole and Somali', () => {
+    expect(resolveVoiceId('sw')).toBe('mms-tts-swh');
+    expect(resolveVoiceId('id')).toBe('mms-tts-ind');
+    expect(resolveVoiceId('tr')).toBe('mms-tts-tur');
+    expect(resolveVoiceId('ht')).toBe('mms-tts-hat');
+    expect(resolveVoiceId('so')).toBe('mms-tts-som');
+    // Swahili Lanfrica was replaced; anyone who had picked it gets the MMS voice.
+    expect(resolveVoiceId('sw', { sw: 'sw_CD-lanfrica-medium' })).toBe('mms-tts-swh');
+    expect(resolveVoiceId('tr', { tr: 'tr_TR-dfki-medium' })).toBe('tr_TR-dfki-medium');
   });
 });
