@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr';
+export type PiperLanguage = 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs';
 
 export interface PiperVoiceOption {
   id: string;
@@ -13,6 +13,8 @@ export interface PiperVoiceOption {
   hfPath: string;
   speakerId: number;
   useRhasspyRepo?: boolean;
+  /** Chinese voices that take pinyin instead of eSpeak phonemes (see pinyin.ts). */
+  phonemeType?: 'pinyin';
 }
 
 export const BROWSER_VOICE_ID = 'browser';
@@ -183,7 +185,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'vi_VN-vais1000-medium',
     lang: 'vi',
-    label: 'VAIS (VN)',
+    label: 'VAIS (Female · VN)',
+    gender: 'female',
     shortName: 'VAIS',
     modelId: 'vi_VN-vais1000-medium',
     hfPath: 'vi/vi_VN/vais1000/medium/vi_VN-vais1000-medium.onnx',
@@ -193,7 +196,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'vi_VN-25hours_single-low',
     lang: 'vi',
-    label: '25 Hours (VN · smaller)',
+    label: '25 Hours (Female · VN · smaller)',
+    gender: 'female',
     shortName: '25 Hours',
     modelId: 'vi_VN-25hours_single-low',
     hfPath: 'vi/vi_VN/25hours_single/low/vi_VN-25hours_single-low.onnx',
@@ -203,21 +207,11 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
 
   // Hindi (India)
   {
-    id: 'hi_IN-rohan-medium',
-    lang: 'hi',
-    label: 'Rohan (Male · IN)',
-    shortName: 'Rohan',
-    gender: 'male',
-    modelId: 'hi_IN-rohan-medium',
-    hfPath: 'hi/hi_IN/rohan/medium/hi_IN-rohan-medium.onnx',
-    speakerId: 0,
-    useRhasspyRepo: true,
-  },
-  {
     id: 'hi_IN-priyamvada-medium',
     lang: 'hi',
-    label: 'Priyamvada (IN)',
+    label: 'Priyamvada (Female · IN)',
     shortName: 'Priyamvada',
+    gender: 'female',
     modelId: 'hi_IN-priyamvada-medium',
     hfPath: 'hi/hi_IN/priyamvada/medium/hi_IN-priyamvada-medium.onnx',
     speakerId: 0,
@@ -226,23 +220,36 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'hi_IN-pratham-medium',
     lang: 'hi',
-    label: 'Pratham (IN)',
+    label: 'Pratham (Male · IN)',
     shortName: 'Pratham',
+    gender: 'male',
     modelId: 'hi_IN-pratham-medium',
     hfPath: 'hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx',
     speakerId: 0,
     useRhasspyRepo: true,
   },
 
-  // Bengali (Bangladesh). One 16-speaker model; speaker 0 for now.
+  // Bengali (Bangladesh). One 16-speaker model; speaker 3 is dataset speaker 03042.
   {
     id: 'bn_BD-google-medium:0',
     lang: 'bn',
-    label: 'Google (BD)',
+    label: 'Google (Male · BD)',
+    gender: 'male',
     shortName: 'Google',
     modelId: 'bn_BD-google-medium',
     hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
     speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'bn_BD-google-medium:3',
+    lang: 'bn',
+    label: 'Arif (Male · BD)',
+    shortName: 'Arif',
+    gender: 'male',
+    modelId: 'bn_BD-google-medium',
+    hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
+    speakerId: 3,
     useRhasspyRepo: true,
   },
 
@@ -274,7 +281,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'id_ID-news_tts-medium',
     lang: 'id',
-    label: 'News (ID)',
+    label: 'News (Female · ID)',
+    gender: 'female',
     shortName: 'News',
     modelId: 'id_ID-news_tts-medium',
     hfPath: 'id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx',
@@ -286,7 +294,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'sw_CD-lanfrica-medium',
     lang: 'sw',
-    label: 'Lanfrica (CD)',
+    label: 'Lanfrica (Male · CD)',
+    gender: 'male',
     shortName: 'Lanfrica',
     modelId: 'sw_CD-lanfrica-medium',
     hfPath: 'sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx',
@@ -298,10 +307,190 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'tr_TR-dfki-medium',
     lang: 'tr',
-    label: 'DFKI (TR)',
+    label: 'DFKI (Male · TR)',
+    gender: 'male',
     shortName: 'DFKI',
     modelId: 'tr_TR-dfki-medium',
     hfPath: 'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Simplified Chinese. Both voices need the pinyin step in pinyin.ts.
+  {
+    id: 'zh_CN-xiao_ya-medium',
+    lang: 'zh',
+    label: 'Xiao Ya (Female · CN)',
+    gender: 'female',
+    shortName: 'Xiao Ya',
+    modelId: 'zh_CN-xiao_ya-medium',
+    hfPath: 'zh/zh_CN/xiao_ya/medium/zh_CN-xiao_ya-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
+  {
+    id: 'zh_CN-chaowen-medium',
+    lang: 'zh',
+    label: 'Chaowen (Male · CN)',
+    gender: 'male',
+    shortName: 'Chaowen',
+    modelId: 'zh_CN-chaowen-medium',
+    hfPath: 'zh/zh_CN/chaowen/medium/zh_CN-chaowen-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
+
+  // Arabic (Jordan)
+  {
+    id: 'ar_JO-kareem-medium',
+    lang: 'ar',
+    label: 'Kareem (Male · JO)',
+    gender: 'male',
+    shortName: 'Kareem',
+    modelId: 'ar_JO-kareem-medium',
+    hfPath: 'ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // French (France)
+  {
+    id: 'fr_FR-siwis-medium',
+    lang: 'fr',
+    label: 'Siwis (Female · FR)',
+    gender: 'female',
+    shortName: 'Siwis',
+    modelId: 'fr_FR-siwis-medium',
+    hfPath: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-tom-medium',
+    lang: 'fr',
+    label: 'Tom (Male · FR)',
+    gender: 'male',
+    shortName: 'Tom',
+    modelId: 'fr_FR-tom-medium',
+    hfPath: 'fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:0',
+    lang: 'fr',
+    label: 'Jessica (Female · FR)',
+    gender: 'female',
+    shortName: 'Jessica',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:1',
+    lang: 'fr',
+    label: 'Pierre (Male · FR)',
+    gender: 'male',
+    shortName: 'Pierre',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 1,
+    useRhasspyRepo: true,
+  },
+
+  // Ukrainian
+  {
+    id: 'uk_UA-tetiana-high',
+    lang: 'uk',
+    label: 'Tetiana (Female · UA)',
+    gender: 'female',
+    shortName: 'Tetiana',
+    modelId: 'uk_UA-tetiana-high',
+    hfPath: 'uk/uk_UA/tetiana/high/uk_UA-tetiana-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-mykyta-high',
+    lang: 'uk',
+    label: 'Mykyta (Male · UA)',
+    gender: 'male',
+    shortName: 'Mykyta',
+    modelId: 'uk_UA-mykyta-high',
+    hfPath: 'uk/uk_UA/mykyta/high/uk_UA-mykyta-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-oleksa-high',
+    lang: 'uk',
+    label: 'Oleksa (Male · UA)',
+    gender: 'male',
+    shortName: 'Oleksa',
+    modelId: 'uk_UA-oleksa-high',
+    hfPath: 'uk/uk_UA/oleksa/high/uk_UA-oleksa-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Russian
+  {
+    id: 'ru_RU-irina-medium',
+    lang: 'ru',
+    label: 'Irina (Female · RU)',
+    gender: 'female',
+    shortName: 'Irina',
+    modelId: 'ru_RU-irina-medium',
+    hfPath: 'ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'ru_RU-dmitri-medium',
+    lang: 'ru',
+    label: 'Dmitri (Male · RU)',
+    gender: 'male',
+    shortName: 'Dmitri',
+    modelId: 'ru_RU-dmitri-medium',
+    hfPath: 'ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Dari, using Iranian Persian voices (fa_IR)
+  {
+    id: 'fa_IR-magnoliasis-medium',
+    lang: 'prs',
+    label: 'Magnoliasis (Female · IR)',
+    gender: 'female',
+    shortName: 'Magnoliasis',
+    modelId: 'fa_IR-magnoliasis-medium',
+    hfPath: 'fa/fa_IR/magnoliasis/medium/fa_IR-magnoliasis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-amir-medium',
+    lang: 'prs',
+    label: 'Amir (Male · IR)',
+    gender: 'male',
+    shortName: 'Amir',
+    modelId: 'fa_IR-amir-medium',
+    hfPath: 'fa/fa_IR/amir/medium/fa_IR-amir-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-ganji_adabi-medium',
+    lang: 'prs',
+    label: 'Ganji Adabi (Male · IR)',
+    gender: 'male',
+    shortName: 'Ganji Adabi',
+    modelId: 'fa_IR-ganji_adabi-medium',
+    hfPath: 'fa/fa_IR/ganji_adabi/medium/fa_IR-ganji_adabi-medium.onnx',
     speakerId: 0,
     useRhasspyRepo: true,
   },
@@ -312,12 +501,18 @@ export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
   es: 'es_MX-claude-high',
   pt: 'pt_BR-faber-medium',
   vi: 'vi_VN-vais1000-medium',
-  hi: 'hi_IN-rohan-medium',
+  hi: 'hi_IN-priyamvada-medium',
   bn: 'bn_BD-google-medium:0',
   ur: 'ur_PK-aegis_female-medium',
   id: 'id_ID-news_tts-medium',
   sw: 'sw_CD-lanfrica-medium',
   tr: 'tr_TR-dfki-medium',
+  zh: 'zh_CN-xiao_ya-medium',
+  ar: 'ar_JO-kareem-medium',
+  fr: 'fr_FR-siwis-medium',
+  uk: 'uk_UA-tetiana-high',
+  ru: 'ru_RU-irina-medium',
+  prs: 'fa_IR-magnoliasis-medium',
 };
 
 const VOICE_MAP = new Map<string, PiperVoiceOption>(PIPER_VOICES.map((v) => [v.id, v]));
@@ -402,6 +597,42 @@ export function voicePreviewText(
       return {
         spoken: `Merhaba, ben ${shortName}. Sizin için Türkçe okuyayım mı?`,
         englishHint: `Hi, I'm ${shortName}. Shall I read Turkish for you?`,
+      };
+    }
+    case 'ar': {
+      return {
+        spoken: `مرحباً، أنا ${shortName}. هل أقرأ لك بالعربية؟`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Arabic for you?`,
+      };
+    }
+    case 'fr': {
+      return {
+        spoken: `Bonjour, je suis ${shortName}. Voulez-vous que je vous lise en français ?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read French for you?`,
+      };
+    }
+    case 'uk': {
+      return {
+        spoken: `Привіт, я ${shortName}. Прочитати вам українською?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Ukrainian for you?`,
+      };
+    }
+    case 'ru': {
+      return {
+        spoken: `Здравствуйте, я ${shortName}. Прочитать вам по-русски?`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Russian for you?`,
+      };
+    }
+    case 'prs': {
+      return {
+        spoken: `سلام، من ${shortName} هستم. آیا برایتان فارسی بخوانم؟`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Dari for you?`,
+      };
+    }
+    case 'zh': {
+      return {
+        spoken: `你好，我是${shortName}。要我为你朗读中文吗？`,
+        englishHint: `Hi, I'm ${shortName}. Shall I read Chinese for you?`,
       };
     }
   }

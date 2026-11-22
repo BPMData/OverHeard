@@ -46,11 +46,13 @@ describe('Piper voice catalog and preferences', () => {
       'vi_VN-25hours_single-low',
     ]);
     expect(voicesForLanguage('hi').map((v) => v.id)).toEqual([
-      'hi_IN-rohan-medium',
       'hi_IN-priyamvada-medium',
       'hi_IN-pratham-medium',
     ]);
-    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual(['bn_BD-google-medium:0']);
+    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual([
+      'bn_BD-google-medium:0',
+      'bn_BD-google-medium:3',
+    ]);
     expect(voicesForLanguage('ur').map((v) => v.id)).toEqual([
       'ur_PK-aegis_female-medium',
       'ur_PK-fasih-medium',
@@ -58,16 +60,28 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['id_ID-news_tts-medium']);
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['sw_CD-lanfrica-medium']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['tr_TR-dfki-medium']);
+    expect(voicesForLanguage('zh').map((v) => v.id)).toEqual(['zh_CN-xiao_ya-medium', 'zh_CN-chaowen-medium']);
+    expect(voicesForLanguage('ar').map((v) => v.id)).toEqual(['ar_JO-kareem-medium']);
+    expect(voicesForLanguage('fr').map((v) => v.id)).toEqual([
+      'fr_FR-siwis-medium',
+      'fr_FR-tom-medium',
+      'fr_FR-upmc-medium:0',
+      'fr_FR-upmc-medium:1',
+    ]);
+    expect(voicesForLanguage('uk').map((v) => v.shortName)).toEqual(['Tetiana', 'Mykyta', 'Oleksa']);
+    expect(voicesForLanguage('ru').map((v) => v.shortName)).toEqual(['Irina', 'Dmitri']);
+    expect(voicesForLanguage('prs').map((v) => v.shortName)).toEqual(['Magnoliasis', 'Amir', 'Ganji Adabi']);
+    expect(voicesForLanguage('zh').every((v) => v.phonemeType === 'pinyin')).toBe(true);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(26);
-    expect(voicesForLanguage('fr')).toEqual([]);
+    expect(PIPER_VOICES).toHaveLength(41);
+    expect(voicesForLanguage('ps')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
     expect(hasPiperVoices('en')).toBe(true);
     expect(hasPiperVoices('vi')).toBe(true);
     expect(hasPiperVoices('hi')).toBe(true);
     expect(hasPiperVoices('bn')).toBe(true);
-    expect(hasPiperVoices('ar')).toBe(false);
+    expect(hasPiperVoices('ps')).toBe(false);
   });
 
   it('configures multi-speaker and rhasspy-hosted voice metadata accurately', () => {
@@ -83,7 +97,7 @@ describe('Piper voice catalog and preferences', () => {
       useRhasspyRepo: true,
     });
     for (const voice of PIPER_VOICES.filter((v) =>
-      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr'].includes(v.lang)
+      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang)
     )) {
       // These models are newer than the default mirror, so they load from rhasspy.
       expect(voice.useRhasspyRepo).toBe(true);
@@ -92,6 +106,7 @@ describe('Piper voice catalog and preferences', () => {
           `${voice.modelId.split('-')[2]}/${voice.modelId}.onnx`
       );
     }
+    expect(findPiperVoice('bn_BD-google-medium:3')?.speakerId).toBe(3);
     expect(findPiperVoice('en_GB-semaine-medium:0')?.speakerId).toBe(0);
     expect(findPiperVoice('en_GB-semaine-medium:1')?.speakerId).toBe(1);
     expect(findPiperVoice('en_GB-semaine-medium:2')?.speakerId).toBe(2);
@@ -102,12 +117,12 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('en')).toBe(DEFAULT_PIPER_VOICE_ID.en);
     expect(resolveVoiceId('es')).toBe(DEFAULT_PIPER_VOICE_ID.es);
     expect(resolveVoiceId('pt')).toBe(DEFAULT_PIPER_VOICE_ID.pt);
-    expect(resolveVoiceId('hi')).toBe('hi_IN-rohan-medium');
+    expect(resolveVoiceId('hi')).toBe('hi_IN-priyamvada-medium');
     expect(resolveVoiceId('bn')).toBe('bn_BD-google-medium:0');
     expect(resolveVoiceId('vi')).toBe('vi_VN-vais1000-medium');
     expect(resolveVoiceId('ur')).toBe('ur_PK-aegis_female-medium');
     expect(resolveVoiceId('ja')).toBe(BROWSER_VOICE_ID);
-    expect(resolveVoiceId('fr')).toBe(BROWSER_VOICE_ID);
+    expect(resolveVoiceId('ps')).toBe(BROWSER_VOICE_ID);
 
     expect(resolveVoiceId('es', { es: 'es_MX-ald-medium' })).toBe('es_MX-ald-medium');
     expect(resolveVoiceId('pt', { pt: BROWSER_VOICE_ID })).toBe(BROWSER_VOICE_ID);
@@ -161,7 +176,7 @@ describe('Piper voice catalog and preferences', () => {
       spoken: 'Olá, eu sou Cadu. Devo ser o seu leitor de português?',
       englishHint: "Hi, I'm Cadu. Should I be your reader for Portuguese?",
     });
-    expect(voicePreviewText('hi', 'hi_IN-rohan-medium').spoken).toContain('मैं Rohan हूँ');
+    expect(voicePreviewText('hi', 'hi_IN-pratham-medium').spoken).toContain('मैं Pratham हूँ');
     expect(voicePreviewText('bn', 'bn_BD-google-medium:0').englishHint).toContain('Bengali');
     expect(voicePreviewText('vi', 'vi_VN-vais1000-medium').spoken).toContain('tiếng Việt');
     expect(voicePreviewText('ur', 'ur_PK-fasih-medium').spoken).toContain('میں Fasih ہوں');

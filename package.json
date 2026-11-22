@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "pinyin-pro": "3.29.5"
   },
   "overrides": {
     "onnxruntime-web": "1.22.0-dev.20250409-89f8206ba4"

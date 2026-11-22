@@ -106,12 +106,11 @@ international additions so far are Hindi, Bengali, Urdu, Indonesian, Japanese, S
 Turkish. Piper reader voices exist for English, Spanish, Portuguese, Vietnamese, Hindi, Bengali,
 Urdu, Indonesian, Swahili and Turkish.
 
-- [ ] **Pick voices for Arabic, Chinese, French, Ukrainian, Russian and Dari.** The
-      rhasspy/piper-voices catalog has `ar_JO` (1 voice), `zh_CN` (huayan, xiao_ya; chaowen
-      uses the pinyin phonemizer, which the bundled phonemizer lacks), `fr_FR` (7 models),
-      `uk_UA` (5), `ru_RU` (4) and `fa_IR` (6, a possible stand-in for Dari). Listen at
-      rhasspy.github.io/piper-samples and add the keepers to `src/tts/voices.ts`.
-- [ ] **Bengali has 16 speakers in one model.** Only speaker 0 is offered; listen to the rest.
+- [x] **Reader voices for Arabic, Chinese, French, Ukrainian, Russian and Dari** are picked and in
+      `src/tts/voices.ts` (Dari uses Iranian Persian voices; Chinese needs `src/tts/pinyin.ts`).
+      Dropped: Ukrainian `ukrainian_tts` (a `text`-type model the bundled phonemizer can't run),
+      French `gilles`/`mls_1840`, Russian `denis`/`ruslan`, Persian `gyro`/`reza_ibrahim`/`ganji`.
+- [ ] **Bengali has 16 speakers in one model.** Speakers 0 and 3 (Arif) are offered; listen to the rest.
 - [ ] **Japanese has no usable Piper voice.** `ja_JP-hi_fi_captain` needs the OpenJTalk
       phonemizer, not eSpeak, so Japanese uses the browser voice.
 
