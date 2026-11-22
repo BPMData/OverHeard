@@ -110,17 +110,6 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     speakerId: 0,
   },
   {
-    id: 'en_US-hifi_tts-low:0',
-    lang: 'en',
-    label: 'HiFi 92 · Cori (Female · UK/US)',
-    shortName: 'Cori',
-    gender: 'female',
-    modelId: 'en_US-hifi_tts-low',
-    hfPath: 'en/en_US/hifi_tts/low/en_US-hifi_tts-low.onnx',
-    speakerId: 0,
-    useRhasspyRepo: true,
-  },
-  {
     id: 'en_GB-alba-medium',
     lang: 'en',
     label: 'Alba (Female · UK)',
