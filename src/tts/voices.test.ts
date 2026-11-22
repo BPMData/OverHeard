@@ -33,7 +33,6 @@ describe('Piper voice catalog and preferences', () => {
       'en_US-kristin-medium',
       'en_US-kusal-medium',
       'en_US-ryan-high',
-      'en_US-hifi_tts-low:0',
       'en_GB-alba-medium',
       'en_GB-northern_english_male-medium',
       'en_GB-semaine-medium:0',
@@ -73,7 +72,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(voicesForLanguage('prs').map((v) => v.shortName)).toEqual(['Magnoliasis', 'Amir', 'Ganji Adabi']);
     expect(voicesForLanguage('zh').every((v) => v.phonemeType === 'pinyin')).toBe(true);
     expect(voicesForLanguage('ja')).toEqual([]);
-    expect(PIPER_VOICES).toHaveLength(41);
+    expect(PIPER_VOICES).toHaveLength(40);
     expect(voicesForLanguage('ps')).toEqual([]);
     expect(hasPiperVoices('es')).toBe(true);
     expect(hasPiperVoices('pt')).toBe(true);
@@ -88,12 +87,6 @@ describe('Piper voice catalog and preferences', () => {
     expect(findPiperVoice('pt_BR-cadu-medium')).toMatchObject({
       modelId: 'pt_BR-cadu-medium',
       hfPath: 'pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx',
-      useRhasspyRepo: true,
-    });
-    expect(findPiperVoice('en_US-hifi_tts-low:0')).toMatchObject({
-      modelId: 'en_US-hifi_tts-low',
-      hfPath: 'en/en_US/hifi_tts/low/en_US-hifi_tts-low.onnx',
-      speakerId: 0,
       useRhasspyRepo: true,
     });
     for (const voice of PIPER_VOICES.filter((v) =>
@@ -129,6 +122,15 @@ describe('Piper voice catalog and preferences', () => {
     // Rejects a voice that belongs to a different language or does not exist
     expect(resolveVoiceId('es', { es: 'pt_BR-cadu-medium' })).toBe(DEFAULT_PIPER_VOICE_ID.es);
     expect(resolveVoiceId('en', { en: 'unknown-voice' })).toBe(DEFAULT_PIPER_VOICE_ID.en);
+    // Cori (en_US-hifi_tts-low) was removed when its model vanished from Hugging Face;
+    // anyone who had saved it falls back to the default English voice.
+    expect(findPiperVoice('en_US-hifi_tts-low:0')).toBeUndefined();
+    expect(resolveVoiceId('en', { en: 'en_US-hifi_tts-low:0' })).toBe(DEFAULT_PIPER_VOICE_ID.en);
+    localStorage.setItem(
+      VOICE_PREFS_STORAGE_KEY,
+      JSON.stringify({ en: 'en_US-hifi_tts-low:0', es: 'es_MX-ald-medium' }),
+    );
+    expect(loadVoicePreferences()).toEqual({ es: 'es_MX-ald-medium' });
   });
 
   it('persists voice preferences to localStorage and handles corrupt or blocked storage', () => {
