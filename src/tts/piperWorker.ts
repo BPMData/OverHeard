@@ -27,6 +27,9 @@ type IncomingMessage =
   | { type: 'preload'; modelId: string }
   | { type: 'save'; requestId: number; modelId: string }
   | { type: 'listStored'; requestId: number }
+  | { type: 'listStoredSizes'; requestId: number }
+  | { type: 'remove'; requestId: number; modelId: string }
+  | { type: 'removeAll'; requestId: number }
   | { type: 'cancelJob'; jobId: number }
   | { type: 'synthesize'; jobId: number; modelId: string; speakerId: number; text: string };
 
@@ -238,6 +241,88 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
   }
 }
 
+// The library saves each voice in OPFS under piper/ as <modelId>.onnx and <modelId>.onnx.json.
+const PIPER_DIR = 'piper';
+
+async function piperDirectory(): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    const root = await navigator.storage.getDirectory();
+    return await root.getDirectoryHandle(PIPER_DIR);
+  } catch {
+    return null; // Nothing saved yet
+  }
+}
+
+/** Bytes on disk per model id. Files that aren't a known voice are grouped under '' (leftovers). */
+async function storedSizes(): Promise<Array<{ modelId: string; bytes: number }>> {
+  const dir = await piperDirectory();
+  if (!dir) return [];
+  const sizes = new Map<string, number>();
+  const iterable = dir as unknown as { entries: () => AsyncIterable<[string, FileSystemHandle]> };
+  for await (const [name, handle] of iterable.entries()) {
+    if (handle.kind !== 'file') continue;
+    let bytes = 0;
+    try {
+      bytes = (await (handle as FileSystemFileHandle).getFile()).size;
+    } catch {
+      continue;
+    }
+    const key = name.split('.')[0];
+    const modelId = name.endsWith('.onnx') || name.endsWith('.onnx.json') ? key : '';
+    sizes.set(modelId, (sizes.get(modelId) ?? 0) + bytes);
+  }
+  // A .json alone (an interrupted download) isn't a usable voice: count it as a leftover.
+  const usable = new Set(await stored().catch(() => [] as string[]));
+  const result: Array<{ modelId: string; bytes: number }> = [];
+  let leftovers = 0;
+  for (const [modelId, bytes] of sizes) {
+    if (modelId && usable.has(modelId)) result.push({ modelId, bytes });
+    else leftovers += bytes;
+  }
+  if (leftovers > 0) result.push({ modelId: '', bytes: leftovers });
+  return result;
+}
+
+function forgetModel(modelId: string): void {
+  sessionCache.delete(modelId);
+  warmedModels.delete(modelId);
+  pinyinSessions.delete(modelId);
+  savedLoadFailures.delete(modelId);
+}
+
+async function removeModel(modelId: string): Promise<void> {
+  forgetModel(modelId);
+  const dir = await piperDirectory();
+  if (!dir) return;
+  if (!modelId) {
+    // Leftovers: every file that isn't part of a usable voice
+    const keep = new Set(await stored().catch(() => [] as string[]));
+    const names: string[] = [];
+    for await (const name of (dir as unknown as { keys: () => AsyncIterable<string> }).keys()) {
+      if (!keep.has(name.split('.')[0])) names.push(name);
+    }
+    for (const name of names) await dir.removeEntry(name, { recursive: true }).catch(() => undefined);
+    return;
+  }
+  for (const name of [`${modelId}.onnx`, `${modelId}.onnx.json`]) {
+    await dir.removeEntry(name).catch((error: unknown) => {
+      if ((error as { name?: string })?.name !== 'NotFoundError') throw error;
+    });
+  }
+}
+
+async function removeAllModels(): Promise<void> {
+  sessionCache.clear();
+  warmedModels.clear();
+  pinyinSessions.clear();
+  savedLoadFailures.clear();
+  (TtsSession as unknown as { _instance: TtsSession | null })._instance = null;
+  const root = await navigator.storage.getDirectory();
+  await root.removeEntry(PIPER_DIR, { recursive: true }).catch((error: unknown) => {
+    if ((error as { name?: string })?.name !== 'NotFoundError') throw error;
+  });
+}
+
 workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) => {
   const data = event.data;
   if (!data) return;
@@ -256,6 +341,29 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
       (modelIds) => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds }),
       () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] }),
     );
+    return;
+  }
+
+  if (data.type === 'listStoredSizes') {
+    void storedSizes().then(
+      (sizes) => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes }),
+      () => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes: [] }),
+    );
+    return;
+  }
+
+  if (data.type === 'remove' || data.type === 'removeAll') {
+    // Run in the job queue, so a delete never pulls a file out from under a voice that is loading.
+    runSerialized(async () => {
+      try {
+        if (data.type === 'remove') await removeModel(data.modelId);
+        else await removeAllModels();
+        workerScope.postMessage({ type: 'removed', requestId: data.requestId, ok: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Could not delete voice';
+        workerScope.postMessage({ type: 'removed', requestId: data.requestId, ok: false, error: message });
+      }
+    });
     return;
   }
 

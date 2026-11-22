@@ -136,3 +136,25 @@ describe('VoiceSettingsModal', () => {
     await screen.findByText(/Could not save this voice/);
   });
 });
+
+describe('VoiceSettingsModal download sizes', () => {
+  it('shows each voice size before download and the space used section', async () => {
+    const { client } = createMockClient();
+    render(
+      <VoiceSettingsModal
+        isOpen
+        onClose={vi.fn()}
+        client={{ ...client, saveForOffline: vi.fn(), listSavedModels: async () => ['en_US-hfc_female-medium'] }}
+        storageCategories={[]}
+      />,
+    );
+    const save = await screen.findByRole('button', { name: 'Save Spanish voice for offline' });
+    expect(save.textContent).toBe('Save offline (60 MB)');
+    const spanish = screen.getByLabelText('Default Spanish voice') as HTMLSelectElement;
+    expect([...spanish.options].map((o) => o.textContent)).toContain('Claude (Female · MX) — 60 MB');
+    // A voice already on this device says so instead of a size
+    const english = screen.getByLabelText('Default English voice') as HTMLSelectElement;
+    expect([...english.options].map((o) => o.textContent)).toContain('HFC Female (Female · US) — saved');
+    expect(screen.getByRole('heading', { name: 'Space used on this device' })).toBeTruthy();
+  });
+});

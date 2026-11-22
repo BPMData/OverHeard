@@ -3,11 +3,14 @@ import { CheckCircle2, CloudDownload, Settings, ShieldCheck, Square, Volume2, X 
 import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/piperClient';
 import { VoiceSelect } from '../tts/VoiceSelect';
 import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
+import { StorageManager } from './StorageManager';
+import { notifyStorageChanged, type StorageCategory } from '../storage/registry';
 import {
   BROWSER_VOICE_ID,
   findPiperVoice,
   resolveVoiceId,
   useVoicePreferences,
+  voiceDownloadLabel,
   voicePreviewText,
   type PiperLanguage,
 } from '../tts/voices';
@@ -21,6 +24,8 @@ interface VoiceSettingsModalProps {
   showPrivacy?: boolean;
   /** Settings for the page that opened this, shown above the reader voices */
   children?: React.ReactNode;
+  /** Kinds of downloads listed under "Space used on this device" (default: all registered) */
+  storageCategories?: StorageCategory[];
 }
 
 const VOICE_SETTINGS_LANGUAGES: ReadonlyArray<{
@@ -140,6 +145,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   client = piperClient,
   showPrivacy = false,
   children,
+  storageCategories,
 }) => {
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
@@ -259,6 +265,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     }
     setSavingVoice(null);
     await refreshSaved();
+    notifyStorageChanged();
   };
 
   if (!isOpen) return null;
@@ -329,6 +336,8 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 Choose your default reader voice for each language that has one. Your choices
                 save automatically on this device and Piper neural voice models download on demand.
                 To use read-aloud offline, click Save offline on a voice while you're online.
+                Each voice takes about 60 MB (a few take up to 115 MB), and the first one also
+                downloads the voice engine (about 40 MB). The list shows each voice's size.
               </p>
             </div>
 
@@ -378,6 +387,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                             lang={code}
                             ariaLabel={selectAriaLabel}
                             value={selectedVoiceId}
+                            savedModelIds={savedModels}
                             className={`rounded-[2px] border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer [&>option]:text-[#0F172A] ${
                               darkMode
                                 ? 'border-[#2B3952] bg-[#111827] text-[#F8FAFC]'
@@ -402,7 +412,9 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                               }`}
                             >
                               <CloudDownload className="w-3.5 h-3.5" />
-                              <span>{isSavingThis ? 'Saving…' : 'Save offline'}</span>
+                              <span>
+                                {isSavingThis ? 'Saving…' : `Save offline (${voiceDownloadLabel(selectedVoiceId)})`}
+                              </span>
                             </button>
                           )}
                           {isThisLangActive ? (
@@ -456,6 +468,14 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               )}
             </div>
           </section>
+
+          <div className={`pt-5 border-t ${darkMode ? 'border-[#1E293B]' : 'border-slate-200'}`}>
+            <StorageManager
+              isDark={darkMode}
+              categories={storageCategories}
+              onChanged={() => void refreshSaved()}
+            />
+          </div>
 
           {/* On-device privacy */}
           {showPrivacy && (
