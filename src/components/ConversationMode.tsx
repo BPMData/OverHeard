@@ -34,7 +34,7 @@ import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { LectureControlsSetting } from './LectureControlsSetting';
 import { useConversationSettings } from './useConversationSettings';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Settings as SettingsIcon } from 'lucide-react';
+import { HelpCircle, Maximize2, Minimize2, Settings as SettingsIcon } from 'lucide-react';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { piperClient } from '../tts/piperClient';
@@ -517,8 +517,17 @@ export function ConversationMode({
               {lecture.speech.isListening ? 'Pause lecture' : 'Start lecture'}
             </button>
             {onOpenLanguages && (
-              <button type="button" className="conversation-langs-btn" onClick={onOpenLanguages}>
-                Languages{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}
+              <button
+                type="button"
+                className="conversation-langs-btn"
+                onClick={onOpenLanguages}
+                aria-label={`Languages${targetLangs.length > 0 ? `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}` : ''}`}
+              >
+                Languages
+                <span className="oh-wide-xl">{targetLangs.length > 0 && `: ${targetLangs.map(code => LANGUAGE_MAP[code].name).join(', ')}`}</span>
+                {targetLangs.length > 0 && (
+                  <span className="oh-narrow-xl conversation-lang-chip">{targetLangs.map(code => code.toUpperCase()).join(' · ')}</span>
+                )}
               </button>
             )}
             {!showAllControls && !activeRoomCode && (
@@ -558,6 +567,8 @@ export function ConversationMode({
         <div className="conversation-control-group" role="group" aria-label="Display settings">
           {voiceSettingsButton}
           <button
+            aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+            title={fullscreen ? 'Exit full screen' : 'Full screen'}
             onClick={() => {
               if (fullscreen) void document.exitFullscreen();
               else
@@ -566,7 +577,10 @@ export function ConversationMode({
                   .catch(() => setUiError('Full screen is unavailable in this browser.'));
             }}
           >
-            {fullscreen ? 'Exit full screen' : 'Full screen'}
+            <span className="oh-narrow-xl" aria-hidden="true">
+              {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </span>
+            <span className="oh-wide-xl">{fullscreen ? 'Exit full screen' : 'Full screen'}</span>
           </button>
           {onAdjustFont && (
             <div className="conversation-font-controls" role="group" aria-label="Text size">
@@ -598,8 +612,10 @@ export function ConversationMode({
                 ...current,
                 showAllLectureControls: !current.showAllLectureControls,
               }))}
+              aria-label={showAllControls ? 'Use simple controls' : 'Show all controls'}
             >
-              {showAllControls ? 'Use simple controls' : 'Show all controls'}
+              <span className="oh-wide-xl">{showAllControls ? 'Use simple controls' : 'Show all controls'}</span>
+              <span className="oh-narrow-xl">{showAllControls ? 'Simple' : 'All controls'}</span>
             </button>
           )}
           <button
@@ -607,8 +623,9 @@ export function ConversationMode({
             className="conversation-exit"
             onClick={exit}
             title={`Leave ${isLecture ? 'Lecture' : 'Two-way'} and go back to ${returnViewName} view`}
+            aria-label={`Back to ${returnViewName} view`}
           >
-            <span aria-hidden="true">← </span>Back to {returnViewName} view
+            <span aria-hidden="true">← </span><span className="oh-wide-xl">Back to </span>{returnViewName}<span className="oh-wide-xl"> view</span>
           </button>
           <button
             type="button"
@@ -618,7 +635,7 @@ export function ConversationMode({
             title="How to use OverHeard: Guide, FAQ, and Privacy Notice"
           >
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>{isLecture ? 'Help' : 'Guide & FAQ'}</span>
+            <span className="oh-wide-xl">{isLecture ? 'Help' : 'Guide & FAQ'}</span>
           </button>
         </div>
       </div>
