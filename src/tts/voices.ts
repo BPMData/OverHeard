@@ -183,7 +183,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'vi_VN-vais1000-medium',
     lang: 'vi',
-    label: 'VAIS (VN)',
+    label: 'VAIS (Female · VN)',
+    gender: 'female',
     shortName: 'VAIS',
     modelId: 'vi_VN-vais1000-medium',
     hfPath: 'vi/vi_VN/vais1000/medium/vi_VN-vais1000-medium.onnx',
@@ -193,7 +194,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'vi_VN-25hours_single-low',
     lang: 'vi',
-    label: '25 Hours (VN · smaller)',
+    label: '25 Hours (Female · VN · smaller)',
+    gender: 'female',
     shortName: '25 Hours',
     modelId: 'vi_VN-25hours_single-low',
     hfPath: 'vi/vi_VN/25hours_single/low/vi_VN-25hours_single-low.onnx',
@@ -229,7 +231,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'bn_BD-google-medium:0',
     lang: 'bn',
-    label: 'Google (BD)',
+    label: 'Google (Male · BD)',
+    gender: 'male',
     shortName: 'Google',
     modelId: 'bn_BD-google-medium',
     hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
@@ -276,7 +279,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'id_ID-news_tts-medium',
     lang: 'id',
-    label: 'News (ID)',
+    label: 'News (Female · ID)',
+    gender: 'female',
     shortName: 'News',
     modelId: 'id_ID-news_tts-medium',
     hfPath: 'id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx',
@@ -288,7 +292,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'sw_CD-lanfrica-medium',
     lang: 'sw',
-    label: 'Lanfrica (CD)',
+    label: 'Lanfrica (Male · CD)',
+    gender: 'male',
     shortName: 'Lanfrica',
     modelId: 'sw_CD-lanfrica-medium',
     hfPath: 'sw/sw_CD/lanfrica/medium/sw_CD-lanfrica-medium.onnx',
@@ -300,7 +305,8 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
   {
     id: 'tr_TR-dfki-medium',
     lang: 'tr',
-    label: 'DFKI (TR)',
+    label: 'DFKI (Male · TR)',
+    gender: 'male',
     shortName: 'DFKI',
     modelId: 'tr_TR-dfki-medium',
     hfPath: 'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx',
