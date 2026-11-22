@@ -8,6 +8,8 @@ import { getOnDeviceAvailability, isOnDeviceTranslationSupported, translateOnDev
 vi.mock('./onDevice', async (importOriginal) => ({
   ...await importOriginal<typeof import('./onDevice')>(),
   isOnDeviceTranslationSupported: vi.fn(),
+  // Chrome's own translator (the one that brings on-device speech too)
+  hasChromeTranslator: vi.fn(() => true),
   getOnDeviceAvailability: vi.fn(async () => 'unavailable'),
   prepareOnDeviceTranslators: vi.fn(),
   prepareOnDeviceSpeech: vi.fn(async () => true),

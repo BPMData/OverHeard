@@ -58,7 +58,7 @@ export const TRANSLATED_BY: Record<TranslatorId, { label: string; tone: 'local' 
   'on-device': {
     label: 'this device',
     tone: 'local',
-    title: 'Translated by Chrome on this device. The text did not leave this computer.',
+    title: 'Translated on this device, by Chrome or by Firefox Translations (Bergamot). The text did not leave this computer.',
   },
   gtx: {
     label: 'Google, free',

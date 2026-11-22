@@ -8,11 +8,15 @@
 // - The Piper voice runtimes (/ort/, /piper/, ~40 MB) and Google Fonts are saved the first
 //   time they're used: on the first read-aloud, or when a teacher clicks "Save offline" on a
 //   voice in Settings. Student room links never download them at install.
+// - The on-device translation engine (/bergamot/, ~5 MB) is saved the same way, the first time a
+//   translation model loads. The models themselves live in their own cache (BERGAMOT_CACHE),
+//   written by the page, which every deploy keeps.
 // - API calls are never cached.
 const PRECACHE = [];
 const SHELL_VERSION = 'dev';
 const SHELL_CACHE = `overheard-shell-${SHELL_VERSION}`;
 const RUNTIME_CACHE = 'overheard-runtime-v1';
+const BERGAMOT_CACHE = 'overheard-bergamot-v1';
 const NAVIGATION_TIMEOUT_MS = 3000;
 
 self.addEventListener('install', (event) => {
@@ -30,7 +34,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== SHELL_CACHE && k !== RUNTIME_CACHE)
+            .filter((k) => k !== SHELL_CACHE && k !== RUNTIME_CACHE && k !== BERGAMOT_CACHE)
             .map((k) => caches.delete(k)),
         ),
       )
@@ -44,6 +48,7 @@ const isFontRequest = (url) =>
 const isRuntimeAsset = (url) =>
   url.pathname.startsWith('/ort/') ||
   url.pathname.startsWith('/piper/') ||
+  url.pathname.startsWith('/bergamot/') ||
   url.pathname.startsWith('/icons/');
 
 /** Network-first, but a school Wi-Fi that hangs shouldn't block opening the app. */

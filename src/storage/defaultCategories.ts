@@ -1,5 +1,6 @@
-// Registers the kinds of downloads OverHeard has today: Piper voices, Meta MMS voices and
-// Chrome language packs. New kinds (Bergamot translation models) register the same way.
+// Registers the kinds of downloads OverHeard has today: Piper voices, Meta MMS voices, Chrome
+// language packs and Bergamot translation models. New kinds register the same way.
+import { createBergamotStorageCategory } from '../translation/bergamot/storage';
 import { createChromePackStorageCategory } from '../translation/packStorage';
 import { piperClient } from '../tts/piperClient';
 import { createMmsVoiceStorageCategory, createVoiceStorageCategory } from '../tts/voiceStorage';
@@ -13,6 +14,7 @@ export function ensureDefaultStorageCategories(): void {
   registerStorageCategory(createVoiceStorageCategory(piperClient));
   registerStorageCategory(createMmsVoiceStorageCategory(piperClient));
   registerStorageCategory(createChromePackStorageCategory());
+  registerStorageCategory(createBergamotStorageCategory());
   // A voice that finishes downloading (from a preview or read-aloud) changes the tally.
   piperClient.subscribeStatus((status) => {
     if (status.status === 'ready') notifyStorageChanged();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Download, MousePointerClick } from 'lucide-react';
 import { formatElapsed, packLabel } from '../packProgress';
-import { PACK_NEEDS_CLICK, startWaitingPack } from '../onDevice';
+import { PACK_NEEDS_CLICK, startWaitingPack, waitingPackSize } from '../onDevice';
 
 interface Props {
   /**
@@ -18,6 +18,8 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
   if (entries.length === 0) return null;
   const waiting = entries.filter(([, fraction]) => fraction === PACK_NEEDS_CLICK);
   const downloading = entries.filter(([, fraction]) => fraction !== PACK_NEEDS_CLICK);
+  // Bergamot models (Safari, Firefox, or a language Chrome lacks) show their size before downloading
+  const allSized = waiting.every(([key]) => waitingPackSize(key) !== null);
   return (
     <div
       role="status"
@@ -34,21 +36,27 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
             </span>
           </div>
           <div>
-            Chrome starts only one download per click. Click each language to start it; until
-            then its captions stay untranslated or use online translation.
+            {allSized
+              ? 'These languages can translate on this device after a one-time download. Click each one to download it; until then its captions stay untranslated or use online translation.'
+              : 'Chrome starts only one download per click. Click each language to start it; until then its captions stay untranslated or use online translation.'}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {waiting.map(([key]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => startWaitingPack(key)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[2px] font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse"
-              >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                Download {packLabel(key)}
-              </button>
-            ))}
+            {waiting.map(([key]) => {
+              const sized = waitingPackSize(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => startWaitingPack(key)}
+                  title={sized?.note ? `This uses a related language’s model (${sized.note}).` : undefined}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[2px] font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse"
+                >
+                  <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                  Download {packLabel(key)}
+                  {sized && ` (${sized.note ? `${sized.note}, ` : ''}${sized.size})`}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -64,8 +72,8 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
             )}
           </div>
           <div className="text-[#64748B] dark:text-[#94A3B8]">
-            First time only — usually about a minute. Chrome keeps them for next time. Tip: pick
-            languages before class; choosing one starts its download.
+            First time only — usually about a minute. They’re kept on this device for next time.
+            Tip: pick languages before class; choosing one starts its download.
           </div>
           {downloading.map(([key, fraction]) => (
             <div key={key} className="flex items-center gap-2">

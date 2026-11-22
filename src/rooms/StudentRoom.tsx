@@ -3,8 +3,10 @@ import { Moon, Settings, Sun } from 'lucide-react';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
-import { SUPPORTED_LANGUAGES } from '../constants';
-import { getOnDeviceAvailability, prepareOnDeviceTranslators } from '../onDevice';
+import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
+import { PACK_NEEDS_CLICK, getChromeAvailability, getOnDeviceAvailability, prepareOnDeviceTranslators, startWaitingPack, waitingPackSize } from '../onDevice';
+import { BERGAMOT_APPROXIMATE, bergamotDownloadLabel } from '../translation/bergamot/models';
+import { hasBergamotModel } from '../translation/bergamot/engine';
 import { piperClient } from '../tts/piperClient';
 import { TranslatedByBadge } from '../header/TranslatorPicker';
 import { useLecturePlayback } from '../tts/useSpeechPlayback';
@@ -51,12 +53,21 @@ export function StudentRoom({ code }: { code: string }) {
   // A direct room link can restore a language before Chrome has a download gesture.
   const needsLocalPack = !!snapshot && language !== 'en' && (readAloud || !snapshot.selectedLangs.includes(language));
   const [downloadOffer, setDownloadOffer] = useState<LanguageCode | null>(null);
+  // Percent of an on-device model download this page started, shown next to the language
+  const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  // The offer is a Bergamot model (its size is known) rather than a Chrome pack
+  const [offerIsModel, setOfferIsModel] = useState(false);
   useEffect(() => {
     let active = true;
     setDownloadOffer(null);
+    setDownloadPct(null);
     if (needsLocalPack) {
-      void getOnDeviceAvailability(language).then(status => {
-        if (active && status === 'downloadable') setDownloadOffer(language);
+      void getOnDeviceAvailability(language).then(async status => {
+        if (!active || status !== 'downloadable') return;
+        const viaChrome = (await getChromeAvailability(language)) !== 'unavailable';
+        if (!active) return;
+        setOfferIsModel(!viaChrome && hasBergamotModel(language));
+        setDownloadOffer(language);
       });
     }
     return () => { active = false; };
@@ -106,11 +117,21 @@ export function StudentRoom({ code }: { code: string }) {
       {needsLocalPack && downloadOffer === language && (
         <button type="button" onClick={() => {
           setDownloadOffer(null);
-          prepareOnDeviceTranslators([language], (_code, progress) => {
-            if (progress === null) setDownloadOffer(language);
+          prepareOnDeviceTranslators([language], (code, progress) => {
+            if (code !== language) return;
+            // A Bergamot model waits for a click on a button that shows its size: this one.
+            if (progress === PACK_NEEDS_CLICK && waitingPackSize(code)) startWaitingPack(code);
+            else if (progress === null) { setDownloadPct(null); setDownloadOffer(language); }
+            else if (progress >= 1) setDownloadPct(null);
+            else if (progress >= 0) setDownloadPct(Math.round(progress * 100));
           });
-        }}>Download language for this device</button>
+        }}>
+          {offerIsModel
+            ? `Download ${LANGUAGE_MAP[language as LanguageCode].name} for this device (${BERGAMOT_APPROXIMATE[language] ? `${BERGAMOT_APPROXIMATE[language]}, ` : ''}${bergamotDownloadLabel(language)})`
+            : 'Download language for this device'}
+        </button>
       )}
+      {downloadPct !== null && <span role="status">Downloading {LANGUAGE_MAP[language as LanguageCode]?.name}… {downloadPct}%</span>}
       <label>Voice
         <VoiceSelect
           lang={language}

@@ -21,5 +21,9 @@ export async function configureDevelopment(app: Express, rootPath: string) {
   app.get('/piper/piper_phonemize.data', (_req: Request, res: Response) =>
     res.sendFile(path.join(piperNodeModules, 'piper_phonemize.data'))
   );
+  const bergamotNodeModules = path.join(rootPath, 'node_modules/@browsermt/bergamot-translator/worker');
+  for (const file of ['translator-worker.js', 'bergamot-translator-worker.js', 'bergamot-translator-worker.wasm']) {
+    app.get(`/bergamot/${file}`, (_req: Request, res: Response) => res.sendFile(path.join(bergamotNodeModules, file)));
+  }
   app.use(vite.middlewares);
 }

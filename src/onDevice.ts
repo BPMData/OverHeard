@@ -1,9 +1,15 @@
-// On-device mode: Chrome's built-in Translator API and on-device speech recognition.
-// Nothing here talks to a server. Callers fall back to the cloud path when something
-// isn't available (unsupported browser, unsupported language, blocked by policy).
+// On-device mode: Chrome's built-in Translator API, then Bergamot (Firefox Translations, in
+// src/translation/bergamot/) where Chrome can't translate a language, and on-device speech
+// recognition. No caption text goes to a server here. Callers fall back to the cloud path when
+// something isn't available (unsupported browser, unsupported language, blocked by policy).
 
 import { ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
 import { speechLocale } from './conversation/locales';
+import {
+  bergamotAvailability, createBergamotTranslator, downloadBergamotModel, hasBergamotModel,
+  isBergamotRunnable, isBergamotTranslator,
+} from './translation/bergamot/engine';
+import { BERGAMOT_APPROXIMATE, bergamotDownloadLabel } from './translation/bergamot/models';
 
 type Availability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
 
@@ -42,7 +48,11 @@ const getTranslatorApi = (): TranslatorStatic | null => browserGlobals().Transla
 const getSpeechApi = (): SpeechRecognitionStatic | null =>
   browserGlobals().SpeechRecognition ?? browserGlobals().webkitSpeechRecognition ?? null;
 
-export const isOnDeviceTranslationSupported = (): boolean => getTranslatorApi() !== null;
+/** Chrome's built-in Translator API is present (it also brings on-device speech in Chrome). */
+export const hasChromeTranslator = (): boolean => getTranslatorApi() !== null;
+
+/** Some on-device translator can run here: Chrome's, or Bergamot for the languages it has. */
+export const isOnDeviceTranslationSupported = (): boolean => hasChromeTranslator() || isBergamotRunnable();
 
 // Chrome's Translator uses BCP 47 codes; ours match except Dari.
 const TRANSLATOR_CODES: Record<string, string> = { prs: 'fa-AF' };
@@ -53,6 +63,9 @@ const translators = new Map<string, Promise<TranslatorInstance | null>>();
 const readyPairs = new Set<string>();
 const unavailableUntil = new Map<string, number>();
 const UNAVAILABLE_RECHECK_MS = 30_000;
+// Chrome's availability() can hang (e.g. while its translation service starts, or in a browser
+// that ships the API without its service). When Bergamot can take over, wait only this long.
+const CHROME_CHECK_WITH_FALLBACK_MS = 3000;
 
 /**
  * Download progress for a language: 0–1 while downloading, PACK_NEEDS_CLICK while it waits for
@@ -68,11 +81,25 @@ export type PackProgress = (code: string, fraction: number | null) => void;
  */
 export const PACK_NEEDS_CLICK = -2;
 const waitingForClick = new Map<string, () => void>();
+// Waiting Bergamot downloads. Unlike Chrome's, they don't need the click itself, but each one
+// waits for a click on a button that shows its size first, so nothing big downloads unasked.
+const waitingBergamot = new Set<string>();
+
+/**
+ * For a pack waiting for a click: "34 MB" when it's a Bergamot model (with a note when the model
+ * is only an approximation of the language), or null for a Chrome pack, whose size Chrome
+ * doesn't publish.
+ */
+export function waitingPackSize(key: string): { size: string; note?: string } | null {
+  if (!waitingBergamot.has(key)) return null;
+  return { size: bergamotDownloadLabel(key), note: BERGAMOT_APPROXIMATE[key] };
+}
 
 /** Start a pack download that is waiting for a click. Call it straight from the click handler. */
 export function startWaitingPack(key: string): void {
   const start = waitingForClick.get(key);
   waitingForClick.delete(key);
+  waitingBergamot.delete(key);
   start?.();
 }
 
@@ -128,92 +155,19 @@ export function getOnDeviceTranslator(
 
   const api = getTranslatorApi();
   const promise: Promise<TranslatorInstance | null> = (async () => {
-    if (!api) return null;
-    const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
-    // These caps use the strict mode's budget. Auto callers apply their own shorter deadline.
-    const availability = await rejectAfter(api.availability(langs), ON_DEVICE_TIMEOUT_MS);
-    if (availability === 'unavailable') return null;
-    if (availability === 'available') return createWithin(api, langs, ON_DEVICE_TIMEOUT_MS);
-
-    onProgress?.(code, 0);
-    let sawProgress = false;
-    let settled = false;
-    let waiting = false;
-    let startedAt = Date.now();
-
-    const createWithMonitor = () => api.create({
-      ...langs,
-      monitor: (m) =>
-        m.addEventListener('downloadprogress', (e) => {
-          if (settled) return;
-          const fraction = progressFraction(e as unknown as { loaded: number; total?: number });
-          if (fraction > 0) sawProgress = true;
-          onProgress?.(code, fraction);
-        }),
-    });
-
-    return await new Promise<TranslatorInstance | null>((resolve, reject) => {
-      const finish = (fn: () => void) => {
-        if (settled) return;
-        settled = true;
-        clearInterval(pollTimer);
-        if (waitingForClick.get(code) === resume) waitingForClick.delete(code);
-        fn();
-      };
-
-      const pollTimer = setInterval(() => {
-        if (settled) return;
-        void api.availability(langs).then(
-          (status) => {
-            if (settled) return;
-            if (status === 'available') {
-              // Chrome can finish downloading the pack in the background without resolving
-              // the original create()/downloadprogress call; create a ready instance now.
-              void api.create(langs).then(
-                (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
-                () => {
-                  /* Wait for the original createPromise or next poll tick. */
-                }
-              );
-            } else if (status === 'unavailable') {
-              finish(() => resolve(null));
-            } else if (!waiting && !sawProgress && Date.now() - startedAt >= STALLED_PROGRESS_MS) {
-              sawProgress = true;
-              onProgress?.(code, -1);
-            }
-          },
-          () => {
-            /* Ignore transient availability errors while create() is pending. */
-          }
-        );
-      }, AVAILABILITY_POLL_MS);
-
-      // A poll may have created the instance first. Destroy whichever one loses.
-      const begin = () =>
-        createWithMonitor().then(
-          (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
-          (err) => {
-            if (settled) return;
-            if (!isNotAllowed(err)) {
-              finish(() => reject(err));
-              return;
-            }
-            // Another pack took this click. Wait for a click of its own (see PACK_NEEDS_CLICK).
-            waiting = true;
-            onProgress?.(code, PACK_NEEDS_CLICK);
-            waitingForClick.set(code, resume);
-          }
-        );
-      function resume() {
-        if (settled) return;
-        waiting = false;
-        sawProgress = false;
-        startedAt = Date.now();
-        onProgress?.(code, 0);
-        begin();
-      }
-      begin();
-    });
+    let chrome: TranslatorInstance | null = null;
+    const fallback = hasBergamotModel(code, source);
+    // Chrome recently said no (or didn't answer): go straight to Bergamot
+    const skipChrome = fallback && (unavailableUntil.get(key) ?? 0) > Date.now();
+    try {
+      chrome = api && !skipChrome
+        ? await getChromeTranslator(api, code, source, onProgress, fallback ? CHROME_CHECK_WITH_FALLBACK_MS : ON_DEVICE_TIMEOUT_MS)
+        : null;
+    } catch (error) {
+      if (!fallback) throw error;
+      unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
+    }
+    return chrome ?? getBergamotTranslator(code, source, onProgress);
   })();
 
   translators.set(key, promise);
@@ -222,7 +176,8 @@ export function getOnDeviceTranslator(
     (translator) => {
       if (translators.get(key) !== promise) return;
       if (translator) {
-        readyPairs.add(key);
+        // readyPairs and unavailableUntil describe Chrome's translator only
+        if (!isBergamotTranslator(translator)) readyPairs.add(key);
         unavailableUntil.delete(key);
       } else {
         translators.delete(key);
@@ -232,6 +187,134 @@ export function getOnDeviceTranslator(
     () => { if (translators.get(key) === promise) translators.delete(key); }
   );
   return promise;
+}
+
+/**
+ * Bergamot for `source` → `code` when Chrome can't: ready at once when the model is saved.
+ * A model that isn't saved waits for a click on its download button (PACK_NEEDS_CLICK), which
+ * shows the size first; without `onProgress` nobody can be asked, so this resolves to null.
+ */
+async function getBergamotTranslator(
+  code: string,
+  source: string,
+  onProgress?: PackProgress,
+): Promise<TranslatorInstance | null> {
+  if (!hasBergamotModel(code, source)) return null;
+  const status = await bergamotAvailability(code, source);
+  if (status === 'available') return createBergamotTranslator(code, source);
+  const report = (fraction: number) => onProgress?.(code, fraction);
+  if (status === 'downloading') {
+    report(0);
+    await downloadBergamotModel(code, report);
+    return createBergamotTranslator(code, source);
+  }
+  if (status !== 'downloadable' || !onProgress) return null;
+  return new Promise<TranslatorInstance>((resolve, reject) => {
+    const start = () => {
+      report(0);
+      downloadBergamotModel(code, report)
+        .then(() => createBergamotTranslator(code, source))
+        .then(resolve, reject);
+    };
+    waitingForClick.set(code, start);
+    waitingBergamot.add(code);
+    onProgress(code, PACK_NEEDS_CLICK);
+  });
+}
+
+/** Chrome's translator for `source` → `code`, or null when Chrome can't translate this pair. */
+async function getChromeTranslator(
+  api: TranslatorStatic,
+  code: string,
+  source: string,
+  onProgress: PackProgress | undefined,
+  checkMs: number,
+): Promise<TranslatorInstance | null> {
+  const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
+  // These caps use the strict mode's budget. Auto callers apply their own shorter deadline.
+  const availability = await rejectAfter(api.availability(langs), checkMs);
+  if (availability === 'unavailable') return null;
+  if (availability === 'available') return createWithin(api, langs, ON_DEVICE_TIMEOUT_MS);
+
+  onProgress?.(code, 0);
+  let sawProgress = false;
+  let settled = false;
+  let waiting = false;
+  let startedAt = Date.now();
+
+  const createWithMonitor = () => api.create({
+    ...langs,
+    monitor: (m) =>
+      m.addEventListener('downloadprogress', (e) => {
+        if (settled) return;
+        const fraction = progressFraction(e as unknown as { loaded: number; total?: number });
+        if (fraction > 0) sawProgress = true;
+        onProgress?.(code, fraction);
+      }),
+  });
+
+  return await new Promise<TranslatorInstance | null>((resolve, reject) => {
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(pollTimer);
+      if (waitingForClick.get(code) === resume) waitingForClick.delete(code);
+      fn();
+    };
+
+    const pollTimer = setInterval(() => {
+      if (settled) return;
+      void api.availability(langs).then(
+        (status) => {
+          if (settled) return;
+          if (status === 'available') {
+            // Chrome can finish downloading the pack in the background without resolving
+            // the original create()/downloadprogress call; create a ready instance now.
+            void api.create(langs).then(
+              (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
+              () => {
+                /* Wait for the original createPromise or next poll tick. */
+              }
+            );
+          } else if (status === 'unavailable') {
+            finish(() => resolve(null));
+          } else if (!waiting && !sawProgress && Date.now() - startedAt >= STALLED_PROGRESS_MS) {
+            sawProgress = true;
+            onProgress?.(code, -1);
+          }
+        },
+        () => {
+          /* Ignore transient availability errors while create() is pending. */
+        }
+      );
+    }, AVAILABILITY_POLL_MS);
+
+    // A poll may have created the instance first. Destroy whichever one loses.
+    const begin = () =>
+      createWithMonitor().then(
+        (instance) => (settled ? destroyQuietly(instance) : finish(() => resolve(instance))),
+        (err) => {
+          if (settled) return;
+          if (!isNotAllowed(err)) {
+            finish(() => reject(err));
+            return;
+          }
+          // Another pack took this click. Wait for a click of its own (see PACK_NEEDS_CLICK).
+          waiting = true;
+          onProgress?.(code, PACK_NEEDS_CLICK);
+          waitingForClick.set(code, resume);
+        }
+      );
+    function resume() {
+      if (settled) return;
+      waiting = false;
+      sawProgress = false;
+      startedAt = Date.now();
+      onProgress?.(code, 0);
+      begin();
+    }
+    begin();
+  });
 }
 
 /**
@@ -253,8 +336,25 @@ export function prepareOnDeviceTranslators(
   }
 }
 
-/** Reports an installation started in this tab even before Chrome updates its availability. */
+/**
+ * Whether `source` → `code` can be translated on this device: by Chrome when it can, otherwise
+ * by Bergamot ('downloadable' until its model is saved).
+ */
 export async function getOnDeviceAvailability(code: string, source = 'en'): Promise<Availability> {
+  if (!hasBergamotModel(code, source)) return getChromeAvailability(code, source);
+  const chrome = await rejectAfter(getChromeAvailability(code, source), CHROME_CHECK_WITH_FALLBACK_MS).catch(() => {
+    unavailableUntil.set(`${source}>${code}`, Date.now() + UNAVAILABLE_RECHECK_MS);
+    return 'unavailable' as const;
+  });
+  if (chrome !== 'unavailable') return chrome;
+  return bergamotAvailability(code, source).catch(() => 'unavailable' as const);
+}
+
+/**
+ * Chrome's translator only. Reports an installation started in this tab even before Chrome
+ * updates its availability.
+ */
+export async function getChromeAvailability(code: string, source = 'en'): Promise<Availability> {
   const api = getTranslatorApi();
   if (!api) return 'unavailable';
   const key = `${source}>${code}`;
@@ -393,7 +493,8 @@ export function prepareOfflineSpeechIfTranslatorsReady(
   speech: ReadonlyArray<{ key: string; locale: string }>,
   onProgress?: PackProgress
 ): void {
-  void Promise.all(pairs.map(({ code, source }) => getOnDeviceAvailability(code, source)))
+  // Only Chrome's packs need the click itself; Bergamot downloads don't take it.
+  void Promise.all(pairs.map(({ code, source }) => getChromeAvailability(code, source)))
     .then((statuses) => {
       if (!statuses.every((status) => status === 'available' || status === 'unavailable')) return;
       for (const { key, locale } of speech) {

@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
+import { BERGAMOT_ATTRIBUTION } from '../translation/bergamot/models';
 
 interface AboutModalProps {
   isOpen: boolean;
@@ -253,6 +254,14 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   Piper neural voices download their voice model once on first playback and cache it in your browser&apos;s local storage so subsequent sentences play fast and work offline.
                 </p>
               </div>
+              <div>
+                <div className="font-semibold text-slate-800 dark:text-slate-200">
+                  How does translation work on this device without Chrome?
+                </div>
+                <p>
+                  Where Chrome&apos;s built-in translator isn&apos;t available (Safari, Firefox, some Chromebooks, and languages Chrome lacks such as Urdu), OverHeard can translate on this device with <a href={BERGAMOT_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Firefox Translations (Bergamot)</a> by Mozilla. Each language downloads its model once (about 20–48 MB) when you click its download button, which shows the size first. Dari uses the Persian model, so its translations are approximate (Iranian Persian, not Afghan Dari). Models and engine are licensed under the <a href={BERGAMOT_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Mozilla Public License 2.0</a>. Delete them anytime in <strong className="text-slate-800 dark:text-slate-200">Settings → Space used on this device</strong>.
+                </p>
+              </div>
             </div>
 
             <div className="p-4 rounded-[3px] border border-amber-500/40 bg-amber-500/10 text-slate-800 dark:text-slate-100 space-y-1.5">
@@ -261,7 +270,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 <span>Privacy Statement</span>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200">
-                OverHeard requires no login to caption or translate. Spoken audio is transcribed by your browser&apos;s speech service, and text is translated locally when <strong className="text-slate-900 dark:text-white">On-device first</strong> can use Chrome&apos;s on-device translator; otherwise text (including live interim phrases) is sent to Google Translate (the free endpoint first, then Google Cloud Translation). Choose <strong className="text-slate-900 dark:text-white">On this device</strong> in the Translator menu so speech, translation, and playback stay completely offline; that mode never falls back to an online translator — unless you actively start a live <strong className="text-slate-900 dark:text-white">Student Room</strong> (held only in temporary server memory to stream JSON updates, never saved to disk or a database) or use <strong className="text-slate-900 dark:text-white">Google Drive</strong> saves (which use Google&apos;s narrow <code className="font-mono text-xs">drive.file</code> scope).
+                OverHeard requires no login to caption or translate. Spoken audio is transcribed by your browser&apos;s speech service, and text is translated locally when <strong className="text-slate-900 dark:text-white">On-device first</strong> can use Chrome&apos;s on-device translator or a downloaded Firefox Translations model; otherwise text (including live interim phrases) is sent to Google Translate (the free endpoint first, then Google Cloud Translation). Choose <strong className="text-slate-900 dark:text-white">On this device</strong> in the Translator menu so speech, translation, and playback stay completely offline; that mode never falls back to an online translator — unless you actively start a live <strong className="text-slate-900 dark:text-white">Student Room</strong> (held only in temporary server memory to stream JSON updates, never saved to disk or a database) or use <strong className="text-slate-900 dark:text-white">Google Drive</strong> saves (which use Google&apos;s narrow <code className="font-mono text-xs">drive.file</code> scope).
               </p>
             </div>
           </section>

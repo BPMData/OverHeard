@@ -6,7 +6,7 @@
 // installed packs and explains how to remove them in Chrome, rather than pretending to.
 import { rejectAfter } from '../app/settings';
 import { SUPPORTED_LANGUAGES } from '../constants';
-import { getOnDeviceAvailability, isOnDeviceTranslationSupported } from '../onDevice';
+import { getChromeAvailability, hasChromeTranslator } from '../onDevice';
 import type { StorageCategory } from '../storage/registry';
 
 /** Chrome's page with an Uninstall button for each translation pack. */
@@ -21,13 +21,13 @@ export const CHROME_PACK_SIZE_HINT = 'tens of MB each';
 /** Chrome's availability() can hang (e.g. while its translation service starts); don't wait forever. */
 const AVAILABILITY_TIMEOUT_MS = 3000;
 
-type Availability = Awaited<ReturnType<typeof getOnDeviceAvailability>>;
+type Availability = Awaited<ReturnType<typeof getChromeAvailability>>;
 
 export function createChromePackStorageCategory(
   // Looked up when the list is checked, not when Settings renders, so a failure stays in list()
   availability: (code: string, source: string) => Promise<Availability> = (code, source) =>
-    getOnDeviceAvailability(code, source),
-  supported: () => boolean = () => isOnDeviceTranslationSupported(),
+    getChromeAvailability(code, source),
+  supported: () => boolean = () => hasChromeTranslator(),
 ): StorageCategory {
   return {
     id: 'chrome-translation-packs',
