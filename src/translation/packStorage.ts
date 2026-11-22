@@ -24,8 +24,10 @@ const AVAILABILITY_TIMEOUT_MS = 3000;
 type Availability = Awaited<ReturnType<typeof getOnDeviceAvailability>>;
 
 export function createChromePackStorageCategory(
-  availability: (code: string, source: string) => Promise<Availability> = getOnDeviceAvailability,
-  supported: () => boolean = isOnDeviceTranslationSupported,
+  // Looked up when the list is checked, not when Settings renders, so a failure stays in list()
+  availability: (code: string, source: string) => Promise<Availability> = (code, source) =>
+    getOnDeviceAvailability(code, source),
+  supported: () => boolean = () => isOnDeviceTranslationSupported(),
 ): StorageCategory {
   return {
     id: 'chrome-translation-packs',
