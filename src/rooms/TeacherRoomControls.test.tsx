@@ -66,7 +66,7 @@ describe('TeacherRoomControls', () => {
     expect(fetchMock).not.toHaveBeenCalled();
 
     // Enter code + PIN and click Rejoin room
-    fireEvent.change(screen.getByLabelText('Room code (optional for new)'), {
+    fireEvent.change(screen.getByLabelText('Room code (blank picks a random one)'), {
       target: { value: 'abc123' },
     });
     fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
@@ -152,7 +152,7 @@ describe('TeacherRoomControls', () => {
 
     render(<TeacherRoomControls state={localState} visible onRestore={onRestore} />);
     fireEvent.click(screen.getByRole('button', { name: 'Rejoin room' }));
-    fireEvent.change(screen.getByLabelText('Room code (optional for new)'), {
+    fireEvent.change(screen.getByLabelText('Room code (blank picks a random one)'), {
       target: { value: 'room-9' },
     });
     fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '9999' } });
@@ -207,13 +207,24 @@ describe('TeacherRoomControls', () => {
     // Clicking a room fills the code input, closes the menu, and focuses PIN
     fireEvent.click(screen.getByRole('button', { name: /live-bio/ }));
     expect(screen.queryByRole('region', { name: 'Recent room history' })).toBeNull();
-    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('live-bio');
+    expect((screen.getByLabelText('Room code (blank picks a random one)') as HTMLInputElement).value).toBe('live-bio');
     expect(document.activeElement).toBe(screen.getByLabelText('Room PIN'));
 
     // Clear removes all saved history
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(screen.getByText('No rooms created on this browser yet.')).toBeTruthy();
+  });
+
+  it('closes the create room panel with its X without creating a room', () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    render(<TeacherRoomControls state={{ ...emptyLecture() }} visible />);
+    fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
+    expect(screen.getByRole('dialog', { name: 'Create a room' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close without creating a room' }));
+    expect(screen.queryByRole('dialog', { name: 'Create a room' })).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('retries transient room creation errors automatically and offers a manual Retry button if all attempts fail', async () => {
@@ -266,7 +277,7 @@ describe('TeacherRoomControls class codes', () => {
     render(<TeacherRoomControls state={{ ...emptyLecture() }} visible />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
-    expect((screen.getByLabelText('Room code (optional for new)') as HTMLInputElement).value).toBe('murphy-p3');
+    expect((screen.getByLabelText('Room code (blank picks a random one)') as HTMLInputElement).value).toBe('murphy-p3');
     // The saved code is filled in, so the PIN gets focus
     expect(document.activeElement).toBe(screen.getByLabelText('Room PIN'));
     fireEvent.change(screen.getByLabelText('Room PIN'), { target: { value: '4321' } });
