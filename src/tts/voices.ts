@@ -24,6 +24,8 @@ export interface PiperVoiceOption {
   engine?: VoiceEngine;
   /** MMS: ISO 639-3 code of the facebook/mms-tts-<iso3> model, also the MMS_VOCABS key */
   mmsIso3?: string;
+  /** MMS: file name in the voice's folder, when it isn't model_quantized.onnx (see mmsVoiceUrl) */
+  mmsFile?: string;
   /** Download size in bytes, shown before the voice downloads (Piper: see PIPER_MODEL_BYTES) */
   downloadBytes?: number;
 }
@@ -48,8 +50,8 @@ export function voiceEngine(voice: Pick<PiperVoiceOption, 'engine'>): VoiceEngin
   return voice.engine ?? 'piper';
 }
 
-export function mmsVoiceUrl(voice: Pick<PiperVoiceOption, 'mmsIso3'>): string {
-  return `${MMS_VOICE_BASE_URL}/mms-tts-${voice.mmsIso3}/model_quantized.onnx`;
+export function mmsVoiceUrl(voice: Pick<PiperVoiceOption, 'mmsIso3' | 'mmsFile'>): string {
+  return `${MMS_VOICE_BASE_URL}/mms-tts-${voice.mmsIso3}/${voice.mmsFile ?? 'model_quantized.onnx'}`;
 }
 
 // Meta MMS voices are all single-speaker VITS models with int8 weights, about 28 MB each.
@@ -59,6 +61,7 @@ function mmsVoice(
   shortName: string,
   gender: 'female' | 'male',
   downloadBytes: number,
+  mmsFile?: string,
 ): PiperVoiceOption {
   const genderLabel = gender === 'female' ? 'Female' : 'Male';
   return {
@@ -73,6 +76,7 @@ function mmsVoice(
     engine: 'mms',
     mmsIso3: iso3,
     downloadBytes,
+    ...(mmsFile ? { mmsFile } : {}),
   };
 }
 
@@ -325,8 +329,9 @@ export const PIPER_VOICES: readonly PiperVoiceOption[] = [
     useRhasspyRepo: true,
   },
 
-  // Indonesian. MMS is the default: the Piper News voice sounds robotic.
-  mmsVoice('id', 'ind', 'Budi', 'male', 29_826_555),
+  // Indonesian. MMS is the default: the Piper News voice sounds robotic. Exported at speaking
+  // rate 0.88 (about 10% slower): the owner found Meta's default pace rushed.
+  mmsVoice('id', 'ind', 'Budi', 'male', 29_826_555, 'model_quantized_rate088.onnx'),
   {
     id: 'id_ID-news_tts-medium',
     lang: 'id',

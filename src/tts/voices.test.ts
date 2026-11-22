@@ -214,9 +214,8 @@ describe('Meta MMS voices', () => {
       expect(voice).toMatchObject({ id: `mms-tts-${voice.mmsIso3}`, modelId: `mms-tts-${voice.mmsIso3}`, gender: 'male' });
       expect(voice.label).toContain('Meta MMS');
       expect(voiceDownloadLabel(voice.id)).toBe('28 MB');
-      expect(mmsVoiceUrl(voice)).toBe(
-        `https://bpmdata.github.io/overheard-voices/mms-tts-${voice.mmsIso3}/model_quantized.onnx`,
-      );
+      const file = voice.mmsIso3 === 'ind' ? 'model_quantized_rate088.onnx' : 'model_quantized.onnx';
+      expect(mmsVoiceUrl(voice)).toBe(`https://bpmdata.github.io/overheard-voices/mms-tts-${voice.mmsIso3}/${file}`);
     }
     expect(voiceEngine(findPiperVoice('tr_TR-dfki-medium')!)).toBe('piper');
     expect(MMS_ATTRIBUTION.text).toContain('CC BY-NC 4.0');
