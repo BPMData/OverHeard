@@ -1,3 +1,4 @@
+import { bothWays, fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 import { useWakeLock } from '../wakeLock';
 import { withMicAccess, type MicBlock } from '../micPermission';
 import React, { useCallback, useEffect, useId, useReducer, useRef, useState } from 'react';
@@ -111,6 +112,12 @@ export function ConversationMode({
         ? [initialLanguage]
         : DEFAULT_LANGUAGES;
   const isLecture = settings.mode === 'lecture';
+  // Every place a language is chosen says which ones "Only on this device" can't translate
+  const needOnline = useLanguagesNeedingOnline(
+    isLecture ? fromEnglish(targetLangs) : bothWays(settings.a.lang, settings.b.lang),
+    mtPreference === 'on-device' && active,
+  );
+  const needOnlineNotice = needOnlineText(needOnline);
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const [sender, setSender] = useState<Side>('a');
   const [text, setText] = useState('');
@@ -639,9 +646,19 @@ export function ConversationMode({
           </button>
         </div>
       </div>
-      {isLecture && !showAllControls && onDeviceTranslationFailing && (
+      {needOnline.length > 0 ? (
+        <p className="lecture-translator-warning" role="alert" title={needOnlineNotice.title}>
+          ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate {needOnline.length > 1 ? 'these languages' : 'this language'}, so {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated.
+          {isLecture && !showAllControls
+            ? ' Open all controls and choose On-device first or an online translator.'
+            : ' Choose On-device first or an online translator.'}
+        </p>
+      ) : mtPreference === 'on-device' && onDeviceTranslationFailing && (
         <p className="lecture-translator-warning" role="alert">
-          On-device translation failed. Open all controls to choose another translator.
+          On-device translation failed. “Only on this device” never uses online translators, so these lines stay untranslated.
+          {isLecture && !showAllControls
+            ? ' Open all controls to choose another translator.'
+            : ' Choose On-device first or an online translator.'}
         </p>
       )}
       {/* Room setup and lecture tools share one row when they fit */}

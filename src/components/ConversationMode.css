@@ -380,8 +380,13 @@
 }
 .lecture-translator-warning {
   margin: 0;
+  color: #b91c1c;
   font-size: 13px;
   font-weight: 600;
+}
+
+.conversation-dark .lecture-translator-warning {
+  color: #f87171;
 }
 
 .conversation-brand,
