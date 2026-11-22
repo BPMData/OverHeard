@@ -95,7 +95,8 @@
   opacity: 0.25;
   animation: oh-beckon-breathe 3.6s ease-in-out infinite alternate;
 }
-.dark .oh-beckon::after {
+.dark .oh-beckon::after,
+.conversation-dark .oh-beckon::after {
   background: linear-gradient(90deg, rgba(250, 204, 21, 0.34) 0%, rgba(250, 204, 21, 0.12) 14%, transparent 32%);
 }
 @keyframes oh-beckon-breathe {

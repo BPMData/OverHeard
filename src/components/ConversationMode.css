@@ -912,13 +912,13 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.conversation-mode button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button),
+.conversation-mode button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button):not(.oh-menu-item):not(.oh-info-btn),
 .room-join button {
   background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 49%, #e6ecf5 50%, #eef3f9 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
   border-color: #b6c2d2;
 }
-.conversation-dark button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button),
+.conversation-dark button:not(.conversation-start):not(.conversation-exit):not(.conversation-new):not(.conversation-brand):not(.room-pin-toggle):not(.conversation-submode button):not(.oh-menu-item):not(.oh-info-btn),
 .dark .room-join button,
 .conversation-dark .room-join button {
   background: linear-gradient(180deg, #243149 0%, #1b2538 49%, #141c2c 50%, #1a2436 100%);
@@ -938,4 +938,161 @@
   background: linear-gradient(180deg, #19c389 0%, #059669 49%, #047857 50%, #09a36f 100%);
   border-color: #065f46;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+/* Lecture: room setup and lecture tools share one row when they fit, else wrap as whole panels */
+.lecture-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.lecture-bar > * {
+  flex: 1 0 auto;
+  max-width: 100%;
+}
+.lecture-bar > [hidden] {
+  display: none;
+}
+
+/* Small dropdown menus (File, Voices) */
+.oh-menu {
+  position: relative;
+  display: inline-flex;
+}
+.oh-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.oh-menu-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease;
+}
+.oh-menu-chevron.is-open {
+  transform: rotate(180deg);
+}
+.oh-menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 220px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+}
+.oh-menu-panel[hidden] {
+  display: none;
+}
+.oh-menu-panel.is-right {
+  left: auto;
+  right: 0;
+}
+.conversation-dark .oh-menu-panel {
+  border-color: #2b3952;
+  background: #111827;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.conversation-mode .oh-menu-panel .oh-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 2px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.conversation-mode .oh-menu-panel .oh-menu-item:hover:not(:disabled) {
+  background: #ede9fe;
+}
+.conversation-dark .oh-menu-panel .oh-menu-item:hover:not(:disabled) {
+  background: #2e2356;
+}
+.oh-menu-panel .conversation-voice-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px;
+}
+.oh-menu-panel .conversation-voice-controls label {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* (i) info popover */
+.oh-info {
+  align-self: center;
+}
+.conversation-mode button.oh-info-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b6c2d2;
+  border-radius: 50%;
+  background: transparent;
+  color: #5843a5;
+  font: italic 700 12px/1 Georgia, 'Times New Roman', serif;
+}
+.conversation-dark button.oh-info-btn {
+  border-color: #33435d;
+  color: #a78bfa;
+}
+.conversation-mode button.oh-info-btn.is-open {
+  border-color: #5843a5;
+  background: #ede9fe;
+}
+.conversation-dark button.oh-info-btn.is-open {
+  border-color: #a78bfa;
+  background: #2e2356;
+}
+.oh-info-panel {
+  left: auto;
+  right: 0;
+  width: 320px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Below 1536px, trim long labels in the lecture tools so room setup and tools share a row */
+@media (max-width: 1699px) {
+  .lecture-tools .oh-wide-only {
+    display: none;
+  }
+}
+@media (max-width: 1699px) {
+  .lecture-bar .room-controls input[aria-label^="Room code"] {
+    width: 112px;
+  }
+  .lecture-bar .room-pin-field input {
+    width: 104px !important;
+  }
+}
+.lecture-bar .room-controls input[readonly] {
+  flex: 0 1 240px;
+  min-width: 160px;
+}
+@media (max-width: 1699px) {
+  /* Copy link and Show join code already share the link; the box itself is optional here */
+  .lecture-bar .room-controls input[readonly],
+  .lecture-bar .room-controls .oh-wide-only {
+    display: none;
+  }
 }

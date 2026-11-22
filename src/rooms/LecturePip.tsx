@@ -52,9 +52,10 @@ export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = tru
   };
   return <>
     <button type="button" className={`lecture-pip-btn${pip ? ' is-open' : ''}`} onClick={() => void toggle()}
+      aria-label={pip ? 'Close pop-out' : 'Pop out lecture'}
       title="Open an always-on-top caption window that floats over slides and other apps">
       <PictureInPicture2 size={14} aria-hidden="true" />
-      <span>{pip ? 'Close pop-out' : 'Pop out lecture'}</span>
+      <span>{pip ? 'Close pop-out' : <>Pop out<span className="oh-wide-only"> lecture</span></>}</span>
     </button>
     {notice && <span role="alert">{notice}</span>}
     <PipSubtitlePortal pipWindow={pip} onClosePip={() => pip?.close()} isDark={isDark}

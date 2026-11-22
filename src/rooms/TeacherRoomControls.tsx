@@ -12,6 +12,7 @@ import {
 import type { LectureState } from './protocol';
 import { displayRoomUrl, loadShortLinkBase, studentRoomUrl } from './roomLink';
 import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
+import { InfoPopover } from '../components/DropdownMenu';
 
 const STATUS_RANK: Record<RoomLiveStatus, number> = {
   live: 0,
@@ -55,6 +56,8 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
   // Prefill the most recent class code so one posted link works day after day
   const [code, setCode] = useState(() => loadRoomHistory()[0]?.code ?? '');
   const [showJoinCard, setShowJoinCard] = useState(false);
+  // Glow on Show join code until it has been opened once for this room
+  const [joinShownFor, setJoinShownFor] = useState<string | null>(null);
   const [shortBase, setShortBase] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -165,11 +168,12 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
     {room ? <>
       <strong>Room: {room.code}</strong>
       <input aria-label="Student room link" value={link} readOnly onFocus={event => event.target.select()} />
-      <button type="button" onClick={async () => {
+      <button type="button" aria-label={copied ? 'Link copied' : 'Copy student link'} onClick={async () => {
         try { await navigator.clipboard.writeText(link); setCopied(true); }
         catch { setCopied(false); }
-      }}>{copied ? 'Link copied' : 'Copy student link'}</button>
-      <button type="button" className="room-show-join inline-flex items-center gap-1.5" onClick={() => setShowJoinCard(true)}>
+      }}>{copied ? 'Link copied' : <>Copy<span className="oh-wide-only"> student</span> link</>}</button>
+      <button type="button" className={`room-show-join inline-flex items-center gap-1.5${joinShownFor === room.code ? '' : ' oh-beckon'}`}
+        onClick={() => { setShowJoinCard(true); setJoinShownFor(room.code); }}>
         <Presentation size={14} aria-hidden="true" />
         <span>Show join code</span>
       </button>
@@ -193,7 +197,7 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
       )}
       <button type="button" disabled={busy} onClick={() => void end()}>{unavailable ? 'Dismiss unavailable room' : 'End room'}</button>
     </> : <form autoComplete="off" onSubmit={event => { event.preventDefault(); setCopied(false); void create(code, pin); }}>
-      <input ref={roomCodeRef} aria-label="Room code (optional for new)" placeholder="Room code (optional)" value={code}
+      <input ref={roomCodeRef} aria-label="Room code (optional for new)" placeholder="Room code" value={code}
         autoComplete="off" maxLength={40} onChange={event => { setCode(event.target.value); clearRetry(); }} />
       <span className="room-pin-field">
         <input
@@ -201,7 +205,7 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
           type="text"
           className={showPin ? undefined : 'room-pin-masked'}
           aria-label="Room PIN"
-          placeholder="Room PIN (4+ chars)"
+          placeholder="PIN (4+ chars)"
           value={pin}
           maxLength={20}
           autoComplete="off"
@@ -222,7 +226,7 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
           {showPin ? <EyeOff size={14} /> : <Eye size={14} />}
         </button>
       </span>
-      <button type="submit" className="conversation-start" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE}>{busy ? 'Connecting…' : 'Create room'}</button>
+      <button type="submit" className="conversation-start oh-beckon" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE}>{busy ? 'Connecting…' : 'Create room'}</button>
       <button type="button" disabled={busy || !online} title={online ? undefined : OFFLINE_TITLE} onClick={() => { setCopied(false); void rejoin(code, pin); }}>Rejoin room</button>
       <div className="room-history-wrap" ref={historyRef}>
         <button
@@ -325,10 +329,14 @@ export function TeacherRoomControls({ state, visible, id, roomCodeRef, showSetup
         )}
       </span>
     )}
-    {!room && <small>{!online
-      ? 'You’re offline. Rooms need an internet connection; you can still start the lecture on this device.'
-      : guideSetup
-      ? 'Create or rejoin a room, then click Start lecture. You can share the join code before you start.'
-      : 'Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.'}</small>}
+    {!room && !online && (
+      <small>You’re offline. Rooms need an internet connection; you can still start the lecture on this device.</small>
+    )}
+    {!room && online && (
+      <InfoPopover label="How rooms work">
+        {guideSetup && <>Create or rejoin a room, then click Start lecture. You can share the join code before you start.<br /><br /></>}
+        Use the same room code every day (e.g. murphy-p3) and post its link once; students who open it early wait until you start. Create room reopens a code that is still active when the PIN matches. Export JSON to keep a copy.
+      </InfoPopover>
+    )}
   </div>;
 }

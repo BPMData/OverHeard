@@ -205,6 +205,7 @@ describe('ConversationMode Lecture mode', () => {
 
     // Confirm Clear lecture removes rows
     vi.stubGlobal('confirm', vi.fn(() => true));
+    fireEvent.click(screen.getByRole('button', { name: 'File' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear lecture' }));
     expect(screen.queryByText('First lecture sentence')).toBeNull();
   });

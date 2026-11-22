@@ -1,5 +1,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
+import { FolderOpen, Volume2 } from 'lucide-react';
 import { LANGUAGE_MAP } from '../constants';
+import { DropdownMenu } from './DropdownMenu';
 import type { useLectureMode } from '../conversation/useLectureMode';
 import { LectureFiles } from '../rooms/LectureFiles';
 import { LecturePip } from '../rooms/LecturePip';
@@ -39,13 +41,15 @@ interface LectureToolsProps {
   setLectureReadAloud: (checked: boolean) => void;
   settings: ConversationSettings;
   setSettings: Dispatch<SetStateAction<ConversationSettings>>;
+  /** Extra File-menu items, e.g. the Google Drive archive buttons */
+  fileMenuExtras?: ReactNode;
 }
 
 export function LectureTools({
   active, onSetLanguages, translatorPicker, lecture, lectureState,
   isDark, fontSize, onAdjustFont, activeRoomCode, effectiveLectureLang,
   setLecturePlaybackLang, lectureLangs, voicePrefs, updateVoicePref, lectureReadAloud,
-  setLectureReadAloud, settings, setSettings,
+  setLectureReadAloud, settings, setSettings, fileMenuExtras,
 }: LectureToolsProps) {
   return (
     <>
@@ -53,48 +57,31 @@ export function LectureTools({
       <div className="conversation-control-group" role="group" aria-label="Lecture actions">
         <LecturePip state={lectureState} isDark={isDark} fontSize={fontSize}
           onAdjustFont={onAdjustFont ?? (() => {})} active={active} />
-        <button
-          type="button"
-          onClick={lecture.clear}
-          disabled={lecture.entries.length === 0 && !lecture.speech.interim}
+        <DropdownMenu
+          label="File"
+          icon={<FolderOpen className="w-3.5 h-3.5" aria-hidden="true" />}
+          title="Clear, export, or import the lecture transcript"
+          panelLabel="Transcript files"
         >
-          Clear lecture
-        </button>
-      </div>
-      <div className="conversation-control-group" role="group" aria-label="Transcript files">
-        <LectureFiles
-          state={lectureState}
-          roomCode={activeRoomCode}
-          onImport={value => {
-            lecture.replace(value.entries);
-            onSetLanguages?.(value.selectedLangs);
-          }}
-        />
-      </div>
-      <div className="conversation-control-group conversation-voice-controls" role="group" aria-label="Voice selection">
-        <label>
-          Voice for
-          <select
-            aria-label="Playback language"
-            value={effectiveLectureLang}
-            onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
+          <button
+            type="button"
+            className="oh-menu-item"
+            onClick={lecture.clear}
+            disabled={lecture.entries.length === 0 && !lecture.speech.interim}
           >
-            {lectureLangs.map((code) => (
-              <option key={code} value={code}>
-                {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Voice
-          <VoiceSelect
-            lang={effectiveLectureLang}
-            ariaLabel="Voice"
-            value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
-            onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
+            Clear lecture
+          </button>
+          <LectureFiles
+            state={lectureState}
+            roomCode={activeRoomCode}
+            itemClassName="oh-menu-item"
+            onImport={value => {
+              lecture.replace(value.entries);
+              onSetLanguages?.(value.selectedLangs);
+            }}
           />
-        </label>
+          {fileMenuExtras}
+        </DropdownMenu>
       </div>
       <div className="conversation-control-group" role="group" aria-label="Read aloud controls">
         <label>
@@ -121,6 +108,7 @@ export function LectureTools({
         <label title="Reads along while you talk instead of after each pause. The microphone keeps listening, so use headphones.">
           <input
             type="checkbox"
+            aria-label="While I talk (headphones)"
             checked={lectureReadAloud && settings.lectureLiveReadAloud}
             disabled={!lectureReadAloud}
             onChange={(e) => {
@@ -128,8 +116,42 @@ export function LectureTools({
               setSettings((s) => ({ ...s, lectureLiveReadAloud: checked }));
             }}
           />
-          While I talk (headphones)
+          While I talk<span className="oh-wide-only"> (headphones)</span>
         </label>
+        <DropdownMenu
+          label="Voices"
+          icon={<Volume2 className="w-3.5 h-3.5" aria-hidden="true" />}
+          title="Choose the reading voice for each language"
+          panelLabel="Voice selection"
+          closeOnClick={false}
+          align="right"
+        >
+          <div className="conversation-voice-controls">
+            <label>
+              Voice for
+              <select
+                aria-label="Playback language"
+                value={effectiveLectureLang}
+                onChange={(e) => setLecturePlaybackLang(e.target.value as ConversationLanguage)}
+              >
+                {lectureLangs.map((code) => (
+                  <option key={code} value={code}>
+                    {code === 'en' ? 'English' : LANGUAGE_MAP[code].name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Voice
+              <VoiceSelect
+                lang={effectiveLectureLang}
+                ariaLabel="Voice"
+                value={resolveVoiceId(effectiveLectureLang, voicePrefs)}
+                onChange={(voiceId) => updateVoicePref(effectiveLectureLang, voiceId)}
+              />
+            </label>
+          </div>
+        </DropdownMenu>
       </div>
     </>
   );
@@ -153,10 +175,6 @@ export function LectureView({
 }: LectureViewProps) {
   return (
     <>
-      <p className="conversation-help">
-        Continuous single-speaker English lecture mode. Live translations stream across columns
-        as you speak and stay saved locally until cleared.
-      </p>
       {packPanel}
       {driveStatus && (
         <p role="status" className="text-xs flex flex-wrap items-center gap-2">

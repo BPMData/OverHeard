@@ -429,6 +429,44 @@ export function ConversationMode({
       <span>Settings</span>
     </button>
   );
+  const driveArchive = (className: string) => (
+    <>
+      <SaveLectureToDriveControl
+        label="Save room archive to Drive"
+        state={lectureState}
+        roomCode={activeRoomCode}
+        className={className}
+        onSaved={(result) => {
+          setUiError('');
+          setDriveStatus({
+            message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
+            link: result.file.webViewLink,
+          });
+        }}
+        onError={(msg) => {
+          if (msg) setDriveStatus(null);
+          setUiError(msg);
+        }}
+      />
+      <OpenFromDriveButton
+        label="Open room archive from Drive"
+        className={className}
+        hasExistingEntries={() => lecture.entries.length > 0}
+        onImport={(imported, file) => {
+          setUiError('');
+          lecture.replace(imported.entries);
+          onSetLanguages?.(imported.selectedLangs);
+          setDriveStatus({
+            message: `Opened "${file.name}" from Google Drive.`,
+          });
+        }}
+        onError={(msg) => {
+          if (msg) setDriveStatus(null);
+          setUiError(msg);
+        }}
+      />
+    </>
+  );
   const returnViewName = returnView === 'subtitle' ? 'Subtitle' : 'Columns';
   return (
     <div
@@ -584,13 +622,28 @@ export function ConversationMode({
           </button>
         </div>
       </div>
-      {isLecture && (
-        <>
-          {!showAllControls && onDeviceTranslationFailing && (
-            <p className="lecture-translator-warning" role="alert">
-              On-device translation failed. Open all controls to choose another translator.
-            </p>
-          )}
+      {isLecture && !showAllControls && onDeviceTranslationFailing && (
+        <p className="lecture-translator-warning" role="alert">
+          On-device translation failed. Open all controls to choose another translator.
+        </p>
+      )}
+      {/* Room setup and lecture tools share one row when they fit */}
+      <div className="lecture-bar">
+        <TeacherRoomControls
+          id={roomControlsId}
+          roomCodeRef={roomCodeRef}
+          guideSetup={!showAllControls}
+          showSetup={showAllControls || shareSetupOpen}
+          archiveControls={isLecture && !showAllControls && driveArchive('inline-flex items-center gap-1.5')}
+          state={lectureState}
+          visible={isLecture}
+          onRoomCodeChange={handleRoomCodeChange}
+          onRestore={restored => {
+            lecture.replace(restored.entries, { preserveIds: true });
+            if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
+          }}
+        />
+        {isLecture && (
           <div
             id={lectureToolsId}
             className="conversation-settings lecture-tools"
@@ -617,8 +670,13 @@ export function ConversationMode({
               setLectureReadAloud={setLectureReadAloud}
               settings={settings}
               setSettings={setSettings}
+              fileMenuExtras={driveArchive('oh-menu-item')}
             />
           </div>
+        )}
+      </div>
+      {isLecture && (
+        <>
           {lecturePlayback.status !== 'idle' && (
             <div className="conversation-settings" role="group" aria-label="Active audio playback">
               <PlaybackToolbar
@@ -631,57 +689,6 @@ export function ConversationMode({
           )}
         </>
       )}
-      <TeacherRoomControls
-        id={roomControlsId}
-        roomCodeRef={roomCodeRef}
-        guideSetup={!showAllControls}
-        showSetup={showAllControls || shareSetupOpen}
-        archiveControls={isLecture && (
-          <>
-            <SaveLectureToDriveControl
-              label="Save room archive to Drive"
-              state={lectureState}
-              roomCode={activeRoomCode}
-              className="inline-flex items-center gap-1.5"
-              onSaved={(result) => {
-                setUiError('');
-                setDriveStatus({
-                  message: `${result.updatedExisting ? 'Updated' : 'Saved'} "${result.file.name}" in Google Drive (${result.folder.name}).`,
-                  link: result.file.webViewLink,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-            <OpenFromDriveButton
-              label="Open room archive from Drive"
-              className="inline-flex items-center gap-1.5"
-              hasExistingEntries={() => lecture.entries.length > 0}
-              onImport={(imported, file) => {
-                setUiError('');
-                lecture.replace(imported.entries);
-                onSetLanguages?.(imported.selectedLangs);
-                setDriveStatus({
-                  message: `Opened "${file.name}" from Google Drive.`,
-                });
-              }}
-              onError={(msg) => {
-                if (msg) setDriveStatus(null);
-                setUiError(msg);
-              }}
-            />
-          </>
-        )}
-        state={lectureState}
-        visible={isLecture}
-        onRoomCodeChange={handleRoomCodeChange}
-        onRestore={restored => {
-          lecture.replace(restored.entries, { preserveIds: true });
-          if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
-        }}
-      />
       {isLecture ? (
         <LectureView
           packPanel={packPanel}
