@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ON_DEVICE_TIMEOUT_MS, rejectAfter } from '../app/settings';
 import { LANGUAGE_MAP } from '../constants';
-import { getOnDeviceAvailability } from '../onDevice';
+import { getOnDeviceAvailability, hasOnDeviceWorked, onOnDeviceWorkedChange } from '../onDevice';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import { hasBergamotModel } from './bergamot/engine';
 
@@ -22,10 +22,14 @@ export const bothWays = (a: ConversationLanguage, b: ConversationLanguage): Lang
  * Languages that "Only on this device" can't translate here, so the page can say why their
  * captions stay untranslated. A pair names its non-English language (the target when neither is
  * English). Chrome's check can hang in a browser without its translation service; then only a
- * pair with a downloadable pack counts as translatable.
+ * pair with a downloadable pack counts as translatable. A pair that has already translated on
+ * this device always counts: Chrome's check misreports while offline.
  */
 export function useLanguagesNeedingOnline(pairs: readonly LanguagePair[], active: boolean): LanguageCode[] {
   const [missing, setMissing] = useState<LanguageCode[]>([]);
+  // Bumped when a pair is found working (or missing), so a stale warning clears at once
+  const [workedVersion, setWorkedVersion] = useState(0);
+  useEffect(() => onOnDeviceWorkedChange(() => setWorkedVersion((v) => v + 1)), []);
   const key = pairs.map((p) => p.source + '>' + p.target).join(',');
   useEffect(() => {
     if (!active || pairs.length === 0) {
@@ -38,7 +42,7 @@ export function useLanguagesNeedingOnline(pairs: readonly LanguagePair[], active
         const named = (target === 'en' ? source : target) as LanguageCode;
         return rejectAfter(getOnDeviceAvailability(target, source), ON_DEVICE_TIMEOUT_MS).then(
           (status) => (status === 'unavailable' ? named : null),
-          () => (hasBergamotModel(target, source) ? null : named),
+          () => (hasBergamotModel(target, source) || hasOnDeviceWorked(target, source) ? null : named),
         );
       }),
     ).then((results) => {
@@ -50,7 +54,7 @@ export function useLanguagesNeedingOnline(pairs: readonly LanguagePair[], active
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` stands for `pairs`
-  }, [key, active]);
+  }, [key, active, workedVersion]);
   return missing;
 }
 

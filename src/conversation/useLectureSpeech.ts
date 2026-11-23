@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MicBlock } from '../micPermission';
 import { prepareOnDeviceSpeech } from '../onDevice';
-import { wantsLocalSpeech, type SpeechLocality } from '../offline';
+import { isOffline, wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { createFinalDeduper } from '../speechDedupe';
 import { isFailedSession, restartDelay } from '../speechRestart';
@@ -154,6 +154,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
       logSpeechEvent(event);
       current.failures = 0;
       setError(null);
+      if (isOffline()) setLocal(true); // heard while offline, so it runs on this device
       let live = '';
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];

@@ -3,6 +3,7 @@ import { Check, Copy, Globe, X } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, MAX_LANGUAGES } from '../constants';
 import { LanguageCode } from '../types';
 import { CHROME_PACK_SIZE_HINT } from '../translation/packStorage';
+import { useModalDismiss } from './useModalDismiss';
 import { STUDENTS_STILL_TRANSLATE, fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
 
 interface LanguageModalProps {
@@ -27,6 +28,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
   const [copied, setCopied] = useState(false);
   const needOnline = useLanguagesNeedingOnline(fromEnglish(selectedLangs), isOpen && onDeviceOnly);
   const needOnlineNotice = needOnlineText(needOnline);
+  const onBackdropClick = useModalDismiss(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -50,9 +52,10 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="lang-modal-title"
+      onClick={onBackdropClick}
     >
-      <div className="w-full max-w-2xl rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] overflow-hidden">
-        <div className="oh-panel-header flex items-center justify-between px-6 py-3.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
+      <div className="w-full max-w-2xl max-h-full flex flex-col rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] overflow-hidden">
+        <div className="oh-panel-header shrink-0 flex items-center justify-between px-6 py-3.5 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
           <div className="flex items-center gap-2.5">
             <Globe className="w-5 h-5 text-[#5843A5] dark:text-[#A78BFA]" />
             <h2 id="lang-modal-title" className="text-lg font-bold tracking-tight">
@@ -75,7 +78,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
           </div>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-5">
           <p className="text-sm text-slate-600 dark:text-[#94A3B8]">
             Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
           </p>
@@ -152,42 +155,43 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
               );
             })}
           </div>
+        </div>
 
-          <div className="pt-3 border-t border-slate-200 dark:border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-slate-500 dark:text-[#94A3B8]">
-                Bookmarkable Classroom Setup URL
-              </div>
-              <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate mt-0.5">
-                {bookmarkUrl}
-              </div>
+        {/* Outside the scrolling area so Done stays on screen on short (landscape) screens */}
+        <div className="shrink-0 px-6 py-3 border-t border-slate-200 dark:border-[#1E293B] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-slate-500 dark:text-[#94A3B8]">
+              Bookmarkable Classroom Setup URL
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCopyUrl}
-                className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-slate-700 dark:text-slate-200 hover:bg-[#EDF2F7] dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    Copied URL
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy Bookmark Link
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="oh-btn-primary px-4 py-2 text-xs font-semibold rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors whitespace-nowrap"
-              >
-                Done
-              </button>
+            <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate mt-0.5">
+              {bookmarkUrl}
             </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopyUrl}
+              className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-slate-700 dark:text-slate-200 hover:bg-[#EDF2F7] dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  Copied URL
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Bookmark Link
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="oh-btn-primary px-4 py-2 text-xs font-semibold rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white transition-colors whitespace-nowrap"
+            >
+              Done
+            </button>
           </div>
         </div>
       </div>

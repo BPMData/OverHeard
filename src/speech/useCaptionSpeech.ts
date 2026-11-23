@@ -81,6 +81,9 @@ export function useCaptionSpeech({
         // Hearing speech means the service is healthy again
         restartFailuresRef.current = 0;
         setSpeechStatusNotice(null);
+        // Heard while offline: it can only be running on this device, whatever Chrome's
+        // availability check said (Android's system recognizer works offline on its own)
+        if (isOffline()) setSpeechIsLocal(true);
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
           const result = event.results[i];

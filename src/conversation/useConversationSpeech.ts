@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
 import { isFailedSession, restartDelay } from '../speechRestart';
 import { speechLocale } from './locales';
-import { wantsLocalSpeech, type SpeechLocality } from '../offline';
+import { isOffline, wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { otherSide, type Side } from './state';
 
 interface ResultEvent {
@@ -176,6 +176,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     recognition.onresult = (event) => {
       if (!valid()) return;
       logSpeechEvent(event);
+      if (isOffline()) setLocal(true); // heard while offline, so it runs on this device
       const parts: string[] = [];
       for (let index = 0; index < event.results.length; index++) {
         const result = event.results[index];

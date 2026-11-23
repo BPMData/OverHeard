@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useModalDismiss } from './useModalDismiss';
 import {
   BookOpen,
   Cloud,
@@ -25,6 +26,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   onClose,
   isEmbeddedIframe,
 }) => {
+  const onBackdropClick = useModalDismiss(isOpen, onClose);
   if (!isOpen) return null;
 
   const embedded =
@@ -48,6 +50,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="about-modal-title"
+      onClick={onBackdropClick}
     >
       <div className="w-full max-w-3xl max-h-[88vh] flex flex-col rounded-[3px] border-2 border-[#94A3B8] dark:border-[#334155] bg-white dark:bg-[#111827] text-slate-900 dark:text-[#F8FAFC] overflow-hidden">
         {/* Sticky Header */}
