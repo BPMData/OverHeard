@@ -472,3 +472,31 @@ describe('one pack download per click', () => {
     await expect(m.translateOnDevice('Hello', 'bn')).resolves.toBe('bn:Hello');
   });
 });
+
+describe('a pair that has translated on this device', () => {
+  it('stays available when Chrome’s check says otherwise (offline on Android)', async () => {
+    let check = 'available';
+    g.Translator = {
+      availability: async () => check,
+      create: async () => ({ translate: async (t: string) => `es:${t}` }),
+    };
+    const m = await load();
+    await m.translateOnDevice('Hello', 'es');
+    expect(m.hasOnDeviceWorked('es')).toBe(true);
+    check = 'unavailable';
+    await expect(m.getOnDeviceAvailability('es')).resolves.toBe('available');
+  });
+
+  it('tells listeners when a pair starts working', async () => {
+    g.Translator = {
+      availability: async () => 'available',
+      create: async () => ({ translate: async () => 'Bonjour' }),
+    };
+    const m = await load();
+    const listener = vi.fn();
+    const stop = m.onOnDeviceWorkedChange(listener);
+    await m.translateOnDevice('Hello', 'fr');
+    expect(listener).toHaveBeenCalled();
+    stop();
+  });
+});

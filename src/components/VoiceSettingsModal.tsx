@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useModalDismiss } from './useModalDismiss';
 import { CheckCircle2, CloudDownload, Settings, ShieldCheck, Square, Volume2, X } from 'lucide-react';
 import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/piperClient';
 import { VoiceSelect } from '../tts/VoiceSelect';
@@ -197,17 +198,8 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
   useEffect(() => () => stopPreview(), [stopPreview]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        stopPreview();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, stopPreview]);
+  // Escape, backdrop tap, and Back close it; closing stops any preview (effect above)
+  const onBackdropClick = useModalDismiss(isOpen, onClose);
 
   const playPreview = useCallback(
     (lang: PiperLanguage, voiceId: string) => {
@@ -294,6 +286,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
+      onClick={onBackdropClick}
     >
       <div
         className={`w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[3px] border-2 overflow-hidden ${

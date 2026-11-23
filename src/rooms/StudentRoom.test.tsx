@@ -18,6 +18,8 @@ vi.mock('../onDevice', () => ({
   startWaitingPack: vi.fn(),
   waitingPackSize: vi.fn(() => ({ size: '34 MB' })),
   isOnDeviceTranslationSupported: vi.fn(() => true),
+  hasOnDeviceWorked: vi.fn(() => false),
+  onOnDeviceWorkedChange: vi.fn(() => () => {}),
 }));
 vi.mock('../translation/bergamot/engine', async (importOriginal) => ({
   ...await importOriginal<typeof import('../translation/bergamot/engine')>(),

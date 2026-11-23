@@ -25,7 +25,8 @@ export function useAppSettings() {
     }
     const url = new URL(window.location.href);
     url.searchParams.set('langs', selectedLangs.join(','));
-    window.history.replaceState({}, '', url.toString());
+    // Keep the entry's state: an open modal marks it so the Back button can close the modal
+    window.history.replaceState(window.history.state, '', url.toString());
   }, [selectedLangs, subtitleLang]);
 
   // Toggle a target language (minimum 1, maximum 3)

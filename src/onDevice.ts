@@ -5,6 +5,7 @@
 
 import { ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
 import { speechLocale } from './conversation/locales';
+import { isOffline } from './offline';
 import {
   bergamotAvailability, createBergamotTranslator, downloadBergamotModel, hasBergamotModel,
   isBergamotRunnable, isBergamotTranslator,
@@ -63,6 +64,38 @@ const translators = new Map<string, Promise<TranslatorInstance | null>>();
 const readyPairs = new Set<string>();
 const unavailableUntil = new Map<string, number>();
 const UNAVAILABLE_RECHECK_MS = 30_000;
+
+// Pairs that have produced a working on-device translator (Chrome or Bergamot) on this device.
+// Proof beats a check: Chrome's availability() can say "unavailable" or hang while offline (seen
+// on Android) even though the installed pack translates fine. Saved so a reload offline knows too.
+const WORKED_STORAGE_KEY = 'overheard.onDeviceWorkedPairs';
+const workedListeners = new Set<() => void>();
+const workedPairs: Set<string> = (() => {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(WORKED_STORAGE_KEY) ?? '[]');
+    return new Set(Array.isArray(saved) ? saved.filter((k): k is string => typeof k === 'string') : []);
+  } catch {
+    return new Set<string>();
+  }
+})();
+function setWorked(key: string, worked: boolean): void {
+  if (workedPairs.has(key) === worked) return;
+  if (worked) workedPairs.add(key);
+  else workedPairs.delete(key);
+  try {
+    localStorage.setItem(WORKED_STORAGE_KEY, JSON.stringify([...workedPairs]));
+  } catch {
+    // Storage blocked: remember for this page only
+  }
+  for (const listener of workedListeners) listener();
+}
+/** True once `source` → `code` has translated on this device. */
+export const hasOnDeviceWorked = (code: string, source = 'en'): boolean => workedPairs.has(`${source}>${code}`);
+/** Called whenever a pair is found working or found missing. Returns an unsubscribe function. */
+export function onOnDeviceWorkedChange(listener: () => void): () => void {
+  workedListeners.add(listener);
+  return () => workedListeners.delete(listener);
+}
 // Chrome's availability() can hang (e.g. while its translation service starts, or in a browser
 // that ships the API without its service). When Bergamot can take over, wait only this long.
 const CHROME_CHECK_WITH_FALLBACK_MS = 3000;
@@ -179,8 +212,11 @@ export function getOnDeviceTranslator(
         // readyPairs and unavailableUntil describe Chrome's translator only
         if (!isBergamotTranslator(translator)) readyPairs.add(key);
         unavailableUntil.delete(key);
+        setWorked(key, true);
       } else {
         translators.delete(key);
+        // No translator: the pack is gone. Not trusted offline, where Chrome's check misreports.
+        if (!isOffline()) setWorked(key, false);
         unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
       }
     },
@@ -341,6 +377,7 @@ export function prepareOnDeviceTranslators(
  * by Bergamot ('downloadable' until its model is saved).
  */
 export async function getOnDeviceAvailability(code: string, source = 'en'): Promise<Availability> {
+  if (hasOnDeviceWorked(code, source)) return 'available';
   if (!hasBergamotModel(code, source)) return getChromeAvailability(code, source);
   const chrome = await rejectAfter(getChromeAvailability(code, source), CHROME_CHECK_WITH_FALLBACK_MS).catch(() => {
     unavailableUntil.set(`${source}>${code}`, Date.now() + UNAVAILABLE_RECHECK_MS);
