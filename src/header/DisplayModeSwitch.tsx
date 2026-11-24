@@ -38,11 +38,11 @@ export function DisplayModeSwitch({
       </button>
       <button
         type="button"
-        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-xs font-semibold text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white transition-colors whitespace-nowrap"
+        className="oh-beckon inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[2px] text-xs font-semibold text-[#A16207] dark:text-[#FACC15] hover:text-[#854D0E] dark:hover:text-[#FDE68A] transition-colors whitespace-nowrap"
         onClick={enterConversation}
       >
         <MessagesSquare className="hidden xl:block w-3.5 h-3.5" aria-hidden="true" />
-        <span>Conversation/Lecture</span>
+        <span>Lecture/Conversation</span>
       </button>
     </div>
   );

@@ -14,13 +14,13 @@ Real-time classroom speech transcription, multi-language translation, neural rea
 - **Neural Text-to-Speech (Piper TTS + Meta MMS + Browser Fallback)**:
   - Runs Piper ONNX voice models locally in a browser Web Worker (`@mintplex-labs/piper-tts-web`, `@diffusionstudio/piper-wasm`, `onnxruntime-web`) and caches models in OPFS so previously downloaded voices play offline, falling back cleanly to `window.speechSynthesis` when needed.
   - Swahili, Haitian Creole, Somali, Indonesian and Turkish default to Meta MMS voices (int8 ONNX conversions of `facebook/mms-tts-<iso3>`, CC BY-NC 4.0, non-commercial), run in the same worker with ONNX Runtime and served from `bpmdata.github.io/overheard-voices`. See `docs/mms-voices.md`.
-  - Persistent per-language default voices for **English**, **Spanish**, and **Portuguese** via **Voice settings** (available on the home bar, Conversation/Lecture toolbar, and Student rooms) with one-click voice previews, click-to-read from any line/bubble, and live **Read aloud**.
+  - Persistent per-language default voices for **English**, **Spanish**, and **Portuguese** via **Voice settings** (available on the home bar, Lecture/Conversation toolbar, and Student rooms) with one-click voice previews, click-to-read from any line/bubble, and live **Read aloud**.
 - **On-Device & Multi-Provider Translation**:
   - The default **On-device first (online fallback)** gives the browser 5 seconds to translate and up to 10 extra seconds for an active pack download. After a translator failure, three successful local sample translations restore it for new captions. The explicit **On this device** setting keeps translation local. The automatic mode can fall back to `/api/mt` (`gtx` -> optional `google-cloud`; live in-progress text and student pages send `freeOnly` and never use the paid provider) with request coalescing, a daily Cloud Translation character cap, and per-session + IP rate limits.
 - **Portable JSON & Optional Google Drive Saves**:
   - Local **Export JSON** / **Import JSON** uses the portable `overheard-lecture` v1 format without teacher room credentials or PINs and works without signing in.
   - Browser-only Google Drive integration (`https://www.googleapis.com/auth/drive.file` scope only, scripts loaded lazily on click) automatically creates/reuses an **`OverHeard Saves`** folder by default, remembers per-account folder and last-save state (`Update existing file` vs `Save as new copy`), and lets teachers reopen lessons via **Open from Drive** from either the home screen or Lecture mode.
-- **Built-In Guide & FAQ**: Accessible via **Guide & FAQ** on the home bar and on the far right of Conversation/Lecture mode (and click the **OverHeard** brand header from Subtitle, Conversation/Lecture, or Student views to return to Columns view).
+- **Built-In Guide & FAQ**: Accessible via **Guide & FAQ** on the home bar and on the far right of Lecture/Conversation mode (and click the **OverHeard** brand header from Subtitle, Lecture/Conversation, or Student views to return to Columns view).
 
 ---
 

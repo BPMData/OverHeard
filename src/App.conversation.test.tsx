@@ -100,7 +100,7 @@ afterEach(() => {
 });
 
 async function enterConversation() {
-  fireEvent.click(screen.getByRole('button', { name: 'Conversation/Lecture' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lecture/Conversation' }));
   await screen.findByRole('region', { name: 'Conversation test surface' });
 }
 

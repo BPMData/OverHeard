@@ -105,12 +105,12 @@ export function AppHeader({
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border transition-colors whitespace-nowrap ${
                   pipWindow
                     ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
-                    : 'oh-btn oh-beckon border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
+                    : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#A16207] dark:text-[#FACC15] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
                 }`}
                 title="Open floating always-on-top caption window over slides"
                 aria-label={pipWindow ? 'Close Pop-out' : 'Pop out captions'}
               >
-                <PictureInPicture2 className={`w-3.5 h-3.5 ${pipWindow ? '' : 'text-[#D97706] dark:text-[#FACC15]'}`} />
+                <PictureInPicture2 className="w-3.5 h-3.5" />
                 <span className="hidden xl:inline">{pipWindow ? 'Close Pop-out' : 'Pop out captions'}</span>
               </button>
             )}

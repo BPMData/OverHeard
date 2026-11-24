@@ -40,6 +40,12 @@ export function createApp({ trustProxyHops, mt, distPath }: CreateAppOptions) {
         },
       })
     );
+    // A build file that isn't here (an old hash from before a deploy) is a real 404, not the
+    // page: answering CSS/JS requests with index.html gets it refused as a stylesheet or script
+    // and lets the service worker save the page under the asset's name.
+    app.get('/assets/*', (_req: Request, res: Response) => {
+      res.status(404).type('text/plain').send('Not found');
+    });
     app.get('*', (_req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));

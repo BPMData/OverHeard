@@ -829,18 +829,23 @@
 .room-join-card-alt { font-size: clamp(1rem, 2.5vw, 2rem); opacity: .85; margin: 0; }
 .room-waiting { opacity: .8; }
 
-/* Pop out lecture (teacher toolbar and student room): icon + label, green while the window is open */
+/* Pop out lecture (teacher toolbar and student room): gold icon + label like Pop out captions on
+   the home bar, green while the window is open. The doubled class outranks the toolbar's button colors. */
 .lecture-pip-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.lecture-pip-btn svg {
-  color: #5843a5;
+button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
+  color: #a16207;
+  font-weight: 650;
 }
-.conversation-dark .lecture-pip-btn svg,
-.dark .lecture-pip-btn svg {
-  color: #a78bfa;
+.conversation-dark button.lecture-pip-btn.lecture-pip-btn:not(.is-open),
+.dark button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
+  color: #facc15;
+}
+.lecture-pip-btn svg {
+  color: currentColor;
 }
 .lecture-pip-btn.is-open {
   border-color: #10b981;

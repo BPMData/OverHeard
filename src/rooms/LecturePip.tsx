@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PictureInPicture2 } from 'lucide-react';
 import { PipSubtitlePortal, MAX_PIP_LINES, pipHeightFor } from '../components/PipSubtitlePortal';
 import { togglePipLine, visiblePipLines } from '../pipLines';
+import { copyStylesInto } from '../pip/copyStyles';
 import type { PipLayout, PipLine } from '../types';
 import type { LectureState } from './protocol';
 import { loadPipPrefs, savePipPrefs } from './studentPrefs';
@@ -35,14 +36,7 @@ export function LecturePip({ state, isDark, fontSize, onAdjustFont, active = tru
     try {
       const initialHeight = layout === 'columns' && visible.length > 1 ? pipHeightFor(1) : pipHeightFor(visible.length);
       const win = await window.documentPictureInPicture.requestWindow({ width: 820, height: initialHeight });
-      for (const sheet of Array.from(document.styleSheets)) {
-        if (sheet.href) {
-          const link = win.document.createElement('link'); link.rel = 'stylesheet'; link.href = sheet.href; win.document.head.appendChild(link);
-        } else {
-          try { const style = win.document.createElement('style'); style.textContent = Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'); win.document.head.appendChild(style); }
-          catch { /* inaccessible stylesheet */ }
-        }
-      }
+      copyStylesInto(win.document);
       win.document.title = 'OverHeard — Lecture captions';
       win.document.body.style.margin = '0';
       win.document.documentElement.classList.toggle('dark', isDark);
