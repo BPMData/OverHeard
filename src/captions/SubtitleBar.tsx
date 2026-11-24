@@ -50,7 +50,11 @@ export function SubtitleBar({
             <button
               type="button"
               onClick={handleTogglePip}
-              className="oh-btn-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[2px] border border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white text-xs font-bold whitespace-nowrap transition-colors"
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[2px] border text-xs font-bold whitespace-nowrap transition-colors ${
+                pipWindow
+                  ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#A16207] dark:text-[#FACC15] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
+              }`}
             >
               <PictureInPicture2 className="w-4 h-4" />
               <span>

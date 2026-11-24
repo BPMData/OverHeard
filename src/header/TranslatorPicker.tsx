@@ -52,7 +52,7 @@ export function TranslatorPicker({
   onDeviceFailing = false,
 }: TranslatorPickerProps) {
   const online = useOnline();
-  // Conversation/Lecture shows these notices in its own always-visible row
+  // Lecture/Conversation shows these notices in its own always-visible row
   const needOnline = useLanguagesNeedingOnline(
     fromEnglish(selectedLangs),
     effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation',

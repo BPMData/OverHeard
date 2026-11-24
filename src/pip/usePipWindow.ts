@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { parseInitialLanguages, PIP_LINES_STORAGE_KEY, PIP_SIZE_STORAGE_KEY } from '../app/settings';
 import { useTheme } from '../app/useTheme';
+import { copyStylesInto } from './copyStyles';
 import { MAX_PIP_LINES, pipHeightFor } from '../components/PipSubtitlePortal';
 import { togglePipLine, visiblePipLines as getVisiblePipLines } from '../pipLines';
 import { LISTENING_PIP_LAYOUT_STORAGE_KEY, parsePipLayout } from '../rooms/studentPrefs';
@@ -119,32 +120,8 @@ export function usePipWindow(selectedLangs: LanguageCode[], isEmbeddedIframe: bo
         }, 300);
       });
 
-      // Copy stylesheets & Google Fonts from main document into the PiP window
-      Array.from(document.styleSheets).forEach((styleSheet) => {
-        try {
-          if (styleSheet.href) {
-            const link = win.document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = styleSheet.href;
-            win.document.head.appendChild(link);
-          } else if (styleSheet.cssRules) {
-            const style = win.document.createElement('style');
-            const cssText = Array.from(styleSheet.cssRules)
-              .map((rule) => rule.cssText)
-              .join('\n');
-            style.textContent = cssText;
-            win.document.head.appendChild(style);
-          }
-        } catch {
-          // Cross-origin stylesheet fallback
-          if (styleSheet.href) {
-            const link = win.document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = styleSheet.href;
-            win.document.head.appendChild(link);
-          }
-        }
-      });
+      // Copy the page's styles (and Google Fonts) into the pop-out
+      copyStylesInto(win.document);
 
       win.document.title = 'OverHeard — Live Captions';
       win.document.body.style.margin = '0';
