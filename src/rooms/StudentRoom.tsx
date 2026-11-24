@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Moon, Settings, Sun } from 'lucide-react';
+import { MessageSquareWarning, Moon, Settings, Sun } from 'lucide-react';
+import { setReportContext } from '../report/diagnostics';
+import { openProblemReport } from '../report/ProblemReportModal';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
@@ -56,6 +58,14 @@ export function StudentRoom({ code }: { code: string }) {
   const [isDark, setIsDark] = useState(prefs.isDark);
   const [onDeviceOnly, setOnDeviceOnly] = useState(prefs.onDeviceOnly);
   useEffect(() => saveStudentPrefs({ isDark, language, fontSize, onDeviceOnly }), [isDark, language, fontSize, onDeviceOnly]);
+  // Feature status for "Something not working?" reports. Never the room code.
+  useEffect(() => setReportContext({
+    page: 'Student room',
+    view: 'Student room',
+    translator: onDeviceOnly ? 'on-device only' : 'auto',
+    languages: [language],
+    isDark,
+  }), [onDeviceOnly, language, isDark]);
   const [voicePrefs, updateVoicePref] = useVoicePreferences();
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const [readAloud, setReadAloud] = useState(false);
@@ -223,6 +233,15 @@ export function StudentRoom({ code }: { code: string }) {
         onClick={() => setIsDark(value => !value)}
       >
         {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5"
+        onClick={() => openProblemReport()}
+        title="Something not working? Tell us in a few short steps"
+      >
+        <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>Report a problem</span>
       </button>
       <a href="/">Leave room</a>
     </div>

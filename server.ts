@@ -6,6 +6,7 @@ import { createApp } from './server/app.ts';
 import { intFromEnv } from './server/config.ts';
 import { buildProviderChain } from './server/mt.ts';
 import { shortLinkBase } from './server/shortLink.ts';
+import { reportOptionsFromEnv } from './server/report.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,9 @@ const MT_CHAIN = buildProviderChain({
 });
 const MT_PROVIDER = MT_CHAIN[0];
 
+// "Something not working?" reports (see docs/REPORTS.md). Both delivery paths are optional.
+const REPORT_OPTIONS = reportOptionsFromEnv(process.env);
+
 
 async function startServer() {
   const distPath = path.join(__dirname, 'dist');
@@ -65,6 +69,7 @@ async function startServer() {
       mtChain: MT_CHAIN,
       shortLinkBase: SHORT_LINK_BASE,
     },
+    report: REPORT_OPTIONS,
   });
 
   if (!serveBuiltApp) {

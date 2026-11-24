@@ -7,7 +7,7 @@ node --version
 PORT_URL="http://localhost:3000"
 LOG="$(mktemp)"
 
-MT_PROVIDER=gtx NODE_ENV=production node server.ts >"$LOG" 2>&1 &
+REPORT_GITHUB_TOKEN= REPORT_RELAY_URL= MT_PROVIDER=gtx NODE_ENV=production node server.ts >"$LOG" 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
@@ -29,6 +29,15 @@ for body in '{"text":"hi","lang":"xx"}' '{"text":"","lang":"es"}' '{}' '{"text":
   echo "$body -> $code"
   [ "$code" = "400" ]
 done
+
+echo "--- problem reports: status, consent check, manual fallback when sending isn't set up"
+curl -sf "$PORT_URL/api/report/status" | grep -q '"automatic":false'
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$PORT_URL/api/report" \
+  -H 'Content-Type: application/json' -d '{"category":"translation"}')"
+echo "no consent -> $code"; [ "$code" = "400" ]
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$PORT_URL/api/report" \
+  -H 'Content-Type: application/json' -d '{"category":"translation","consent":true}')"
+echo "not configured -> $code"; [ "$code" = "503" ]
 
 echo "--- page loads"
 curl -sf "$PORT_URL/" | grep -q '<div id="root">'

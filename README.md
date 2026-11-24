@@ -20,6 +20,7 @@ Real-time classroom speech transcription, multi-language translation, neural rea
 - **Portable JSON & Optional Google Drive Saves**:
   - Local **Export JSON** / **Import JSON** uses the portable `overheard-lecture` v1 format without teacher room credentials or PINs and works without signing in.
   - Browser-only Google Drive integration (`https://www.googleapis.com/auth/drive.file` scope only, scripts loaded lazily on click) automatically creates/reuses an **`OverHeard Saves`** folder by default, remembers per-account folder and last-save state (`Update existing file` vs `Save as new copy`), and lets teachers reopen lessons via **Open from Drive** from either the home screen or Lecture mode.
+- **Problem reports (`Something not working?`)**: A few short steps to report a bug without a GitHub account. The reporter sees exactly what will be public (a GitHub issue) and what stays private (an email to the shared reporting inbox) before sending, and gets Copy/Download and an email address when automatic sending isn't available. Setup: [docs/REPORTS.md](docs/REPORTS.md).
 - **Built-In Guide & FAQ**: Accessible via **Guide & FAQ** on the home bar and on the far right of Lecture/Conversation mode (and click the **OverHeard** brand header from Subtitle, Lecture/Conversation, or Student views to return to Columns view).
 
 ---
@@ -63,6 +64,9 @@ Copy `.env.example` to `.env` for local configuration. OverHeard starts with zer
 | `TRUST_PROXY_HOPS` | Proxy hops trusted for client IP rate-limit checks | `1` |
 | `RATE_LIMIT_MT_PER_SESSION` | Per-minute `/api/mt` requests per browser tab | `900` |
 | `RATE_LIMIT_IP_MULTIPLIER` | Per-IP multiplier over per-session limits | `10` |
+| `REPORT_GITHUB_TOKEN` | Optional token that lets the server file problem reports as issues ([docs/REPORTS.md](docs/REPORTS.md)) | Unset |
+| `REPORT_GITHUB_REPO` | Repository that gets problem-report issues | `BPMData/overheard` |
+| `REPORT_RELAY_URL` / `REPORT_RELAY_SECRET` | Optional Apps Script relay that emails problem reports to the shared inbox | Unset |
 | `VITE_GOOGLE_CLIENT_ID` | Optional build-time override for Google OAuth Web Client ID | Shared default in `src/lib/googleConfig.ts` |
 | `VITE_GOOGLE_API_KEY` | Optional build-time override for Google Picker API key | Shared default in `src/lib/googleConfig.ts` |
 | `VITE_GOOGLE_APP_ID` | Optional build-time override for Google Cloud Project number | Shared default in `src/lib/googleConfig.ts` |

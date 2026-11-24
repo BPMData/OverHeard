@@ -46,6 +46,7 @@ import {
   useVoicePreferences,
 } from '../tts/voices';
 import type { LectureEntry } from '../conversation/lectureState';
+import { setReportContext } from '../report/diagnostics';
 
 interface Props {
   active: boolean;
@@ -217,6 +218,11 @@ export function ConversationMode({
     onSuspendSpeech: speech.suspend,
     onResumeSpeech: speech.resume,
   });
+  // Feature status for "Something not working?" reports
+  const reportListening = isLecture ? lecture.speech.isListening : speech.isListening;
+  useEffect(() => {
+    if (active) setReportContext({ view: isLecture ? 'Lecture' : 'Two-way', listening: reportListening });
+  }, [active, isLecture, reportListening]);
   const wasLecturePlaying = useRef(false);
   useEffect(() => {
     const isPlaybackActive =

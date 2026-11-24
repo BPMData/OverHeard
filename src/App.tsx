@@ -6,7 +6,8 @@
 import { SpeechDebugPanel } from './speechDebug';
 import { useCaptionTranscript } from './captions/useCaptionTranscript';
 import { useCaptionSpeech } from './speech/useCaptionSpeech';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { setReportContext } from './report/diagnostics';
 import { MAX_LANGUAGES } from './constants';
 import { prepareOnDeviceTranslators } from './onDevice';
 import type { ConversationLanguage, LanguageCode } from './types';
@@ -90,6 +91,22 @@ export default function App() {
   });
 
   useCaptionHotkey(displayMode, toggleListening);
+
+  // Feature status for "Something not working?" reports. Two-way and Lecture fill in their own
+  // view and listening state.
+  useEffect(() => {
+    setReportContext({
+      page: 'Main',
+      translator: effectiveMtPreference,
+      lastTranslator: lastUsedProvider ?? undefined,
+      onDeviceTranslation: onDeviceSupported,
+      languages: selectedLangs,
+      isDark,
+      ...(displayMode === 'conversation'
+        ? {}
+        : { view: displayMode === 'columns' ? 'Columns' : 'Subtitle', listening: isListening }),
+    });
+  }, [effectiveMtPreference, lastUsedProvider, onDeviceSupported, selectedLangs, isDark, displayMode, isListening]);
 
   const translateConversation = useCallback(
     (text: string, target: ConversationLanguage, source: ConversationLanguage, options?: { live?: boolean }) =>

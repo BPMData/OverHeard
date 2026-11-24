@@ -41,6 +41,8 @@ Rules for every step:
 server.ts               Reads the environment, calls createApp(), and listens on 0.0.0.0:3000
 server/app.ts           Express middleware, room routes, static files and SPA fallback
 server/routes/mt.ts     /api/config, /api/mt, rate limits and usage
+server/report.ts        /api/report and /api/report/status: problem reports to a GitHub issue
+                        and the email relay (tools/report-relay.gs, docs/REPORTS.md)
 server/development.ts   Vite middleware and development-only WASM file routes
 server/                 mt.ts (provider chain + request coalescing), rooms.ts (live rooms, SSE),
                         rateLimit, usage, clientKeys, shortLink
@@ -59,6 +61,8 @@ src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSw
 src/components/         ConversationMode (mode switching, shared settings and lifecycle),
                         TwoWayView, LectureView, LectureTranscript, PipSubtitlePortal, modals
 src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
+src/report/             "Something not working?" form, diagnostics, and the report format the
+                        server shares (protocol.ts)
 src/rooms/              Shared lecture rooms: teacher publishing, student view, protocol
 src/tts/                Piper and Meta MMS voices (mmsEngine, mmsTokenizer), useLecturePlayback (finished lines and live read-aloud),
                         useTwoWayPlayback, liveSegments and useSpeechPlayback re-exports

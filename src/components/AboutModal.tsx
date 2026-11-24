@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
+import { openProblemReport } from '../report/ProblemReportModal';
 import { BERGAMOT_ATTRIBUTION, OPUS_ATTRIBUTION } from '../translation/bergamot/models';
 
 interface AboutModalProps {
@@ -280,7 +281,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({
         </div>
 
         {/* Sticky Footer */}
-        <div className="px-5 sm:px-6 py-3 border-t border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#0B1120] flex justify-end shrink-0">
+        <div className="px-5 sm:px-6 py-3 border-t border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#0B1120] flex items-center justify-between gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openProblemReport({ afterModalClose: true });
+            }}
+            className="oh-btn px-3 py-2 text-xs font-semibold rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#162033] text-[#443180] dark:text-[#DDD6FE] transition-colors"
+          >
+            Something not working?
+          </button>
           <button
             type="button"
             onClick={onClose}
