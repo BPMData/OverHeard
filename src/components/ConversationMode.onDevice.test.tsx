@@ -3,6 +3,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversationMode } from './ConversationMode';
+import { forgetReadySpeech } from '../onDevice';
 
 class Recognition {
   static available = vi.fn(async () => 'downloadable');
@@ -28,6 +29,7 @@ const translator = {
 
 beforeEach(() => {
   localStorage.clear();
+  forgetReadySpeech();
   Recognition.available.mockClear();
   Recognition.install.mockClear();
   Recognition.instances = [];
