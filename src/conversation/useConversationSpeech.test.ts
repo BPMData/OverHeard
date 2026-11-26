@@ -15,7 +15,11 @@ class FakeRecognition {
   onerror: ((e: any) => void) | null = null;
   onend: (() => void) | null = null;
   start = vi.fn();
-  abort = vi.fn();
+  // Like Chrome, aborting a running session reports 'aborted' and then ends it
+  abort = vi.fn(() => {
+    this.onerror?.({ error: 'aborted' });
+    this.onend?.();
+  });
   constructor() {
     FakeRecognition.instances.push(this);
   }
@@ -330,7 +334,7 @@ describe('conversation turn recognition', () => {
     },
   );
 
-  it('keeps one recognizer listening when both people speak the same language', () => {
+  it('keeps one recognizer but starts a fresh session when both people speak the same language', () => {
     const { result, onSend } = setup('en');
     const first = latest();
     act(() => first.result('how are you'));
@@ -338,9 +342,10 @@ describe('conversation turn recognition', () => {
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'how are you');
     expect(result.current.turn).toBe('b');
     expect(FakeRecognition.instances).toHaveLength(1);
-    expect(first.abort).not.toHaveBeenCalled();
-    // The reply lands on the same recognizer and is credited to the other person
-    act(() => first.result('fine thanks', true, 1));
+    // The same recognizer starts a fresh session, so nothing of A's can open B's message
+    expect(first.abort).toHaveBeenCalledOnce();
+    expect(first.start).toHaveBeenCalledTimes(2);
+    act(() => first.result('fine thanks', true, 0));
     act(() => result.current.setTurn('a'));
     expect(onSend).toHaveBeenLastCalledWith('b', 'fine thanks');
     expect(result.current.turn).toBe('a');
@@ -353,7 +358,7 @@ describe('conversation turn recognition', () => {
     act(() => result.current.setTurn('b'));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'still talkin');
     expect(FakeRecognition.instances).toHaveLength(1);
-    expect(first.abort).not.toHaveBeenCalled();
+    expect(first.start).toHaveBeenCalledTimes(2);
     // The sent words still show up as interim, then as a revised final: neither is B's
     act(() => first.result('still talking', false));
     expect(result.current.interim).toBe('');
@@ -364,7 +369,41 @@ describe('conversation turn recognition', () => {
     expect(onSend).toHaveBeenLastCalledWith('b', 'sounds good');
   });
 
-  it('auto-switch mid-phrase keeps listening and drops the late cumulative copy', () => {
+  it('ignores what the ended session still delivers before it restarts', () => {
+    const { result, onSend } = setup('en');
+    const first = latest();
+    // A real engine reports the end later, not inside abort()
+    first.abort.mockImplementation(() => {});
+    act(() => first.result('how are you doing', false));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'how are you doing');
+    expect(result.current.turn).toBe('b');
+    // The old session flushes its copy of A's words: none of it is B's
+    act(() => first.result('how are you doing today', true));
+    expect(result.current.draft).toBe('');
+    expect(result.current.interim).toBe('');
+    act(() => first.onend?.());
+    expect(first.start).toHaveBeenCalledTimes(2);
+    act(() => first.result('great thanks', true, 0));
+    act(() => result.current.setTurn('a'));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'great thanks');
+  });
+
+  it('replaces the mic if the ended session never reports its end', () => {
+    const { onSend } = setup('en');
+    const first = latest();
+    first.abort.mockImplementation(() => {});
+    act(() => first.result('hello there'));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello there');
+    act(() => vi.advanceTimersByTime(1500));
+    expect(FakeRecognition.instances).toHaveLength(2);
+    act(() => latest().result('hi', true, 0));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'hi');
+  });
+
+  it('auto-switch mid-phrase restarts the session and drops a repeated copy of the sent words', () => {
     const { result, onSend } = setup('en');
     const first = latest();
     act(() => {
@@ -375,9 +414,10 @@ describe('conversation turn recognition', () => {
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it');
     expect(result.current.turn).toBe('b');
     expect(FakeRecognition.instances).toHaveLength(1);
-    act(() => first.result('why is it', true, 1));
+    // Worst case: the new session repeats all of A's words before B's
+    act(() => first.result('why is it', true, 0));
     expect(result.current.draft).toBe('');
-    act(() => first.result('why is it because', true, 2));
+    act(() => first.result('why is it because', true, 1));
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenLastCalledWith('b', 'because');
   });
@@ -391,7 +431,7 @@ describe('conversation turn recognition', () => {
       vi.advanceTimersByTime(400);
     });
     expect(FakeRecognition.instances).toHaveLength(1);
-    expect(latest().start).toHaveBeenCalledTimes(2);
+    expect(latest().start).toHaveBeenCalledTimes(3);
     act(() => latest().result('see you tomorrow', true));
     act(() => result.current.setTurn('a'));
     expect(onSend).toHaveBeenLastCalledWith('b', 'tomorrow');
