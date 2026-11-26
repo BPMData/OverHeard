@@ -61,6 +61,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     local: false as SpeechLocality,
   });
   const recognizer = useRef<Recognizer | null>(null);
+  const deduper = useRef<ReturnType<typeof createFinalDeduper> | null>(null);
   const silence = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restart = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,6 +74,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   function detach() {
     const recognition = recognizer.current;
     recognizer.current = null;
+    deduper.current = null;
     if (!recognition) return;
     recognition.onresult = recognition.onerror = recognition.onend = null;
     try {
@@ -102,11 +104,12 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     clearDraft();
   }
 
-  function stop() {
+  function stop(preserveError = false) {
     session.current.active = false;
     session.current.suspended = false;
     invalidate();
     clearDraft();
+    if (!preserveError) updateError(null);
     setListening(false);
   }
 
@@ -173,11 +176,14 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     let lastError: string | null = null;
     const finals = new Set<number>();
     const newWords = createFinalDeduper();
+    deduper.current = newWords;
 
     recognition.onresult = (event) => {
       if (!valid()) return;
       logSpeechEvent(event);
       if (isOffline()) setLocal(true); // heard while offline, so it runs on this device
+      const prevDraft = current.draft;
+      const prevInterim = current.interim;
       const parts: string[] = [];
       for (let index = 0; index < event.results.length; index++) {
         const result = event.results[index];
@@ -196,7 +202,10 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;
-      armSilence();
+      updateError(null);
+      if (current.draft !== prevDraft || current.interim !== prevInterim) {
+        armSilence();
+      }
     };
 
     recognition.onerror = ({ error: code }) => {
@@ -204,12 +213,17 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       lastError = code;
       if (code === 'not-allowed' || code === 'service-not-allowed') {
         updateError('Microphone permission is required. You can type a message.');
-        stop();
+        stop(true);
         opts.current.onPermissionDenied?.();
       } else if (code === 'language-not-supported') {
         updateError(`Speech recognition doesn't support ${lang} in this browser.`);
-        stop();
+        stop(true);
         opts.current.onUnsupportedLanguage?.(lang);
+      } else if (code === 'audio-capture') {
+        updateError('Microphone is unavailable or in use by another app. You can type a message.');
+        stop(true);
+      } else if (code === 'network') {
+        updateError('Reconnecting speech service…');
       }
     };
 
@@ -253,6 +267,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       speechLocale(participants[side].lang) === speechLocale(participants[current.side].lang)
     ) {
       clearTimers();
+      deduper.current?.markTurnBoundary();
       current.side = side;
       current.failures = 0;
       updateTurn(side);
@@ -269,6 +284,23 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     const settled = !session.current.interim;
     send();
     handoff(side, settled);
+  }
+
+  /**
+   * Moves any in-progress speech to `side` without committing or restarting a same-language
+   * recognizer, so misattributed live speech can be corrected mid-sentence.
+   */
+  function reassignTurn(side: Side) {
+    const current = session.current;
+    if (!current.active || current.side === side) return;
+    const { participants } = opts.current;
+    if (speechLocale(participants[side].lang) === speechLocale(participants[current.side].lang)) {
+      current.side = side;
+      updateTurn(side);
+      armSilence();
+      return;
+    }
+    setTurn(side);
   }
 
   function start(local: SpeechLocality = false, side: Side = 'a') {
@@ -304,13 +336,14 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   );
 
   // Stable public controls let consumers safely use them in effect dependencies.
-  const latestControls = useRef({ start, stop, setTurn, suspend, resume });
-  latestControls.current = { start, stop, setTurn, suspend, resume };
+  const latestControls = useRef({ start, stop, setTurn, reassignTurn, suspend, resume });
+  latestControls.current = { start, stop, setTurn, reassignTurn, suspend, resume };
   const controls = useMemo(
     () => ({
       start: (local: SpeechLocality = false, side: Side = 'a') => latestControls.current.start(local, side),
       stop: () => latestControls.current.stop(),
       setTurn: (side: Side) => latestControls.current.setTurn(side),
+      reassignTurn: (side: Side) => latestControls.current.reassignTurn(side),
       suspend: () => latestControls.current.suspend(),
       resume: () => latestControls.current.resume(),
     }),

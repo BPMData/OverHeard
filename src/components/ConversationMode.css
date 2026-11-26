@@ -4,6 +4,7 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
+  overscroll-behavior: none;
   background: #eaeff6;
   color: #172033;
   padding: 12px;
@@ -603,6 +604,8 @@
   display: block;
   margin: 0.5rem auto;
   min-height: 44px;
+  touch-action: manipulation;
+  user-select: none;
 }
 .conversation-next-speaker kbd {
   margin-left: 0.5rem;
@@ -1280,6 +1283,11 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
 
 /* Face to face: a tablet lying flat between two people. The far half is turned upside
    down so each person reads their half the right way up, with their button at their edge. */
+.conversation-mode.is-face-to-face .conversation-settings {
+  order: 2;
+  max-height: 40vh;
+  overflow-y: auto;
+}
 .f2f {
   flex: 1;
   min-height: 0;
@@ -1319,6 +1327,12 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
   overflow-wrap: anywhere;
   line-height: 1.25;
 }
+.f2f-message-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
 .f2f-message small {
   display: block;
   font-size: 13px;
@@ -1331,11 +1345,28 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
   max-width: 85%;
   opacity: 0.7;
 }
+.f2f-message.is-own .f2f-message-head {
+  justify-content: flex-end;
+}
 .f2f-message.is-other {
   font-weight: 600;
 }
-.f2f-message.is-live {
+.f2f-message.is-live.is-own {
   opacity: 0.85;
+}
+.conversation-mode button.f2f-swap {
+  min-height: 26px;
+  min-width: 28px;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.65;
+  touch-action: manipulation;
+  user-select: none;
+}
+.conversation-mode button.f2f-swap:hover,
+.conversation-mode button.f2f-swap:focus-visible {
+  opacity: 1;
 }
 .conversation-mode button.f2f-talk {
   flex-shrink: 0;
@@ -1346,6 +1377,13 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
   background: #5843a5;
   border-color: #4b3891;
   color: #ffffff;
+  touch-action: manipulation;
+  user-select: none;
+}
+.f2f-talk-hint {
+  font-size: 0.75em;
+  font-weight: 500;
+  opacity: 0.9;
 }
 .conversation-mode button.f2f-talk.is-turn {
   background: #059669;
@@ -1367,4 +1405,27 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
 .conversation-mode .f2f-divider button {
   min-height: 40px;
   padding: 6px 14px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (max-height: 700px) {
+  .conversation-mode.is-face-to-face {
+    padding: 6px;
+    gap: 6px;
+  }
+  .f2f {
+    gap: 6px;
+  }
+  .f2f-pane {
+    padding: 6px;
+    gap: 6px;
+  }
+  .conversation-mode button.f2f-talk {
+    min-height: 48px;
+    font-size: 18px;
+  }
+  .conversation-mode .f2f-divider button {
+    min-height: 34px;
+    padding: 4px 10px;
+  }
 }

@@ -53,4 +53,17 @@ describe('corrections to an earlier word', () => {
     next('hello there my friend');
     expect(next('how are you')).toBe('how are you');
   });
+
+  it('allows exact echoes after a turn boundary while still stripping cumulative extensions', () => {
+    const next = createFinalDeduper();
+    expect(next.revise('Thank you').add).toBe('Thank you');
+    next.markTurnBoundary();
+    expect(next.peek('Thank you')).toBe('Thank you');
+    expect(next.revise('Thank you').add).toBe('Thank you');
+
+    // Cumulative Android engines send a strictly longer string containing the old turn
+    next.markTurnBoundary();
+    expect(next.peek('Thank you very much')).toBe('very much');
+    expect(next.revise('Thank you very much').add).toBe('very much');
+  });
 });

@@ -65,7 +65,7 @@ describe('face to face two-way', () => {
     // The toolbar stays out of the way until asked for
     expect(screen.queryByRole('button', { name: 'Start conversation' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Grandpa: tap, then talk' }));
-    expect(screen.getByRole('button', { name: '🎙 Listening to Grandpa' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /🎙 Listening to Grandpa/ })).toBeTruthy();
     expect(Recognition.instances).toHaveLength(1);
     expect(Recognition.instances[0].lang).toBe('en-US');
 
@@ -84,16 +84,57 @@ describe('face to face two-way', () => {
     }
     expect(translate).not.toHaveBeenCalled();
     // Hands-free passed the turn without restarting the microphone
-    expect(screen.getByRole('button', { name: '🎙 Listening to Bryan' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /🎙 Listening to Bryan/ })).toBeTruthy();
     expect(Recognition.instances).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
     expect(screen.getByRole('button', { name: 'Bryan: tap, then talk' })).toBeTruthy();
   });
 
-  it('opens the toolbar on request and can switch back to side by side', () => {
+  it('passes turn when tapping your active button, guards accidental double-taps, and swaps mislabeled speakers', async () => {
     mount();
+    fireEvent.click(screen.getByRole('button', { name: 'Bryan: tap, then talk' }));
+    const activeBtn = screen.getByRole('button', { name: /🎙 Listening to Bryan/ });
+
+    // Immediate accidental double-tap before any words arrive stays on Bryan
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    fireEvent.click(activeBtn);
+    expect(screen.getByRole('button', { name: /🎙 Listening to Bryan/ })).toBeTruthy();
+
+    // Tapping after speaking passes the turn to Grandpa without needing to reach across
+    await act(async () => {
+      Recognition.instances[0].onresult?.({
+        resultIndex: 0,
+        results: [{ isFinal: false, 0: { transcript: 'Actually Grandpa is talking' } }],
+      });
+    });
+    // Flip live speech before it is sent
+    fireEvent.click(screen.getAllByRole('button', { name: 'Switch live speech to Grandpa' })[0]);
+    expect(screen.getByRole('button', { name: /🎙 Listening to Grandpa/ })).toBeTruthy();
+
+    // Tap active Grandpa button to commit and pass to Bryan
+    fireEvent.click(screen.getByRole('button', { name: /🎙 Listening to Grandpa/ }));
+    expect(screen.getByRole('button', { name: /🎙 Listening to Bryan/ })).toBeTruthy();
+
+    // Move the finished message between speakers with ⇄
+    const grandpaLog = screen.getByRole('log', { name: 'Conversation for Grandpa' });
+    expect(within(grandpaLog).getByText('Grandpa')).toBeTruthy();
+    fireEvent.click(within(grandpaLog).getByRole('button', { name: /Move "Actually Grandpa is talking" to Bryan/ }));
+    expect(within(grandpaLog).getByText('Bryan')).toBeTruthy();
+  });
+
+  it('toggles Turns: Auto / Tap in the divider and hides translation/voice clutter for two English speakers', () => {
+    mount();
+    const turnsBtn = screen.getByRole('button', { name: 'Turns: Auto' });
+    fireEvent.click(turnsBtn);
+    expect(screen.getByRole('button', { name: 'Turns: Tap' })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('overheard.conversation')!).manualTurns).toBe(true);
+
     fireEvent.click(screen.getByRole('button', { name: 'Show controls' }));
+    expect(screen.queryByLabelText('Side A voice')).toBeNull();
+    expect(screen.queryByLabelText('Side B voice')).toBeNull();
     fireEvent.change(screen.getByDisplayValue('Face to face (tablet between you)'), {
       target: { value: 'side-by-side' },
     });
