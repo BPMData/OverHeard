@@ -10,6 +10,7 @@ class FakeRecognition {
   continuous = false;
   interimResults = false;
   processLocally = false;
+  onstart: (() => void) | null = null;
   onresult: ((e: any) => void) | null = null;
   onerror: ((e: any) => void) | null = null;
   onend: (() => void) | null = null;
@@ -125,14 +126,64 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledWith('a', 'finally');
   });
-  it('sends across a browser restart without losing the silence timer', () => {
+  it('sends across a browser restart once the mic is listening again', () => {
     const { onSend } = setup();
     act(() => {
       latest().result('hello');
+      vi.advanceTimersByTime(1000);
       latest().onend?.();
     });
+    // The restart gap doesn't count as a pause: the mic couldn't hear anyone then
+    act(() => vi.advanceTimersByTime(1400));
+    act(() => latest().onstart?.());
+    act(() => vi.advanceTimersByTime(2400));
+    expect(onSend).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello');
+  });
+
+  it('still passes the turn when the engine never reports onstart', () => {
+    const { onSend } = setup();
+    act(() => {
+      latest().result('hello');
+      vi.advanceTimersByTime(1000);
+      latest().onend?.();
+    });
+    act(() => vi.advanceTimersByTime(1500 + 2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello');
+  });
+
+  it('restarts the same recognizer instead of replacing it (Android tablets)', () => {
+    const { onSend } = setup('en');
+    const first = latest();
+    // Android: every result final and cumulative, session ends at each pause
+    act(() => {
+      first.result('', true, 0);
+      first.result('good', true, 1);
+      first.onresult?.({
+        resultIndex: 2,
+        results: ['', 'good', 'good morning dog police'].map((t) => ({ isFinal: true, 0: { transcript: t } })),
+      });
+      vi.advanceTimersByTime(1000);
+      first.onend?.();
+    });
+    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(first.abort).not.toHaveBeenCalled();
+    expect(first.start).toHaveBeenCalledTimes(2);
+    act(() => first.onstart?.());
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'good morning dog police');
+    // The next session's indexes start at 0 again and belong to the other person
+    act(() => first.result('yeah see', true, 0));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+      first.onend?.();
+      first.onstart?.();
+    });
+    act(() => first.result('yeah see it works', true, 0));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'yeah see it works');
+    expect(FakeRecognition.instances).toHaveLength(1);
   });
   it('manual override sends first and quiet override sends nothing', () => {
     const { result, onSend } = setup();
@@ -278,7 +329,8 @@ describe('conversation turn recognition', () => {
       latest().onend?.();
       vi.advanceTimersByTime(400);
     });
-    expect(FakeRecognition.instances).toHaveLength(2);
+    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(latest().start).toHaveBeenCalledTimes(2);
     act(() => latest().result('see you tomorrow', true));
     act(() => result.current.setTurn('a'));
     expect(onSend).toHaveBeenLastCalledWith('b', 'tomorrow');

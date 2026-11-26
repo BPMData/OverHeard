@@ -19,6 +19,7 @@ interface Recognizer {
   continuous: boolean;
   interimResults: boolean;
   processLocally?: boolean;
+  onstart?: (() => void) | null;
   onresult: ((event: ResultEvent) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
@@ -83,7 +84,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     recognizer.current = null;
     deduper.current = null;
     if (!recognition) return;
-    recognition.onresult = recognition.onerror = recognition.onend = null;
+    recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
     try {
       recognition.abort();
     } catch {
@@ -180,11 +181,40 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       current.active &&
       !current.suspended &&
       recognizer.current === recognition;
-    const startedAt = Date.now();
+    let startedAt = Date.now();
     let lastError: string | null = null;
-    const finals = new Set<number>();
-    const newWords = createFinalDeduper();
+    let finals = new Set<number>();
+    let newWords = createFinalDeduper();
     deduper.current = newWords;
+    // Each start() is a new session: result indexes begin at 0 again.
+    function newSession() {
+      startedAt = Date.now();
+      lastError = null;
+      finals = new Set<number>();
+      newWords = createFinalDeduper();
+      deduper.current = newWords;
+    }
+    // The pause before the turn passes counts only while the mic can hear. Android ends a
+    // session at every breath and takes a moment to listen again; counting that gap passed
+    // the turn while the speaker was still talking.
+    let silenceHeld = false;
+    function holdSilence() {
+      if (silence.current === null) return;
+      clearTimeout(silence.current);
+      silence.current = null;
+      silenceHeld = true;
+    }
+    function releaseSilence() {
+      if (!silenceHeld || !valid()) return;
+      silenceHeld = false;
+      armSilence();
+    }
+
+    recognition.onstart = () => {
+      if (!valid()) return;
+      logSpeechNote('start');
+      releaseSilence();
+    };
 
     recognition.onresult = (event) => {
       if (!valid()) return;
@@ -225,6 +255,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     recognition.onerror = ({ error: code }) => {
       if (!valid()) return;
       lastError = code;
+      logSpeechNote(`error ${code}`);
       if (code === 'not-allowed' || code === 'service-not-allowed') {
         updateError('Microphone permission is required. You can type a message.');
         stop(true);
@@ -241,26 +272,49 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       }
     };
 
+    /**
+     * Restarts this same recognizer straight from its end event, as Captions does. Building a
+     * new one and aborting the ended one left an Android tablet deaf for many seconds: they
+     * share the system's one speech service.
+     */
     function scheduleRestart() {
       if (!valid()) return;
       logSpeechNote(`end (${lastError ?? 'ok'})`);
-      // The turn's silence timer survives ordinary browser ends.
       preserveInterim();
-      detach();
+      holdSilence();
       current.failures = isFailedSession(lastError, Date.now() - startedAt)
         ? current.failures + 1
         : 0;
-      restart.current = setTimeout(() => {
-        if (token === current.generation && current.active && !current.suspended) void begin();
-      }, restartDelay(current.failures));
+      const again = () => {
+        restart.current = null;
+        if (!valid()) return;
+        if (wantsLocalSpeech(current.local) !== local) {
+          // Went offline or back online: a new recognizer picks the right engine
+          recognizer.current = null;
+          deduper.current = null;
+          void begin();
+          return;
+        }
+        newSession();
+        listen();
+      };
+      const delay = restartDelay(current.failures);
+      if (delay === 0) again();
+      else restart.current = setTimeout(again, delay);
+    }
+    function listen() {
+      try {
+        recognition.start();
+      } catch {
+        lastError = 'network';
+        scheduleRestart();
+        return;
+      }
+      // Some engines never report onstart; don't hold the turn forever
+      if (silenceHeld) silence.current = setTimeout(releaseSilence, 1500);
     }
     recognition.onend = scheduleRestart;
-    try {
-      recognition.start();
-    } catch {
-      lastError = 'network';
-      scheduleRestart();
-    }
+    listen();
   }
 
   /**
@@ -278,14 +332,18 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       !current.suspended &&
       speechLocale(participants[side].lang) === speechLocale(participants[current.side].lang)
     ) {
-      clearTimers();
+      // Only the pause timer: a pending restart must still bring the mic back
+      if (silence.current !== null) clearTimeout(silence.current);
+      silence.current = null;
       deduper.current?.markTurnBoundary();
       current.echo = echo;
+      logSpeechNote(`turn ${side} (same mic)`);
       current.side = side;
       current.failures = 0;
       updateTurn(side);
       return;
     }
+    logSpeechNote(`turn ${side} (new mic)`);
     invalidate();
     session.current.echo = '';
     session.current.side = side;
