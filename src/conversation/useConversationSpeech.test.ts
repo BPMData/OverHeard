@@ -234,13 +234,54 @@ describe('conversation turn recognition', () => {
     expect(result.current.turn).toBe('a');
     expect(FakeRecognition.instances).toHaveLength(1);
   });
-  it('replaces a same-language recognizer when unfinished words were sent', () => {
+  it('keeps a same-language recognizer when unfinished words were sent, without repeating them', () => {
     const { result, onSend } = setup('en');
-    act(() => latest().result('still talking', false));
+    const first = latest();
+    act(() => first.result('still talkin', false));
     act(() => result.current.setTurn('b'));
-    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'still talking');
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'still talkin');
+    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(first.abort).not.toHaveBeenCalled();
+    // The sent words still show up as interim, then as a revised final: neither is B's
+    act(() => first.result('still talking', false));
+    expect(result.current.interim).toBe('');
+    act(() => first.result('still talking', true));
+    expect(result.current.draft).toBe('');
+    act(() => first.result('sounds good', true, 1));
+    act(() => result.current.setTurn('a'));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'sounds good');
+  });
+
+  it('auto-switch mid-phrase keeps listening and drops the late cumulative copy', () => {
+    const { result, onSend } = setup('en');
+    const first = latest();
+    act(() => {
+      first.result('why', true, 0);
+      first.result('why is it', false, 1);
+    });
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it');
+    expect(result.current.turn).toBe('b');
+    expect(FakeRecognition.instances).toHaveLength(1);
+    act(() => first.result('why is it', true, 1));
+    expect(result.current.draft).toBe('');
+    act(() => first.result('why is it because', true, 2));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'because');
+  });
+
+  it('drops sent words repeated by the session after an engine restart', () => {
+    const { result, onSend } = setup('en');
+    act(() => latest().result('see you', false));
+    act(() => result.current.setTurn('b'));
+    act(() => {
+      latest().onend?.();
+      vi.advanceTimersByTime(400);
+    });
     expect(FakeRecognition.instances).toHaveLength(2);
-    expect(FakeRecognition.instances[0].abort).toHaveBeenCalled();
+    act(() => latest().result('see you tomorrow', true));
+    act(() => result.current.setTurn('a'));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'tomorrow');
   });
 
   it('keeps an exact echo reply when reusing a same-language recognizer', () => {

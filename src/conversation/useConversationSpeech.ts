@@ -1,4 +1,6 @@
-import { appendDistinct, createFinalDeduper, dropLastWords, mergeInterim } from '../speechDedupe';
+import {
+  appendDistinct, createFinalDeduper, dropLastWords, mergeInterim, stripEcho,
+} from '../speechDedupe';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
@@ -59,6 +61,11 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     generation: 0,
     failures: 0,
     local: false as SpeechLocality,
+    /**
+     * Unfinished words already sent with the previous turn. The shared recognizer will still
+     * deliver them as a final, which must not open the next person's message.
+     */
+    echo: '',
   });
   const recognizer = useRef<Recognizer | null>(null);
   const deduper = useRef<ReturnType<typeof createFinalDeduper> | null>(null);
@@ -107,6 +114,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   function stop(preserveError = false) {
     session.current.active = false;
     session.current.suspended = false;
+    session.current.echo = '';
     invalidate();
     clearDraft();
     if (!preserveError) updateError(null);
@@ -127,9 +135,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       return;
     silence.current = setTimeout(() => {
       if (token !== current.generation || !current.active || current.suspended) return;
-      const settled = !current.interim;
+      const echo = current.interim;
       send();
-      handoff(otherSide(current.side), settled);
+      handoff(otherSide(current.side), echo);
     }, delay);
   }
 
@@ -191,14 +199,20 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         if (result.isFinal) {
           if (!finals.has(index)) {
             finals.add(index);
-            const { drop, add } = newWords.revise(text);
+            let { drop, add } = newWords.revise(text);
+            if (current.echo && add) {
+              add = stripEcho(add, current.echo);
+              current.echo = '';
+              drop = 0;
+            }
             current.draft = appendDistinct(dropLastWords(current.draft, drop), add);
           }
         } else {
           parts.push(text);
         }
       }
-      current.interim = newWords.peek(mergeInterim(parts));
+      const interim = newWords.peek(mergeInterim(parts));
+      current.interim = current.echo ? stripEcho(interim, current.echo) : interim;
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;
@@ -250,17 +264,15 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   }
 
   /**
-   * Passes the turn. When both people speak the same language and every word heard so far
-   * was final (`settled`), the running recognizer keeps listening for the next person:
-   * restarting it would drop the first words of a quick reply and, on Android, chime again.
-   * A pending interim result would arrive later as a final and repeat sent words, so then
-   * the recognizer is replaced as before.
+   * Passes the turn. When both people speak the same language the running recognizer keeps
+   * listening for the next person: restarting it drops the first words of a quick reply and,
+   * on Android, chimes and takes a second or more to listen again. Unfinished words already
+   * sent (`echo`) still arrive later as a final; that copy is stripped instead.
    */
-  function handoff(side: Side, settled = false) {
+  function handoff(side: Side, echo = '') {
     const current = session.current;
     const { participants } = opts.current;
     if (
-      settled &&
       recognizer.current &&
       current.active &&
       !current.suspended &&
@@ -268,12 +280,14 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     ) {
       clearTimers();
       deduper.current?.markTurnBoundary();
+      current.echo = echo;
       current.side = side;
       current.failures = 0;
       updateTurn(side);
       return;
     }
     invalidate();
+    session.current.echo = '';
     session.current.side = side;
     session.current.failures = 0;
     updateTurn(side);
@@ -281,9 +295,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   }
 
   function setTurn(side: Side) {
-    const settled = !session.current.interim;
+    const echo = session.current.interim;
     send();
-    handoff(side, settled);
+    handoff(side, echo);
   }
 
   /**
