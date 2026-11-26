@@ -107,3 +107,17 @@ src/
 - **Single instance required for live rooms**: Live classroom rooms and translation request coalescing currently reside in server process memory — keep Cloud Run **maximum instances set to `1`** (see [ROOMS.md](ROOMS.md)).
 - **Node 22 native TypeScript stripping**: Server and shared files imported by `server.ts` must stay strictly erasable TypeScript with explicit `.ts` extensions on relative server imports (see [AGENTS.md](AGENTS.md)).
 - **Roadmap**: See [TODO.md](TODO.md) for planned features and future enhancements.
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: submitting a pull request gives
+the project's owner the right to relicense your contribution, including under commercial terms.
+
+## License
+
+Copyright (C) 2026 Bryan Murphy. OverHeard's code is licensed under the
+[GNU Affero General Public License v3.0](LICENSE) (AGPLv3): you may use, change and share it, but if you share a
+changed version, or run one as a website or online service, you must share its source code under AGPLv3 too.
+
+The voice and translation models OverHeard downloads keep their own licenses, which are not covered by this one.
+Some are non-commercial: the Meta MMS reader voices are CC BY-NC 4.0 (see [docs/mms-voices.md](docs/mms-voices.md)).
