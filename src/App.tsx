@@ -206,6 +206,7 @@ export default function App() {
           fontSize={fontSize}
           onAdjustFont={handleAdjustFont}
           isDark={isDark}
+          onToggleDark={() => setIsDark((d) => !d)}
           translate={translateConversation}
           initialLanguage={selectedLangs[0] ?? 'es'}
           selectedLangs={selectedLangs}

@@ -1,7 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { LANGUAGE_MAP } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
-import type { Message, Side } from '../conversation/state';
+import { speechLocale } from '../conversation/locales';
+import { correctMessage, otherSide, type Message, type Side } from '../conversation/state';
 import type { useConversationSpeech } from '../conversation/useConversationSpeech';
 import type { ConversationLanguage } from '../types';
 import type { ConversationSettings } from './conversationSettings';
@@ -20,6 +21,8 @@ interface FaceToFaceViewProps {
   settings: ConversationSettings;
   speech: Speech;
   messages: Message[];
+  onCorrectMessage: (message: Message) => void;
+  onToggleManualTurns: () => void;
   fontSize: number;
   isDark: boolean;
   packPanel?: ReactNode;
@@ -40,22 +43,42 @@ interface FaceToFaceViewProps {
  * changes a name label, never what anyone can read.
  */
 export function FaceToFaceView({
-  settings, speech, messages, fontSize, isDark, packPanel, uiError, onStart, onAdjustFont,
-  fullscreen, onToggleFullscreen, controlsOpen, onToggleControls,
+  settings, speech, messages, onCorrectMessage, onToggleManualTurns, fontSize, isDark,
+  packPanel, uiError, onStart, onAdjustFont, fullscreen, onToggleFullscreen, controlsOpen,
+  onToggleControls,
 }: FaceToFaceViewProps) {
   const threads = { a: useRef<HTMLDivElement>(null), b: useRef<HTMLDivElement>(null) };
   const following = useRef({ a: true, b: true });
+  const turnActivatedAtRef = useRef(0);
   const live = [speech.draft, speech.interim].filter(Boolean).join(' ');
+  const sameSpeechLang = speechLocale(settings.a.lang) === speechLocale(settings.b.lang);
   useEffect(() => {
     for (const side of ['a', 'b'] as const) {
       const el = threads[side].current;
       if (el && following.current[side]) el.scrollTop = el.scrollHeight;
     }
-  }, [messages, live]);
+  }, [messages, live, fontSize]);
   const name = (side: Side) => settings[side].name || side.toUpperCase();
+
+  const handleTalkClick = (reader: Side) => {
+    if (!speech.isListening) {
+      turnActivatedAtRef.current = Date.now();
+      onStart(reader);
+      return;
+    }
+    if (speech.turn === reader) {
+      // Ignore an accidental double-tap right after starting before any words arrive.
+      if (!live && Date.now() - turnActivatedAtRef.current < 600) return;
+      speech.setTurn(otherSide(reader));
+      return;
+    }
+    turnActivatedAtRef.current = Date.now();
+    speech.setTurn(reader);
+  };
 
   const pane = (reader: Side) => {
     const isTurn = speech.isListening && speech.turn === reader;
+    const other = otherSide(reader);
     return (
       <section
         className={`f2f-pane f2f-${reader === 'b' ? 'far' : 'near'}`}
@@ -74,8 +97,10 @@ export function FaceToFaceView({
           {!messages.length && !live && (
             <p className="conversation-empty">
               {speech.isListening
-                ? 'Go ahead and talk. Your words show up here.'
-                : 'Tap the big button, then talk.'}
+                ? isTurn
+                  ? 'Listening to you — go ahead and talk.'
+                  : `Listening to ${name(other)} — their words will appear here.`
+                : 'Tap your button below, then talk.'}
             </p>
           )}
           {messages.map((message) => {
@@ -89,16 +114,26 @@ export function FaceToFaceView({
                 key={message.id}
                 className={`f2f-message ${own ? 'is-own' : 'is-other'}`}
               >
-                <small>{message.sender.name}</small>
+                <div className="f2f-message-head">
+                  <small>{message.sender.name}</small>
+                  <button
+                    type="button"
+                    className="f2f-swap"
+                    aria-label={`Move "${message.original}" to ${message.reader.name}`}
+                    title={`Move to ${message.reader.name}`}
+                    onClick={() => onCorrectMessage(correctMessage(message))}
+                  >
+                    ⇄
+                  </button>
+                </div>
                 <div
                   dir={direction(lang)}
                   lang={lang}
-                  style={{
-                    fontSize: own ? Math.round(fontSize * 0.6) : fontSize,
-                    ...captionTextStyle(color(message.side, message.sender.lang), isDark),
-                  }}
+                  style={{ fontSize: own ? Math.round(fontSize * 0.6) : fontSize }}
                 >
-                  {shown}
+                  <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
+                    {shown}
+                  </span>
                 </div>
                 {!own && message.status === 'translating' && (
                   <small className="conversation-pulse">Translating…</small>
@@ -113,16 +148,28 @@ export function FaceToFaceView({
             <article
               className={`f2f-message is-live ${speech.turn === reader ? 'is-own' : 'is-other'}`}
             >
-              <small>{name(speech.turn)} · speaking…</small>
+              <div className="f2f-message-head">
+                <small>{name(speech.turn)} · speaking…</small>
+                {sameSpeechLang && (
+                  <button
+                    type="button"
+                    className="f2f-swap"
+                    aria-label={`Switch live speech to ${name(otherSide(speech.turn))}`}
+                    title={`Switch to ${name(otherSide(speech.turn))}`}
+                    onClick={() => speech.reassignTurn(otherSide(speech.turn))}
+                  >
+                    ⇄
+                  </button>
+                )}
+              </div>
               <div
                 dir={direction(settings[speech.turn].lang)}
                 lang={settings[speech.turn].lang}
-                style={{
-                  fontSize: speech.turn === reader ? Math.round(fontSize * 0.6) : fontSize,
-                  ...captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark),
-                }}
+                style={{ fontSize: speech.turn === reader ? Math.round(fontSize * 0.6) : fontSize }}
               >
-                {live}
+                <span style={captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)}>
+                  {live}
+                </span>
               </div>
             </article>
           )}
@@ -132,9 +179,16 @@ export function FaceToFaceView({
           className={`f2f-talk ${isTurn ? 'is-turn' : ''}`}
           aria-pressed={isTurn}
           disabled={!speech.supported}
-          onClick={() => (speech.isListening ? speech.setTurn(reader) : onStart(reader))}
+          onClick={() => handleTalkClick(reader)}
         >
-          {isTurn ? `🎙 Listening to ${name(reader)}` : `${name(reader)}: tap, then talk`}
+          {isTurn ? (
+            <>
+              {`🎙 Listening to ${name(reader)}`}{' '}
+              <span className="f2f-talk-hint">· Tap when done</span>
+            </>
+          ) : (
+            `${name(reader)}: tap, then talk`
+          )}
         </button>
       </section>
     );
@@ -173,6 +227,18 @@ export function FaceToFaceView({
               Start
             </button>
           )}
+          <button
+            type="button"
+            aria-pressed={!settings.manualTurns}
+            onClick={onToggleManualTurns}
+            title={
+              settings.manualTurns
+                ? 'Tap buttons to switch speakers. Click for hands-free auto-switching.'
+                : `Auto-switches after a ${settings.switchAfterMs / 1000}s pause. Click to switch by tapping.`
+            }
+          >
+            {settings.manualTurns ? 'Turns: Tap' : 'Turns: Auto'}
+          </button>
           {onAdjustFont && (
             <>
               <button type="button" aria-label="Smaller text" onClick={() => onAdjustFont(-4)}>

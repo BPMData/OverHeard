@@ -36,7 +36,7 @@ import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { LectureControlsSetting } from './LectureControlsSetting';
 import { useConversationSettings } from './useConversationSettings';
 import { WhiteboatIcon } from './WhiteboatIcon';
-import { HelpCircle, Maximize2, Minimize2, Settings as SettingsIcon } from 'lucide-react';
+import { HelpCircle, Maximize2, Minimize2, Moon, Settings as SettingsIcon, Sun } from 'lucide-react';
 import './ConversationMode.css';
 import { TeacherRoomControls } from '../rooms/TeacherRoomControls';
 import { piperClient } from '../tts/piperClient';
@@ -52,6 +52,7 @@ interface Props {
   active: boolean;
   fontSize: number;
   isDark: boolean;
+  onToggleDark?: () => void;
   /** `live` marks text still being spoken: it only uses this device or the free translator */
   translate: (
     text: string,
@@ -85,6 +86,7 @@ export function ConversationMode({
   active,
   fontSize,
   isDark,
+  onToggleDark,
   translate,
   onExit,
   onHome,
@@ -492,7 +494,7 @@ export function ConversationMode({
   return (
     <div
       ref={root}
-      className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}
+      className={`conversation-mode ${isDark ? 'conversation-dark' : ''} ${faceToFace ? 'is-face-to-face' : ''}`}
       hidden={!active}
     >
       {permissionBanner}
@@ -609,6 +611,18 @@ export function ConversationMode({
                 A+
               </button>
             </div>
+          )}
+          {onToggleDark && (
+            <button
+              type="button"
+              onClick={onToggleDark}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="inline-flex items-center gap-1.5"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" aria-hidden="true" /> : <Moon className="w-3.5 h-3.5" aria-hidden="true" />}
+              <span className="oh-wide-xl">{isDark ? 'Light' : 'Dark'}</span>
+            </button>
           )}
         </div>
         {!isLecture && (
@@ -751,6 +765,8 @@ export function ConversationMode({
           settings={settings}
           speech={speech}
           messages={messages}
+          onCorrectMessage={(message) => dispatch({ type: 'correct', message })}
+          onToggleManualTurns={() => setSettings((s) => ({ ...s, manualTurns: !s.manualTurns }))}
           fontSize={fontSize}
           isDark={isDark}
           packPanel={packPanel}

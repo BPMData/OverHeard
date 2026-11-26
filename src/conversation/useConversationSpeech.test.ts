@@ -242,4 +242,48 @@ describe('conversation turn recognition', () => {
     expect(FakeRecognition.instances).toHaveLength(2);
     expect(FakeRecognition.instances[0].abort).toHaveBeenCalled();
   });
+
+  it('keeps an exact echo reply when reusing a same-language recognizer', () => {
+    const { onSend } = setup('en');
+    const first = latest();
+    act(() => first.result('Happy Thanksgiving'));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'Happy Thanksgiving');
+
+    // Other speaker says the exact same phrase on the next result index
+    act(() => first.result('Happy Thanksgiving', true, 1));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'Happy Thanksgiving');
+    expect(FakeRecognition.instances).toHaveLength(1);
+  });
+
+  it('reassigns live speech to the other same-language speaker without splitting or restarting', () => {
+    const { result, onSend } = setup('en');
+    const first = latest();
+    act(() => first.result('Hey Grandpa', false));
+    act(() => result.current.reassignTurn('b'));
+    expect(onSend).not.toHaveBeenCalled();
+    expect(result.current.turn).toBe('b');
+    expect(result.current.interim).toBe('Hey Grandpa');
+    expect(FakeRecognition.instances).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('b', 'Hey Grandpa');
+  });
+
+  it('stops with a clear error on audio-capture and clears network notice on speech or stop', () => {
+    const { result } = setup('en');
+    act(() => latest().onerror?.({ error: 'network' }));
+    expect(result.current.error).toMatch(/Reconnecting/);
+    act(() => latest().result('back online'));
+    expect(result.current.error).toBeNull();
+
+    act(() => latest().onerror?.({ error: 'network' }));
+    act(() => result.current.stop());
+    expect(result.current.error).toBeNull();
+
+    act(() => result.current.start(false, 'a'));
+    act(() => latest().onerror?.({ error: 'audio-capture' }));
+    expect(result.current.isListening).toBe(false);
+    expect(result.current.error).toMatch(/Microphone is unavailable/);
+  });
 });
