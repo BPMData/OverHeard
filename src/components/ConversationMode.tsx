@@ -31,6 +31,7 @@ import { AboutModal } from './AboutModal';
 import { LectureTools, LectureView } from './LectureView';
 import { OpenFromDriveButton, SaveLectureToDriveControl } from './DriveLectureActions';
 import { TwoWayReadAloud, TwoWaySettings, TwoWayView } from './TwoWayView';
+import { FaceToFaceView } from './FaceToFaceView';
 import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { LectureControlsSetting } from './LectureControlsSetting';
 import { useConversationSettings } from './useConversationSettings';
@@ -112,6 +113,9 @@ export function ConversationMode({
         ? [initialLanguage]
         : DEFAULT_LANGUAGES;
   const isLecture = settings.mode === 'lecture';
+  const faceToFace = !isLecture && settings.layout === 'face-to-face';
+  // Face to face keeps the screen for the two halves; the toolbar opens on request
+  const [controlsOpen, setControlsOpen] = useState(false);
   // Every place a language is chosen says which ones "Only on this device" can't translate
   const needOnline = useLanguagesNeedingOnline(
     isLecture ? fromEnglish(targetLangs) : bothWays(settings.a.lang, settings.b.lang),
@@ -328,8 +332,9 @@ export function ConversationMode({
     if (!settings.readAloud) messages.forEach((m) => spoken.current.add(`${m.id}:${m.revision}`));
   }, [messages, settings.readAloud]);
   useEffect(() => {
-    if (following.current && thread.current) thread.current.scrollTop = thread.current.scrollHeight;
-    else if (messages.length) setNewMessage(true);
+    if (following.current) {
+      if (thread.current) thread.current.scrollTop = thread.current.scrollHeight;
+    } else if (messages.length) setNewMessage(true);
   }, [messages, speech.draft, speech.interim, active]);
   useEffect(() => {
     const change = () => setFullscreen(document.fullscreenElement === root.current);
@@ -362,7 +367,16 @@ export function ConversationMode({
     lecture.setUiError('');
     setSettings((s) => ({ ...s, mode: nextMode }));
   };
-  const start = () => {
+  const toggleFullscreen = () => {
+    if (fullscreen) void document.exitFullscreen();
+    else
+      void root.current
+        ?.requestFullscreen?.()
+        .catch(() => setUiError('Full screen is unavailable in this browser.'));
+  };
+  const start = () => startFrom('a');
+  /** Starts listening with `side` talking first (Face to face: whoever tapped their button). */
+  const startFrom = (side: Side) => {
     onStartAttempt?.();
     setUiError('');
     // Downloads need this click, and the automatic hand-off between speakers isn't one,
@@ -384,7 +398,7 @@ export function ConversationMode({
       }
     }
     withMicAccess(
-      () => speech.start(speechLocality(mtPreference)),
+      () => speech.start(speechLocality(mtPreference), side),
       (reason) => onPermissionDenied(reason),
     );
   };
@@ -482,7 +496,10 @@ export function ConversationMode({
       hidden={!active}
     >
       {permissionBanner}
-      <div className={`conversation-settings${isLecture ? ' lecture-toolbar' : ''}`}>
+      <div
+        className={`conversation-settings${isLecture ? ' lecture-toolbar' : ''}`}
+        hidden={faceToFace && !controlsOpen}
+      >
         <div className="conversation-control-group" role="group" aria-label="Workspace">
           <button
             type="button"
@@ -576,13 +593,7 @@ export function ConversationMode({
           <button
             aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
             title={fullscreen ? 'Exit full screen' : 'Full screen'}
-            onClick={() => {
-              if (fullscreen) void document.exitFullscreen();
-              else
-                void root.current
-                  ?.requestFullscreen?.()
-                  .catch(() => setUiError('Full screen is unavailable in this browser.'));
-            }}
+            onClick={toggleFullscreen}
           >
             <span className="oh-narrow-xl" aria-hidden="true">
               {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -734,6 +745,22 @@ export function ConversationMode({
           fontSize={fontSize}
           isDark={isDark}
           lecturePlayback={lecturePlayback}
+        />
+      ) : faceToFace ? (
+        <FaceToFaceView
+          settings={settings}
+          speech={speech}
+          messages={messages}
+          fontSize={fontSize}
+          isDark={isDark}
+          packPanel={packPanel}
+          uiError={uiError}
+          onStart={startFrom}
+          onAdjustFont={onAdjustFont}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          controlsOpen={controlsOpen}
+          onToggleControls={() => setControlsOpen((open) => !open)}
         />
       ) : (
         <TwoWayView
