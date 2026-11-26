@@ -16,16 +16,6 @@ export type FinalStep = { drop: number; add: string };
 
 export function createFinalDeduper() {
   let previous: string[] = [];
-  let afterHandoff = false;
-  /**
-   * Call when passing the turn while keeping the same recognizer running. A strictly longer
-   * cumulative phrase still has the previous speaker's prefix stripped, while an exact repeat
-   * or shorter prefix ("Thank you" -> "Thank you") starts the new speaker's turn instead of
-   * being swallowed as a duplicate final.
-   */
-  const markTurnBoundary = () => {
-    afterHandoff = previous.length > 0;
-  };
   /**
    * How to apply one final to the text built from earlier finals of this session: remove the
    * last `drop` words, then append `add`. Besides growing copies, the engine sometimes
@@ -36,16 +26,6 @@ export function createFinalDeduper() {
   const revise = (text: string): FinalStep => {
     const words = split(text);
     if (!words.length) return { drop: 0, add: '' };
-    if (afterHandoff) {
-      afterHandoff = false;
-      if (words.length > previous.length && starts(words, previous)) {
-        const add = words.slice(previous.length).join(' ');
-        previous = words;
-        return { drop: 0, add };
-      }
-      previous = words;
-      return { drop: 0, add: words.join(' ') };
-    }
     if (starts(words, previous)) {
       const add = words.slice(previous.length).join(' ');
       previous = words;
@@ -72,16 +52,10 @@ export function createFinalDeduper() {
   /** The same filtering for an interim result, without remembering it. */
   const peek = (text: string): string => {
     const words = split(text);
-    if (afterHandoff) {
-      if (words.length > previous.length && starts(words, previous)) {
-        return words.slice(previous.length).join(' ');
-      }
-      return words.join(' ');
-    }
     if (starts(words, previous)) return words.slice(previous.length).join(' ');
     return starts(previous, words) ? '' : words.join(' ');
   };
-  return Object.assign(take, { peek, revise, markTurnBoundary });
+  return Object.assign(take, { peek, revise });
 }
 
 /**

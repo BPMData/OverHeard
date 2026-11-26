@@ -35,6 +35,9 @@ function recognitionConstructor() {
   return globals.SpeechRecognition ?? globals.webkitSpeechRecognition;
 }
 
+/** How long a turn change waits for the ended session's end event before replacing the mic. */
+const BOUNDARY_TIMEOUT_MS = 1500;
+
 export interface ConversationSpeechOptions {
   participants: Record<Side, { lang: string }>;
   switchAfterMs: number | null;
@@ -67,23 +70,29 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
      * deliver them as a final, which must not open the next person's message.
      */
     echo: '',
-    /** When the current speaker's words last changed, for the turn's wall-clock limit. */
+    /** The whole message sent with that unfinished tail; a new session may repeat all of it. */
+    echoSent: '',
+    /**
+     * The turn just passed and the running session is being ended so the next person starts
+     * a fresh one. Results until it ends belong to words already sent and are ignored.
+     */
+    boundary: false,
   });
   const recognizer = useRef<Recognizer | null>(null);
-  const deduper = useRef<ReturnType<typeof createFinalDeduper> | null>(null);
   const silence = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restart = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundaryGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function clearTimers() {
     if (silence.current !== null) clearTimeout(silence.current);
     if (restart.current !== null) clearTimeout(restart.current);
-    silence.current = restart.current = null;
+    if (boundaryGuard.current !== null) clearTimeout(boundaryGuard.current);
+    silence.current = restart.current = boundaryGuard.current = null;
   }
 
   function detach() {
     const recognition = recognizer.current;
     recognizer.current = null;
-    deduper.current = null;
     if (!recognition) return;
     recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
     try {
@@ -93,8 +102,17 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     }
   }
 
+  /** `text` without the previous turn's unfinished words, or all of it, repeated at its start. */
+  function withoutEcho(text: string) {
+    const { echo, echoSent } = session.current;
+    if (!echo) return text;
+    const whole = stripEcho(text, echoSent);
+    return whole !== stripEcho(text, '') ? whole : stripEcho(text, echo);
+  }
+
   function invalidate() {
     session.current.generation++;
+    session.current.boundary = false;
     clearTimers();
     detach();
   }
@@ -111,12 +129,13 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     logSpeechNote(`send draft="${current.draft}" interim="${current.interim}"`);
     if (text) opts.current.onSend(current.side, text);
     clearDraft();
+    return text;
   }
 
   function stop(preserveError = false) {
     session.current.active = false;
     session.current.suspended = false;
-    session.current.echo = '';
+    session.current.echo = session.current.echoSent = '';
     invalidate();
     clearDraft();
     if (!preserveError) updateError(null);
@@ -128,8 +147,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     if (token !== current.generation || !current.active || current.suspended) return;
     silence.current = null;
     const echo = current.interim;
-    send();
-    handoff(otherSide(current.side), echo);
+    const sent = send();
+    handoff(otherSide(current.side), echo, sent);
   }
 
   /**
@@ -196,14 +215,12 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     let lastError: string | null = null;
     let finals = new Set<number>();
     let newWords = createFinalDeduper();
-    deduper.current = newWords;
     // Each start() is a new session: result indexes begin at 0 again.
     function newSession() {
       startedAt = Date.now();
       lastError = null;
       finals = new Set<number>();
       newWords = createFinalDeduper();
-      deduper.current = newWords;
     }
     recognition.onstart = () => {
       if (!valid()) return;
@@ -211,7 +228,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     };
 
     recognition.onresult = (event) => {
-      if (!valid()) return;
+      if (!valid() || current.boundary) return;
       logSpeechEvent(event);
       if (isOffline()) setLocal(true); // heard while offline, so it runs on this device
       const prevDraft = current.draft;
@@ -225,8 +242,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
             finals.add(index);
             let { drop, add } = newWords.revise(text);
             if (current.echo && add) {
-              add = stripEcho(add, current.echo);
-              current.echo = '';
+              add = withoutEcho(add);
+              current.echo = current.echoSent = '';
               drop = 0;
             }
             current.draft = appendDistinct(dropLastWords(current.draft, drop), add);
@@ -236,7 +253,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         }
       }
       const interim = newWords.peek(mergeInterim(parts));
-      current.interim = current.echo ? stripEcho(interim, current.echo) : interim;
+      current.interim = withoutEcho(interim);
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;
@@ -272,17 +289,26 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     function scheduleRestart() {
       if (!valid()) return;
       logSpeechNote(`end (${lastError ?? 'ok'})`);
-      preserveInterim();
-      current.failures = isFailedSession(lastError, Date.now() - startedAt)
-        ? current.failures + 1
-        : 0;
+      if (current.boundary) {
+        // Ended on purpose at a turn change: start the next person's session right away
+        current.boundary = false;
+        if (boundaryGuard.current !== null) clearTimeout(boundaryGuard.current);
+        boundaryGuard.current = null;
+        current.interim = '';
+        updateInterim('');
+        current.failures = 0;
+      } else {
+        preserveInterim();
+        current.failures = isFailedSession(lastError, Date.now() - startedAt)
+          ? current.failures + 1
+          : 0;
+      }
       const again = () => {
         restart.current = null;
         if (!valid()) return;
         if (wantsLocalSpeech(current.local) !== local) {
           // Went offline or back online: a new recognizer picks the right engine
           recognizer.current = null;
-          deduper.current = null;
           void begin();
           return;
         }
@@ -307,16 +333,19 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   }
 
   /**
-   * Passes the turn. When both people speak the same language the running recognizer keeps
-   * listening for the next person: restarting it drops the first words of a quick reply and,
-   * on Android, chimes and takes a second or more to listen again. Unfinished words already
-   * sent (`echo`) still arrive later as a final; that copy is stripped instead.
+   * Passes the turn. When both people speak the same language the same recognizer is kept
+   * (building a new one leaves an Android tablet deaf for seconds), but its session is ended
+   * and started again: a running session keeps delivering, revising and re-sending words the
+   * previous person already said, which then opened the next person's message. A fresh
+   * session starts with no history. Unfinished words that were sent (`echo`) can still come
+   * back at the start of it; that copy is stripped.
    */
-  function handoff(side: Side, echo = '') {
+  function handoff(side: Side, echo = '', sent = '') {
     const current = session.current;
     const { participants } = opts.current;
+    const recognition = recognizer.current;
     if (
-      recognizer.current &&
+      recognition &&
       current.active &&
       !current.suspended &&
       speechLocale(participants[side].lang) === speechLocale(participants[current.side].lang)
@@ -324,17 +353,36 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       // Only the pause timer: a pending restart must still bring the mic back
       if (silence.current !== null) clearTimeout(silence.current);
       silence.current = null;
-      deduper.current?.markTurnBoundary();
       current.echo = echo;
-      logSpeechNote(`turn ${side} (same mic)`);
+      current.echoSent = echo ? sent : '';
       current.side = side;
       current.failures = 0;
       updateTurn(side);
+      if (restart.current !== null || current.boundary) {
+        logSpeechNote(`turn ${side} (session already restarting)`);
+        return;
+      }
+      logSpeechNote(`turn ${side} (same mic, new session)`);
+      current.boundary = true;
+      const token = current.generation;
+      // If the engine never reports the end, fall back to a new recognizer
+      boundaryGuard.current = setTimeout(() => {
+        boundaryGuard.current = null;
+        if (token !== current.generation || !current.boundary) return;
+        logSpeechNote('turn session did not end; new mic');
+        invalidate();
+        if (current.active && !current.suspended) void begin();
+      }, BOUNDARY_TIMEOUT_MS);
+      try {
+        recognition.abort();
+      } catch {
+        // Already ended: its end event restarts it
+      }
       return;
     }
     logSpeechNote(`turn ${side} (new mic)`);
     invalidate();
-    session.current.echo = '';
+    session.current.echo = session.current.echoSent = '';
     session.current.side = side;
     session.current.failures = 0;
     updateTurn(side);
@@ -343,8 +391,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
 
   function setTurn(side: Side) {
     const echo = session.current.interim;
-    send();
-    handoff(side, echo);
+    const sent = send();
+    handoff(side, echo, sent);
   }
 
   /**
