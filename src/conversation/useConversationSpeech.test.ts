@@ -153,6 +153,42 @@ describe('conversation turn recognition', () => {
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello');
   });
 
+  it('passes the turn in a quiet room where the engine keeps ending and restarting', () => {
+    const { result, onSend } = setup('en');
+    const mic = latest();
+    act(() => mic.result('pass the gravy'));
+    // Android in a quiet room: the session ends about a second after every restart, before
+    // the 2.5 s pause can run out, and restarts with a chime each time
+    for (let i = 0; i < 6 && !onSend.mock.calls.length; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000);
+        mic.onend?.();
+      });
+      act(() => {
+        vi.advanceTimersByTime(300);
+        mic.onstart?.();
+      });
+    }
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'pass the gravy');
+    expect(result.current.turn).toBe('b');
+    expect(FakeRecognition.instances).toHaveLength(1);
+  });
+  it('still waits for a speaker who keeps talking across restarts', () => {
+    const { onSend } = setup('en');
+    const mic = latest();
+    act(() => mic.result('so the turkey', true, 0));
+    for (let i = 1; i <= 4; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000);
+        mic.onend?.();
+        vi.advanceTimersByTime(300);
+        mic.onstart?.();
+        vi.advanceTimersByTime(800);
+      });
+      act(() => mic.result(`word${i}`, true, 0));
+    }
+    expect(onSend).not.toHaveBeenCalled();
+  });
   it('restarts the same recognizer instead of replacing it (Android tablets)', () => {
     const { onSend } = setup('en');
     const first = latest();
