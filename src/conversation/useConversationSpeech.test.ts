@@ -126,19 +126,18 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledWith('a', 'finally');
   });
-  it('sends across a browser restart once the mic is listening again', () => {
+  it('passes the turn at the pause setting even across a browser restart', () => {
     const { onSend } = setup();
     act(() => {
       latest().result('hello');
       vi.advanceTimersByTime(1000);
       latest().onend?.();
     });
-    // The restart gap doesn't count as a pause: the mic couldn't hear anyone then
-    act(() => vi.advanceTimersByTime(1400));
+    act(() => vi.advanceTimersByTime(300));
     act(() => latest().onstart?.());
-    act(() => vi.advanceTimersByTime(2400));
+    act(() => vi.advanceTimersByTime(1100));
     expect(onSend).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(2500));
+    act(() => vi.advanceTimersByTime(100));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello');
   });
 
@@ -149,10 +148,72 @@ describe('conversation turn recognition', () => {
       vi.advanceTimersByTime(1000);
       latest().onend?.();
     });
-    act(() => vi.advanceTimersByTime(1500 + 2500));
+    act(() => vi.advanceTimersByTime(1500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello');
   });
 
+  it('passes the turn on time in a quiet room where the engine keeps ending and restarting', () => {
+    const { result, onSend } = setup('en');
+    const mic = latest();
+    act(() => mic.result('pass the gravy'));
+    // Android in a quiet room: the session ends about a second after every restart, before
+    // the 2.5 s pause can run out, and restarts with a chime each time
+    act(() => {
+      vi.advanceTimersByTime(1000);
+      mic.onend?.();
+      vi.advanceTimersByTime(300);
+      mic.onstart?.();
+      vi.advanceTimersByTime(900);
+      mic.onend?.();
+      vi.advanceTimersByTime(250);
+    });
+    expect(onSend).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(50));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'pass the gravy');
+    expect(result.current.turn).toBe('b');
+    expect(FakeRecognition.instances).toHaveLength(1);
+  });
+
+  it('uses a shorter pause setting exactly, whatever the mic is doing', () => {
+    const onSend = vi.fn();
+    const { result } = renderHook(() =>
+      useConversationSpeech({
+        participants: { a: { lang: 'en' }, b: { lang: 'en' } },
+        switchAfterMs: 2000,
+        onSend,
+      }),
+    );
+    act(() => result.current.start());
+    const mic = latest();
+    act(() => mic.result('happy thanksgiving'));
+    act(() => {
+      vi.advanceTimersByTime(800);
+      mic.onend?.();
+      vi.advanceTimersByTime(300);
+      mic.onstart?.();
+      vi.advanceTimersByTime(899);
+    });
+    expect(onSend).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'happy thanksgiving');
+    expect(result.current.turn).toBe('b');
+  });
+  it('still waits for a speaker who keeps talking across restarts', () => {
+    const { onSend } = setup('en');
+    const mic = latest();
+    act(() => mic.result('so the turkey', true, 0));
+    for (let i = 1; i <= 4; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000);
+        mic.onend?.();
+        vi.advanceTimersByTime(300);
+        mic.onstart?.();
+        vi.advanceTimersByTime(800);
+      });
+      act(() => mic.result(`word${i}`, true, 0));
+    }
+    expect(onSend).not.toHaveBeenCalled();
+  });
   it('restarts the same recognizer instead of replacing it (Android tablets)', () => {
     const { onSend } = setup('en');
     const first = latest();

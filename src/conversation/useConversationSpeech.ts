@@ -67,6 +67,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
      * deliver them as a final, which must not open the next person's message.
      */
     echo: '',
+    /** When the current speaker's words last changed, for the turn's wall-clock limit. */
   });
   const recognizer = useRef<Recognizer | null>(null);
   const deduper = useRef<ReturnType<typeof createFinalDeduper> | null>(null);
@@ -122,10 +123,25 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     setListening(false);
   }
 
+  function passTurn(token: number) {
+    const current = session.current;
+    if (token !== current.generation || !current.active || current.suspended) return;
+    silence.current = null;
+    const echo = current.interim;
+    send();
+    handoff(otherSide(current.side), echo);
+  }
+
+  /**
+   * Starts the pause before the turn passes, counted from the last new words. Mic restarts
+   * don't move it: an Android tablet ends and restarts its session about every second in a
+   * quiet room, and holding the pause through each restart meant Auto never passed the turn.
+   */
   function armSilence() {
     const current = session.current;
     const token = current.generation;
     if (silence.current !== null) clearTimeout(silence.current);
+    silence.current = null;
     const delay = opts.current.switchAfterMs;
     if (
       delay === null ||
@@ -134,12 +150,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       !(current.draft || current.interim)
     )
       return;
-    silence.current = setTimeout(() => {
-      if (token !== current.generation || !current.active || current.suspended) return;
-      const echo = current.interim;
-      send();
-      handoff(otherSide(current.side), echo);
-    }, delay);
+    silence.current = setTimeout(() => passTurn(token), delay);
   }
 
   useEffect(() => {
@@ -194,26 +205,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       newWords = createFinalDeduper();
       deduper.current = newWords;
     }
-    // The pause before the turn passes counts only while the mic can hear. Android ends a
-    // session at every breath and takes a moment to listen again; counting that gap passed
-    // the turn while the speaker was still talking.
-    let silenceHeld = false;
-    function holdSilence() {
-      if (silence.current === null) return;
-      clearTimeout(silence.current);
-      silence.current = null;
-      silenceHeld = true;
-    }
-    function releaseSilence() {
-      if (!silenceHeld || !valid()) return;
-      silenceHeld = false;
-      armSilence();
-    }
-
     recognition.onstart = () => {
       if (!valid()) return;
       logSpeechNote('start');
-      releaseSilence();
     };
 
     recognition.onresult = (event) => {
@@ -247,9 +241,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       updateInterim(current.interim);
       current.failures = 0;
       updateError(null);
-      if (current.draft !== prevDraft || current.interim !== prevInterim) {
-        armSilence();
-      }
+      if (current.draft !== prevDraft || current.interim !== prevInterim) armSilence();
     };
 
     recognition.onerror = ({ error: code }) => {
@@ -281,7 +273,6 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       if (!valid()) return;
       logSpeechNote(`end (${lastError ?? 'ok'})`);
       preserveInterim();
-      holdSilence();
       current.failures = isFailedSession(lastError, Date.now() - startedAt)
         ? current.failures + 1
         : 0;
@@ -310,8 +301,6 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         scheduleRestart();
         return;
       }
-      // Some engines never report onstart; don't hold the turn forever
-      if (silenceHeld) silence.current = setTimeout(releaseSilence, 1500);
     }
     recognition.onend = scheduleRestart;
     listen();
