@@ -109,17 +109,34 @@ export function TwoWaySettings({
         </label>
       )}
       <label>
-        Bubbles on{' '}
+        Layout{' '}
         <select
-          value={settings.placement}
+          value={settings.layout}
           onChange={(e) =>
-            setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
+            setSettings((s) => ({
+              ...s,
+              layout: e.target.value as ConversationSettings['layout'],
+            }))
           }
         >
-          <option value="speaker">Speaker's side</option>
-          <option value="reader">Reader's side</option>
+          <option value="side-by-side">Side by side</option>
+          <option value="face-to-face">Face to face (tablet between you)</option>
         </select>
       </label>
+      {settings.layout === 'side-by-side' && (
+        <label>
+          Bubbles on{' '}
+          <select
+            value={settings.placement}
+            onChange={(e) =>
+              setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
+            }
+          >
+            <option value="speaker">Speaker's side</option>
+            <option value="reader">Reader's side</option>
+          </select>
+        </label>
+      )}
       {translatorPicker}
       <button
         className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}

@@ -124,8 +124,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       return;
     silence.current = setTimeout(() => {
       if (token !== current.generation || !current.active || current.suspended) return;
+      const settled = !current.interim;
       send();
-      handoff(otherSide(current.side));
+      handoff(otherSide(current.side), settled);
     }, delay);
   }
 
@@ -234,7 +235,29 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     }
   }
 
-  function handoff(side: Side) {
+  /**
+   * Passes the turn. When both people speak the same language and every word heard so far
+   * was final (`settled`), the running recognizer keeps listening for the next person:
+   * restarting it would drop the first words of a quick reply and, on Android, chime again.
+   * A pending interim result would arrive later as a final and repeat sent words, so then
+   * the recognizer is replaced as before.
+   */
+  function handoff(side: Side, settled = false) {
+    const current = session.current;
+    const { participants } = opts.current;
+    if (
+      settled &&
+      recognizer.current &&
+      current.active &&
+      !current.suspended &&
+      speechLocale(participants[side].lang) === speechLocale(participants[current.side].lang)
+    ) {
+      clearTimers();
+      current.side = side;
+      current.failures = 0;
+      updateTurn(side);
+      return;
+    }
     invalidate();
     session.current.side = side;
     session.current.failures = 0;
@@ -243,8 +266,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   }
 
   function setTurn(side: Side) {
+    const settled = !session.current.interim;
     send();
-    handoff(side);
+    handoff(side, settled);
   }
 
   function start(local: SpeechLocality = false, side: Side = 'a') {

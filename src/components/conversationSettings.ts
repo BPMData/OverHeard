@@ -18,6 +18,11 @@ export interface ConversationSettings extends Participants {
   readAloud: boolean;
   placement: 'speaker' | 'reader';
   /**
+   * Two-way: `face-to-face` splits the screen for a tablet lying between two people, with
+   * the far person's half turned upside down so each reads their own half the right way up.
+   */
+  layout: 'side-by-side' | 'face-to-face';
+  /**
    * Lecture: read the translation aloud while the teacher is still talking. The microphone
    * keeps listening while it reads, so this needs headphones. Off: the teacher laptop reads
    * finished lines and pauses the microphone. Student devices always read live.
@@ -53,6 +58,7 @@ export function parseConversationSettings(
     switchAfterMs: 2500,
     readAloud: false,
     placement: 'speaker',
+    layout: 'side-by-side',
     lectureLiveReadAloud: false,
   };
   try {
@@ -70,6 +76,7 @@ export function parseConversationSettings(
     defaults.manualTurns = saved.manualTurns === true;
     defaults.readAloud = saved.readAloud === true;
     defaults.placement = saved.placement === 'reader' ? 'reader' : 'speaker';
+    defaults.layout = saved.layout === 'face-to-face' ? 'face-to-face' : 'side-by-side';
     defaults.lectureLiveReadAloud = saved.lectureLiveReadAloud === true;
   } catch {
     /* Ignore unreadable saved settings. */

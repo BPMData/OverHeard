@@ -28,11 +28,11 @@ class FakeRecognition {
   }
 }
 const latest = () => FakeRecognition.instances.at(-1)!;
-function setup() {
+function setup(langB = 'es') {
   const onSend = vi.fn();
   const hook = renderHook(() =>
     useConversationSpeech({
-      participants: { a: { lang: 'en' }, b: { lang: 'es' } },
+      participants: { a: { lang: 'en' }, b: { lang: langB } },
       switchAfterMs: 2500,
       onSend,
     }),
@@ -217,4 +217,29 @@ describe('conversation turn recognition', () => {
       expect(FakeRecognition.instances).toHaveLength(1);
     },
   );
+
+  it('keeps one recognizer listening when both people speak the same language', () => {
+    const { result, onSend } = setup('en');
+    const first = latest();
+    act(() => first.result('how are you'));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'how are you');
+    expect(result.current.turn).toBe('b');
+    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(first.abort).not.toHaveBeenCalled();
+    // The reply lands on the same recognizer and is credited to the other person
+    act(() => first.result('fine thanks', true, 1));
+    act(() => result.current.setTurn('a'));
+    expect(onSend).toHaveBeenLastCalledWith('b', 'fine thanks');
+    expect(result.current.turn).toBe('a');
+    expect(FakeRecognition.instances).toHaveLength(1);
+  });
+  it('replaces a same-language recognizer when unfinished words were sent', () => {
+    const { result, onSend } = setup('en');
+    act(() => latest().result('still talking', false));
+    act(() => result.current.setTurn('b'));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'still talking');
+    expect(FakeRecognition.instances).toHaveLength(2);
+    expect(FakeRecognition.instances[0].abort).toHaveBeenCalled();
+  });
 });
