@@ -1,3 +1,5 @@
+import { createRecognition, detachRecognition, recognitionConstructor } from '../speech/recognition';
+import type { SpeechRecognitionInstance } from '../speech/types';
 import {
   appendDistinct, createFinalDeduper, dropLastWords, mergeInterim, stripEcho,
 } from '../speechDedupe';
@@ -8,32 +10,6 @@ import { isFailedSession, restartDelay } from '../speechRestart';
 import { speechLocale } from './locales';
 import { isOffline, wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { otherSide, type Side } from './state';
-
-interface ResultEvent {
-  resultIndex: number;
-  results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }>;
-}
-
-interface Recognizer {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  processLocally?: boolean;
-  onstart?: (() => void) | null;
-  onresult: ((event: ResultEvent) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  abort(): void;
-}
-
-function recognitionConstructor() {
-  const globals = globalThis as unknown as {
-    SpeechRecognition?: new () => Recognizer;
-    webkitSpeechRecognition?: new () => Recognizer;
-  };
-  return globals.SpeechRecognition ?? globals.webkitSpeechRecognition;
-}
 
 /** How long a turn change waits for the ended session's end event before replacing the mic. */
 const BOUNDARY_TIMEOUT_MS = 1500;
@@ -78,7 +54,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
      */
     boundary: false,
   });
-  const recognizer = useRef<Recognizer | null>(null);
+  const recognizer = useRef<SpeechRecognitionInstance | null>(null);
   const silence = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restart = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boundaryGuard = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,18 +64,6 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     if (restart.current !== null) clearTimeout(restart.current);
     if (boundaryGuard.current !== null) clearTimeout(boundaryGuard.current);
     silence.current = restart.current = boundaryGuard.current = null;
-  }
-
-  function detach() {
-    const recognition = recognizer.current;
-    recognizer.current = null;
-    if (!recognition) return;
-    recognition.onstart = recognition.onresult = recognition.onerror = recognition.onend = null;
-    try {
-      recognition.abort();
-    } catch {
-      // It may already have ended.
-    }
   }
 
   /** `text` without the previous turn's unfinished words, or all of it, repeated at its start. */
@@ -114,7 +78,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     session.current.generation++;
     session.current.boundary = false;
     clearTimers();
-    detach();
+    detachRecognition(recognizer);
   }
 
   function clearDraft() {
@@ -200,11 +164,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     const local = wantsLocalSpeech(current.local) ? await prepareOnDeviceSpeech(locale) : false;
     if (token !== current.generation || !current.active || current.suspended) return;
     setLocal(local);
-    const recognition = new Constructor();
+    const recognition = createRecognition(Constructor, locale);
     recognizer.current = recognition;
-    recognition.lang = locale;
-    recognition.continuous = true;
-    recognition.interimResults = true;
     recognition.processLocally = local;
     const valid = () =>
       token === current.generation &&

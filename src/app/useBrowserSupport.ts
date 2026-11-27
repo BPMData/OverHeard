@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { recognitionConstructor } from '../speech/recognition';
 
 export function useBrowserSupport() {
   // Environment checks
@@ -13,9 +14,7 @@ export function useBrowserSupport() {
     const isChromeOrEdge =
       (/Chrome\//.test(ua) || /Edg\//.test(ua) || /CriOS\//.test(ua)) &&
       !/OPR\//.test(ua);
-    const speechAvailable = Boolean(
-      window.SpeechRecognition || window.webkitSpeechRecognition
-    );
+    const speechAvailable = Boolean(recognitionConstructor());
 
     setIsSupportedBrowser(isChromeOrEdge && speechAvailable);
     setHasSpeechApi(speechAvailable);

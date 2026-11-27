@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
+import { createSpeechHarness, speechAcrossRestart } from './speech/__fixtures__/speechHarness';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import App from './App';
@@ -16,20 +17,7 @@ vi.mock('./onDevice', async (importOriginal) => ({
   translateOnDevice: vi.fn(),
 }));
 
-type SpeechResult = { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] };
-
-class FakeRecognition {
-  static active: FakeRecognition;
-  onstart?: () => void;
-  onresult?: (event: SpeechResult) => void;
-  onend?: () => void;
-  start() {
-    FakeRecognition.active = this;
-    this.onstart?.();
-  }
-  stop() { this.onend?.(); }
-  abort() {}
-}
+const speech = createSpeechHarness();
 
 type RequestBody = { text: string; lang: string; source: string };
 const mt = vi.fn(async ({ lang, text }: RequestBody) =>
@@ -40,7 +28,7 @@ const phrase = 'The lesson starts at noon';
 beforeEach(() => {
   localStorage.clear();
   window.history.replaceState({}, '', '/?langs=es');
-  vi.stubGlobal('SpeechRecognition', FakeRecognition);
+  speech.install();
   vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     if (url === '/api/config') return Response.json({ providers: ['gtx'] });
     if (url === '/api/mt' && init?.method === 'POST') return mt(JSON.parse(String(init.body)));
@@ -69,13 +57,23 @@ async function listen() {
 
 async function say(isFinal: boolean) {
   await act(async () => {
-    FakeRecognition.active.onresult!({ resultIndex: 0, results: [{ isFinal, 0: { transcript: phrase } }] });
+    speech.latest().result(phrase, isFinal);
   });
 }
 
 function column(name: string) {
   return within(screen.getByRole('region', { name }));
 }
+
+it('only commits finalized captions across a browser restart', async () => {
+  vi.useFakeTimers();
+  await listen();
+  await speech.replay(speechAcrossRestart);
+  const english = column('English Captions');
+  expect(english.queryByText('Turn the page')).toBeNull();
+  expect(english.getByText('Read the heading')).toBeTruthy();
+  expect(speech.latest().start).toHaveBeenCalledTimes(2);
+});
 
 it('fills the English and selected language columns from a final speech result', async () => {
   window.history.replaceState({}, '', '/?langs=es,fr');
@@ -103,7 +101,7 @@ it('sends live text as free-only and a finished line as an ordinary request', as
   expect(mt).toHaveBeenLastCalledWith({ text: phrase, lang: 'es', source: 'en', freeOnly: true });
   const finished = phrase + ' sharp';
   await act(async () => {
-    FakeRecognition.active.onresult!({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: finished } }] });
+    speech.latest().result(finished);
   });
   expect(mt).toHaveBeenLastCalledWith({ text: finished, lang: 'es', source: 'en' });
 });

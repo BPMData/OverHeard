@@ -12,7 +12,8 @@ import {
 import type { MtPreference } from '../app/settings';
 import { isOffline, speechLocality, wantsLocalSpeech } from '../offline';
 import type { LanguageCode } from '../types';
-import type { SpeechRecognitionErrorEvent, SpeechRecognitionEvent, SpeechRecognitionInstance } from './types';
+import { createRecognition, detachRecognition, recognitionConstructor } from './recognition';
+import type { SpeechRecognitionInstance } from './types';
 
 interface CaptionSpeechOptions {
   onFinal: (phrase: string) => void;
@@ -45,8 +46,7 @@ export function useCaptionSpeech({
 
   // Start / Stop Web Speech API with Chrome Keep-Alive Loop
   const startListening = useCallback(() => {
-    const SpeechRecognitionCtor =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognitionCtor = recognitionConstructor();
 
     if (!SpeechRecognitionCtor) {
       setHasSpeechApi(false);
@@ -63,10 +63,7 @@ export function useCaptionSpeech({
     }
 
     if (!recognitionRef.current) {
-      const recognition = new SpeechRecognitionCtor();
-      recognition.lang = 'en-US';
-      recognition.continuous = true;
-      recognition.interimResults = true;
+      const recognition = createRecognition(SpeechRecognitionCtor, 'en-US');
       let newWords = createFinalDeduper();
 
       recognition.onstart = () => {
@@ -76,7 +73,7 @@ export function useCaptionSpeech({
         setIsListening(true);
       };
 
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      recognition.onresult = (event) => {
         logSpeechEvent(event);
         // Hearing speech means the service is healthy again
         restartFailuresRef.current = 0;
@@ -100,7 +97,7 @@ export function useCaptionSpeech({
         onInterim(interim);
       };
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event) => {
         const errCode = event.error;
         lastSpeechErrorRef.current = errCode;
         if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
@@ -270,13 +267,7 @@ export function useCaptionSpeech({
       if (restartTimerRef.current !== null) {
         window.clearTimeout(restartTimerRef.current);
       }
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // Ignore
-        }
-      }
+      detachRecognition(recognitionRef);
     };
   }, []);
 

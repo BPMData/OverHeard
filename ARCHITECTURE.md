@@ -4,6 +4,20 @@ This is a plan for whoever does the refactor, whether a person or a coding agent
 the code as it is now, the layout to move toward, and an order of small steps that **don't
 change behavior**. Read `AGENTS.md` first: its deployment rules and checks override anything here.
 
+## If you change this behavior
+
+| Behavior | Where it is decided | What to verify |
+|---|---|---|
+| Starting or retiring a microphone | [Recognizer setup and teardown](src/speech/recognition.ts), [restart backoff](src/speechRestart.ts) | A retired mic cannot restart itself. On a clean end mid-clause, [captions](src/App.captions.test.tsx) keep finalized lines, [lecture](src/components/ConversationMode.lecture.test.tsx) saves the trailing words as a line, and [two-way mode](src/conversation/useConversationSpeech.test.ts) carries them into the current turn. |
+| Passing a two-way turn | [Two-way speech hook](src/conversation/useConversationSpeech.ts) | The pause runs from the last new words, even across a mic restart. A same-language handoff starts a fresh session on the existing mic. [Turn tests](src/conversation/useConversationSpeech.test.ts) |
+| Reusing a translation request | [Browser cache](src/translation/translationCache.ts), [teacher client](src/translation/useTranslator.ts), [student client](src/rooms/translateStudent.ts) | Concurrent calls share a promise. A late failure after eviction preserves the replacement. Finalized captions can reuse live work, and student fallback uses free translation. [Eviction race](src/translation/useTranslator.test.ts) · [Caption requests](src/App.captions.test.tsx) · [Student requests](src/rooms/translateStudent.test.ts) |
+
+To reproduce device-specific speech behavior, open the app with `?debugSpeech=1` and use
+substitute classroom phrases. In a fake-timer test, pass the observed sequence to
+`speech.replay`. Each step can specify the delay since the previous event in `afterMs`.
+For results, preserve the browser’s `resultIndex`, transcript revisions and final flags.
+The [speech harness and example trace](src/speech/__fixtures__/speechHarness.ts) show the format.
+
 ## How to use this document
 
 **Setup from a fresh clone:** use Node 22 (`node --version`). Install with
@@ -49,10 +63,10 @@ src/App.tsx             Wires caption hooks and views, mode changes, lecture imp
                         the Conversation host (288 lines)
 src/app/                Settings and URL sync, browser support, pack progress, main-window theme,
                         browser and microphone permission banners
-src/speech/             Caption recognition lifecycle, Space shortcut, Web Speech types
+src/speech/             Shared recognizer setup and teardown, caption lifecycle, Space shortcut, types
 src/captions/           Transcript state and export, column playback, ColumnsView, SubtitleBar,
                         TestInputBar
-src/translation/        Server config (provider list), translation cache and retries
+src/translation/        Server config, device-first translation, shared browser cache and teacher retries
 src/pip/usePipWindow.ts Pop-out lifecycle, line/layout/size preferences and pop-out theme sync
 src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch,
                         TranslatorPicker and ClearTranscriptButton
@@ -78,13 +92,15 @@ Both the projector views and the pop-out read the same transcript and listening 
 Conversation mode stays mounted after its first visit, with its activity controlled by
 the display mode.
 
-### Other problem spots
+### Shared code and mode-specific behavior
 
-- **Speech recognition is written three times.** The caption mode recognizer (`useCaptionSpeech`), `useLectureSpeech` and `useConversationSpeech` each repeat the Chrome keep-alive
-  restart, backoff (`speechRestart.ts`) and duplicate filtering (`speechDedupe.ts`).
-- **There are two translation clients.** `fetchMT` in `src/translation/useTranslator.ts` (teacher) and
-  `createStudentTranslator` in `src/rooms/translateStudent.ts` each implement on-device first,
-  then `/api/mt`, with caching.
+- The three speech hooks share recognizer setup and teardown, restart backoff and word
+  deduplication. Each hook owns its session lifetime and decides what an end event does
+  with unfinished speech.
+- The teacher and student translation clients share device-first recovery and bounded
+  promise caching. Each sets its own cache keys and limits. The teacher also handles
+  live-to-final reuse and retries. Students can request local-only translation or use
+  the free online fallback.
 - Finished-line lecture playback and live read-aloud share one player and queue in
   `useLecturePlayback`. Its effects run in declaration order (see Traps).
 
@@ -222,12 +238,13 @@ Check with `node server.ts` as well as `node --check`.
 
 Do these only after steps 0–9 (including 8b), each as its own PR, with a note on what users will notice:
 
-- **One speech engine.** Extract the shared recognizer core (keep-alive restart, backoff,
-  duplicate filtering, on-device speech) from the three hooks into `src/speech/engine.ts`.
-  Caption, Lecture and Two-way modes then each add their own turn/segment logic on top.
-- **One translation client** for teacher and student (`useTranslator` and
-  `createStudentTranslator`). Students currently force `provider: 'gtx'`; keep that as an
-  option.
+- **Further speech consolidation.** Any shared restart or on-device preparation logic must
+  account for the two-way mode’s recognizer reuse and lecture mode’s handling of trailing
+  words. Exercise all three modes with the replay cases above.
+- **One translation client.** A common client would still need the teacher’s provider
+  preferences, live-to-final reuse and retries, plus the student’s local-only or free-only
+  choices. The shared cache already handles eviction for both.
+
 - **Reuse Piper's phonemizer.** `@mintplex-labs/piper-tts-web` builds a new phonemizer
   (635 KB of WebAssembly plus 18 MB of eSpeak data) on every `predict`. That costs about
   0.1 s per piece on a fast laptop and several times that on a phone. It's most noticeable

@@ -2,6 +2,7 @@ import type { createDeviceFirstTranslator } from '../translation/deviceFirst';
 import { ON_DEVICE_TIMEOUT_MS } from '../app/settings';
 import { translateOnDevice } from '../onDevice';
 import { getSessionId, SESSION_HEADER } from '../session';
+import { createTranslationCache } from '../translation/translationCache';
 import type { LanguageCode } from '../types';
 
 // Each browser shares its own pending/completed local work. Server requests are also
@@ -15,7 +16,7 @@ export function createStudentTranslator(
   onTranslated?: (by: 'on-device' | 'gtx') => void,
   { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
 ) {
-  const cache = new Map<string, Promise<string>>();
+  const cache = createTranslationCache(2500);
   return (text: string, lang: LanguageCode): Promise<string> => {
     const key = `${lang}\0${text}`;
     const existing = cache.get(key);
@@ -42,9 +43,6 @@ export function createStudentTranslator(
       onTranslated?.('gtx');
       return data.translation;
     })();
-    cache.set(key, pending);
-    void pending.catch(() => { if (cache.get(key) === pending) cache.delete(key); });
-    if (cache.size > 2500) cache.delete(cache.keys().next().value!);
-    return pending;
+    return cache.store(key, pending);
   };
 }
