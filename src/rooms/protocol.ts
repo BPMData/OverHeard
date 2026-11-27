@@ -77,8 +77,11 @@ function parseTranslations(value: unknown): Partial<Record<LanguageCode, string>
   return output;
 }
 
-function parseEntries(value: unknown): LectureEntry[] {
+export function parseEntries(value: unknown, source: 'live' | 'file' = 'live'): LectureEntry[] {
   if (!Array.isArray(value)) throw new Error('Invalid lecture entries.');
+  if (source === 'live' && value.length > MAX_ROOM_ENTRIES) {
+    throw new Error(`A room can contain up to ${MAX_ROOM_ENTRIES} lines.`);
+  }
   const ids = new Set<string>();
   return value.map(raw => {
     const item = record(raw);
@@ -96,9 +99,6 @@ function parseEntries(value: unknown): LectureEntry[] {
 
 export function parsePatch(value: unknown): RoomPatch {
   const input = record(value);
-  if (Array.isArray(input.entries) && input.entries.length > MAX_ROOM_ENTRIES) {
-    throw new Error(`A room can contain up to ${MAX_ROOM_ENTRIES} lines.`);
-  }
   if (!Array.isArray(input.removedIds) || input.removedIds.length > MAX_ROOM_ENTRIES ||
       input.removedIds.some(id => typeof id !== 'string' || id.length > 100) ||
       typeof input.isListening !== 'boolean') throw new Error('Invalid room update.');
@@ -134,5 +134,5 @@ export function parseRoomJson(text: string): Pick<LectureState, 'entries' | 'sel
   if (new TextEncoder().encode(text).length > MAX_ROOM_FILE_BYTES) throw new Error('Room file is too large (8 MB maximum).');
   const input = record(JSON.parse(text));
   if (input.format !== 'overheard-lecture' || input.version !== 1) throw new Error('Choose an OverHeard lecture JSON file (version 1).');
-  return { entries: parseEntries(input.entries), selectedLangs: parseLanguages(input.selectedLangs) };
+  return { entries: parseEntries(input.entries, 'file'), selectedLangs: parseLanguages(input.selectedLangs) };
 }
