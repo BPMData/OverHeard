@@ -16,6 +16,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "gcp-build": "npm run build"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "@diffusionstudio/piper-wasm": "^1.0.0",
     "@huggingface/transformers": "3.7.6",
     "@mintplex-labs/piper-tts-web": "^1.0.5",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

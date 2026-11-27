@@ -46,7 +46,7 @@ const MT_CHAIN = buildProviderChain({
 const MT_PROVIDER = MT_CHAIN[0];
 
 
-export async function startServer() {
+export async function startServer({ port = PORT }: { port?: number } = {}) {
   const distPath = path.join(__dirname, 'dist');
   const isProd =
     process.env.NODE_ENV === 'production' ||
@@ -72,8 +72,8 @@ export async function startServer() {
     await configureDevelopment(app, __dirname);
   }
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`OverHeard server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`OverHeard server running on http://0.0.0.0:${port}`);
     console.log(
       `[limits] per tab/min: ${MT_PER_SESSION} translations; per IP: ${IP_LIMIT_MULTIPLIER}x; ` +
         `trusted proxy hops: ${TRUST_PROXY_HOPS}; daily cap: ${CLOUD_DAILY_CHARS || 'unlimited'} Cloud Translation chars`
