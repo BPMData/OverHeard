@@ -3,6 +3,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversationMode } from './ConversationMode';
+import * as colors from '../captionColors';
 
 type ResultCallback = (event: {
   resultIndex: number;
@@ -118,11 +119,26 @@ describe('face to face two-way', () => {
     fireEvent.click(screen.getByRole('button', { name: /🎙 Listening to Grandpa/ }));
     expect(screen.getByRole('button', { name: /🎙 Listening to Bryan/ })).toBeTruthy();
 
+    // A new live word updates both readers without recalculating the previous speaker's rows.
+    act(() => Recognition.instances[0].onend?.());
+    const styles = vi.spyOn(colors, 'captionTextStyle');
+    try {
+      act(() => Recognition.instances.at(-1)?.onresult?.({
+        resultIndex: 0, results: [{ isFinal: false, 0: { transcript: 'Next sentence' } }],
+      }));
+      expect(screen.getAllByText('Next sentence')).toHaveLength(2);
+      expect(styles).not.toHaveBeenCalledWith(colors.languageCaptionColor(1), true);
+    } finally {
+      styles.mockRestore();
+    }
+
     // Move the finished message between speakers with ⇄
     const grandpaLog = screen.getByRole('log', { name: 'Conversation for Grandpa' });
     expect(within(grandpaLog).getByText('Grandpa')).toBeTruthy();
     fireEvent.click(within(grandpaLog).getByRole('button', { name: /Move "Actually Grandpa is talking" to Bryan/ }));
-    expect(within(grandpaLog).getByText('Bryan')).toBeTruthy();
+    for (const log of screen.getAllByRole('log')) {
+      expect(within(log).getByRole('button', { name: /Move "Actually Grandpa is talking" to Grandpa/ })).toBeTruthy();
+    }
   });
 
   it('toggles Turns: Auto / Tap in the divider and hides translation/voice clutter for two English speakers', () => {

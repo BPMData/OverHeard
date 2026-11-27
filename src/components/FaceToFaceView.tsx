@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useRef, type ReactNode } from 'react';
 import { LANGUAGE_MAP } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
 import { speechLocale } from '../conversation/locales';
@@ -35,6 +35,53 @@ interface FaceToFaceViewProps {
   controlsOpen: boolean;
   onToggleControls: () => void;
 }
+
+// Interim captions change on every recognition event. Completed rows only depend on these props.
+const ReaderHistory = memo(function ReaderHistory({
+  reader, messages, fontSize, isDark, onCorrectMessage,
+}: Pick<FaceToFaceViewProps, 'messages' | 'fontSize' | 'isDark' | 'onCorrectMessage'> & { reader: Side }) {
+  return messages.map((message) => {
+    const own = message.side === reader;
+    const done = message.status === 'done';
+    // You read your own words as said; the other person's arrive in your language
+    const shown = own || !done ? message.original : message.translated || message.original;
+    const lang = own || !done ? message.sender.lang : message.reader.lang;
+    return (
+      <article
+        key={message.id}
+        className={`f2f-message ${own ? 'is-own' : 'is-other'}`}
+      >
+        <div className="f2f-message-head">
+          <small>{message.sender.name}</small>
+          <button
+            type="button"
+            className="f2f-swap"
+            aria-label={`Move "${message.original}" to ${message.reader.name}`}
+            title={`Move to ${message.reader.name}`}
+            onClick={() => onCorrectMessage(correctMessage(message))}
+          >
+            ⇄
+          </button>
+        </div>
+        <div
+          dir={direction(lang)}
+          lang={lang}
+          style={{ fontSize: own ? Math.round(fontSize * 0.6) : fontSize }}
+        >
+          <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
+            {shown}
+          </span>
+        </div>
+        {!own && message.status === 'translating' && (
+          <small className="conversation-pulse">Translating…</small>
+        )}
+        {!own && message.status === 'error' && (
+          <small className="conversation-error">translation unavailable</small>
+        )}
+      </article>
+    );
+  });
+});
 
 /**
  * Two-way for a tablet lying flat between two people. Each person gets half the screen and
@@ -103,47 +150,7 @@ export function FaceToFaceView({
                 : 'Tap your button below, then talk.'}
             </p>
           )}
-          {messages.map((message) => {
-            const own = message.side === reader;
-            const done = message.status === 'done';
-            // You read your own words as said; the other person's arrive in your language
-            const shown = own || !done ? message.original : message.translated || message.original;
-            const lang = own || !done ? message.sender.lang : message.reader.lang;
-            return (
-              <article
-                key={message.id}
-                className={`f2f-message ${own ? 'is-own' : 'is-other'}`}
-              >
-                <div className="f2f-message-head">
-                  <small>{message.sender.name}</small>
-                  <button
-                    type="button"
-                    className="f2f-swap"
-                    aria-label={`Move "${message.original}" to ${message.reader.name}`}
-                    title={`Move to ${message.reader.name}`}
-                    onClick={() => onCorrectMessage(correctMessage(message))}
-                  >
-                    ⇄
-                  </button>
-                </div>
-                <div
-                  dir={direction(lang)}
-                  lang={lang}
-                  style={{ fontSize: own ? Math.round(fontSize * 0.6) : fontSize }}
-                >
-                  <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
-                    {shown}
-                  </span>
-                </div>
-                {!own && message.status === 'translating' && (
-                  <small className="conversation-pulse">Translating…</small>
-                )}
-                {!own && message.status === 'error' && (
-                  <small className="conversation-error">translation unavailable</small>
-                )}
-              </article>
-            );
-          })}
+          <ReaderHistory reader={reader} messages={messages} fontSize={fontSize} isDark={isDark} onCorrectMessage={onCorrectMessage} />
           {live && (
             <article
               className={`f2f-message is-live ${speech.turn === reader ? 'is-own' : 'is-other'}`}

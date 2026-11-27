@@ -93,7 +93,12 @@ export function FileMenu({
           className={ITEM}
           onClick={() => {
             setOpen(false);
-            handleExportJson();
+            try {
+              handleExportJson();
+              setImportError('');
+            } catch (err) {
+              setImportError(err instanceof Error ? err.message : 'Could not export the transcript.');
+            }
           }}
           disabled={!canExport}
           title="Export transcript as OverHeard JSON"

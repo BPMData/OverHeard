@@ -38,13 +38,22 @@ export function ExportLectureButton({
   roomCode?: string | null;
   className?: string;
 }) {
-  return (
+  const [error, setError] = useState('');
+  return <>
     <button
       type="button"
       className={className}
       disabled={state.entries.length === 0}
       onClick={() => {
-        const url = URL.createObjectURL(new Blob([roomJson(state)], { type: 'application/json' }));
+        let json: string;
+        try {
+          json = roomJson(state);
+          setError('');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Could not export the lecture.');
+          return;
+        }
+        const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
         const link = document.createElement('a');
         link.href = url;
         link.download = formatLectureFilename(roomCode);
@@ -54,7 +63,8 @@ export function ExportLectureButton({
     >
       Export JSON
     </button>
-  );
+    {error && <span role="alert">{error}</span>}
+  </>;
 }
 
 export function LectureFiles({ state, onImport, roomCode, itemClassName }: {
