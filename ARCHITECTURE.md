@@ -66,7 +66,7 @@ src/
   app/                  useAppSettings (theme, font, ?langs=, mode), useBrowserSupport, usePackProgress, banners
   speech/               Shared recognizer setup/teardown (recognition.ts), useCaptionSpeech, Space hotkey, types
   captions/             useCaptionTranscript, useColumnPlayback, ColumnsView, SubtitleBar, TestInputBar
-  translation/          useServerConfig, useTranslator, useDeviceFirstTranslator, translationCache,
+  translation/          protocol.ts (shared HTTP contract), useServerConfig, useTranslator, useDeviceFirstTranslator, translationCache,
                         useLanguagesNeedingOnline, bergamot/ (Bergamot + Opus-MT workers & Cache Storage store)
   pip/                  usePipWindow, copyStyles (Document Picture-in-Picture lifecycle & theme sync)
   header/               AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch, TranslatorPicker, ClearTranscriptButton
@@ -90,6 +90,7 @@ src/
 - **Each feature hook owns its state and internal "latest value" refs:** `App.tsx` keeps only cross-cutting state (`selectedLangs`, `displayMode`, `fontSize`, `isDark`, modal flags).
 - **Explicit props over React context:** Component trees are shallow (`App` → views/header/ConversationMode), so passing explicit props keeps data dependencies visible and easy to unit-test.
 - **`src/rooms/protocol.ts` is shared across server and browser:** keep it strictly erasable TypeScript with zero React, CSS, or DOM imports.
+- **`src/translation/protocol.ts` is shared across server and browser:** keep its HTTP contract strictly erasable and free of browser or server dependencies.
 
 ---
 

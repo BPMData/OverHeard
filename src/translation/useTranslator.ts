@@ -5,6 +5,7 @@ import {
   type MtPreference, type MtProviderId, type TranslatorId,
 } from '../app/settings';
 import { createTranslationCache } from './translationCache';
+import type { MtRequestBody, MtSuccessResponse } from './protocol';
 import { useDeviceFirstTranslator } from './useDeviceFirstTranslator';
 import { RateLimitedError } from '../http';
 import { isOnDeviceTranslationSupported, translateOnDevice } from '../onDevice';
@@ -84,14 +85,11 @@ export function useTranslator(availableProviders: MtProviderId[]) {
               ? {}
               : { provider: preference }),
             ...(live ? { freeOnly: true } : {}),
-          }),
+          } satisfies MtRequestBody),
         });
         if (res.status === 429) throw new RateLimitedError();
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as {
-          translation?: string;
-          provider?: MtProviderId | 'cache';
-        };
+        const data = (await res.json()) as Partial<MtSuccessResponse>;
         if (!data.translation) throw new Error('Missing translation');
         if (data.provider && data.provider !== 'cache') {
           setLastUsedProvider(data.provider);
