@@ -1,0 +1,614 @@
+export type PiperLanguage =
+  | 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs'
+  | 'ht' | 'so';
+
+/** Which engine speaks a voice: Piper (eSpeak/pinyin phonemes) or Meta MMS (characters). */
+export type VoiceEngine = 'piper' | 'mms';
+
+export interface PiperVoiceOption {
+  id: string;
+  lang: PiperLanguage;
+  label: string;
+  shortName: string;
+  gender?: 'female' | 'male';
+  modelId: string;
+  hfPath: string;
+  speakerId: number;
+  useRhasspyRepo?: boolean;
+  /** Chinese voices that take pinyin instead of eSpeak phonemes (see pinyin.ts). */
+  phonemeType?: 'pinyin';
+  /** Omitted for Piper. MMS voices download from MMS_VOICE_BASE_URL (see mmsVoiceUrl). */
+  engine?: VoiceEngine;
+  /** MMS: ISO 639-3 code of the facebook/mms-tts-<iso3> model, also the MMS_VOCABS key */
+  mmsIso3?: string;
+  /** MMS: file name in the voice's folder, when it isn't model_quantized.onnx (see mmsVoiceUrl) */
+  mmsFile?: string;
+  /** Download size in bytes, shown before the voice downloads (Piper: see PIPER_MODEL_BYTES) */
+  downloadBytes?: number;
+}
+
+/**
+ * Where the MMS voices are served from: a GitHub Pages site (CORS *, allowed on school Wi-Fi)
+ * holding mms-tts-<iso3>/model_quantized.onnx, converted once from facebook/mms-tts-<iso3>.
+ * VITE_MMS_VOICE_BASE_URL overrides it at build time (a local copy for testing, for example).
+ */
+export const MMS_VOICE_BASE_URL: string =
+  (import.meta.env?.VITE_MMS_VOICE_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+  'https://bpmdata.github.io/overheard-voices';
+
+/** Attribution the CC BY-NC 4.0 license of the MMS models asks for. */
+export const MMS_ATTRIBUTION = {
+  text: 'Meta MMS text-to-speech (Pratap et al., 2023), CC BY-NC 4.0, converted to ONNX',
+  licenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/',
+  modelUrl: (iso3: string) => `https://huggingface.co/facebook/mms-tts-${iso3}`,
+} as const;
+
+export function voiceEngine(voice: Pick<PiperVoiceOption, 'engine'>): VoiceEngine {
+  return voice.engine ?? 'piper';
+}
+
+export function mmsVoiceUrl(voice: Pick<PiperVoiceOption, 'mmsIso3' | 'mmsFile'>): string {
+  return `${MMS_VOICE_BASE_URL}/mms-tts-${voice.mmsIso3}/${voice.mmsFile ?? 'model_quantized.onnx'}`;
+}
+
+// Meta MMS voices are all single-speaker VITS models with int8 weights, about 28 MB each.
+function mmsVoice(
+  lang: PiperLanguage,
+  iso3: string,
+  shortName: string,
+  gender: 'female' | 'male',
+  downloadBytes: number,
+  mmsFile?: string,
+): PiperVoiceOption {
+  const genderLabel = gender === 'female' ? 'Female' : 'Male';
+  return {
+    id: `mms-tts-${iso3}`,
+    lang,
+    label: `${shortName} (${genderLabel} · Meta MMS)`,
+    shortName,
+    gender,
+    modelId: `mms-tts-${iso3}`,
+    hfPath: '',
+    speakerId: 0,
+    engine: 'mms',
+    mmsIso3: iso3,
+    downloadBytes,
+    ...(mmsFile ? { mmsFile } : {}),
+  };
+}
+
+export const BROWSER_VOICE_ID = 'browser';
+export const BROWSER_VOICE_LABEL = 'System / Browser voice';
+export const VOICE_PREFS_STORAGE_KEY = 'overheard.voices';
+export const VOICE_PREFS_EVENT = 'overheard:voices-changed';
+
+export const PIPER_VOICES: readonly PiperVoiceOption[] = [
+  // Spanish (Mexico)
+  {
+    id: 'es_MX-claude-high',
+    lang: 'es',
+    label: 'Claude (Female · MX)',
+    shortName: 'Claude',
+    gender: 'female',
+    modelId: 'es_MX-claude-high',
+    hfPath: 'es/es_MX/claude/high/es_MX-claude-high.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'es_MX-ald-medium',
+    lang: 'es',
+    label: 'Ald (Male · MX)',
+    shortName: 'Ald',
+    gender: 'male',
+    modelId: 'es_MX-ald-medium',
+    hfPath: 'es/es_MX/ald/medium/es_MX-ald-medium.onnx',
+    speakerId: 0,
+  },
+
+  // Portuguese (Brazil)
+  {
+    id: 'pt_BR-faber-medium',
+    lang: 'pt',
+    label: 'Faber (Male · BR)',
+    shortName: 'Faber',
+    gender: 'male',
+    modelId: 'pt_BR-faber-medium',
+    hfPath: 'pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'pt_BR-cadu-medium',
+    lang: 'pt',
+    label: 'Cadu (Male · BR)',
+    shortName: 'Cadu',
+    gender: 'male',
+    modelId: 'pt_BR-cadu-medium',
+    hfPath: 'pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // English (US & UK)
+  {
+    id: 'en_US-hfc_female-medium',
+    lang: 'en',
+    label: 'HFC Female (Female · US)',
+    shortName: 'HFC Female',
+    gender: 'female',
+    modelId: 'en_US-hfc_female-medium',
+    hfPath: 'en/en_US/hfc_female/medium/en_US-hfc_female-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_US-kristin-medium',
+    lang: 'en',
+    label: 'Kristin (Female · US)',
+    shortName: 'Kristin',
+    gender: 'female',
+    modelId: 'en_US-kristin-medium',
+    hfPath: 'en/en_US/kristin/medium/en_US-kristin-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_US-kusal-medium',
+    lang: 'en',
+    label: 'Kusal (Male · US)',
+    shortName: 'Kusal',
+    gender: 'male',
+    modelId: 'en_US-kusal-medium',
+    hfPath: 'en/en_US/kusal/medium/en_US-kusal-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_US-ryan-high',
+    lang: 'en',
+    label: 'Ryan (Male · US)',
+    shortName: 'Ryan',
+    gender: 'male',
+    modelId: 'en_US-ryan-high',
+    hfPath: 'en/en_US/ryan/high/en_US-ryan-high.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_GB-alba-medium',
+    lang: 'en',
+    label: 'Alba (Female · UK)',
+    shortName: 'Alba',
+    gender: 'female',
+    modelId: 'en_GB-alba-medium',
+    hfPath: 'en/en_GB/alba/medium/en_GB-alba-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_GB-northern_english_male-medium',
+    lang: 'en',
+    label: 'Northern English (Male · UK)',
+    shortName: 'Northern English',
+    gender: 'male',
+    modelId: 'en_GB-northern_english_male-medium',
+    hfPath: 'en/en_GB/northern_english_male/medium/en_GB-northern_english_male-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_GB-semaine-medium:0',
+    lang: 'en',
+    label: 'Semaine · Prudence (Female · UK)',
+    shortName: 'Prudence',
+    gender: 'female',
+    modelId: 'en_GB-semaine-medium',
+    hfPath: 'en/en_GB/semaine/medium/en_GB-semaine-medium.onnx',
+    speakerId: 0,
+  },
+  {
+    id: 'en_GB-semaine-medium:3',
+    lang: 'en',
+    label: 'Semaine · Poppy (Female · UK)',
+    shortName: 'Poppy',
+    gender: 'female',
+    modelId: 'en_GB-semaine-medium',
+    hfPath: 'en/en_GB/semaine/medium/en_GB-semaine-medium.onnx',
+    speakerId: 3,
+  },
+  {
+    id: 'en_GB-semaine-medium:1',
+    lang: 'en',
+    label: 'Semaine · Spike (Male · UK)',
+    shortName: 'Spike',
+    gender: 'male',
+    modelId: 'en_GB-semaine-medium',
+    hfPath: 'en/en_GB/semaine/medium/en_GB-semaine-medium.onnx',
+    speakerId: 1,
+  },
+  {
+    id: 'en_GB-semaine-medium:2',
+    lang: 'en',
+    label: 'Semaine · Obadiah (Male · UK)',
+    shortName: 'Obadiah',
+    gender: 'male',
+    modelId: 'en_GB-semaine-medium',
+    hfPath: 'en/en_GB/semaine/medium/en_GB-semaine-medium.onnx',
+    speakerId: 2,
+  },
+
+  // Vietnamese
+  {
+    id: 'vi_VN-vais1000-medium',
+    lang: 'vi',
+    label: 'VAIS (Female · VN)',
+    gender: 'female',
+    shortName: 'VAIS',
+    modelId: 'vi_VN-vais1000-medium',
+    hfPath: 'vi/vi_VN/vais1000/medium/vi_VN-vais1000-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'vi_VN-25hours_single-low',
+    lang: 'vi',
+    label: '25 Hours (Female · VN · smaller)',
+    gender: 'female',
+    shortName: '25 Hours',
+    modelId: 'vi_VN-25hours_single-low',
+    hfPath: 'vi/vi_VN/25hours_single/low/vi_VN-25hours_single-low.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Hindi (India)
+  {
+    id: 'hi_IN-priyamvada-medium',
+    lang: 'hi',
+    label: 'Priyamvada (Female · IN)',
+    shortName: 'Priyamvada',
+    gender: 'female',
+    modelId: 'hi_IN-priyamvada-medium',
+    hfPath: 'hi/hi_IN/priyamvada/medium/hi_IN-priyamvada-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'hi_IN-pratham-medium',
+    lang: 'hi',
+    label: 'Pratham (Male · IN)',
+    shortName: 'Pratham',
+    gender: 'male',
+    modelId: 'hi_IN-pratham-medium',
+    hfPath: 'hi/hi_IN/pratham/medium/hi_IN-pratham-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Bengali (Bangladesh). One 16-speaker model; speaker 3 is dataset speaker 03042.
+  {
+    id: 'bn_BD-google-medium:0',
+    lang: 'bn',
+    label: 'Google (Male · BD)',
+    gender: 'male',
+    shortName: 'Google',
+    modelId: 'bn_BD-google-medium',
+    hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'bn_BD-google-medium:3',
+    lang: 'bn',
+    label: 'Arif (Male · BD)',
+    shortName: 'Arif',
+    gender: 'male',
+    modelId: 'bn_BD-google-medium',
+    hfPath: 'bn/bn_BD/google/medium/bn_BD-google-medium.onnx',
+    speakerId: 3,
+    useRhasspyRepo: true,
+  },
+
+  // Urdu (Pakistan)
+  {
+    id: 'ur_PK-aegis_female-medium',
+    lang: 'ur',
+    label: 'Aegis (Female · PK)',
+    shortName: 'Aegis',
+    gender: 'female',
+    modelId: 'ur_PK-aegis_female-medium',
+    hfPath: 'ur/ur_PK/aegis_female/medium/ur_PK-aegis_female-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'ur_PK-fasih-medium',
+    lang: 'ur',
+    label: 'Fasih (Male · PK)',
+    shortName: 'Fasih',
+    gender: 'male',
+    modelId: 'ur_PK-fasih-medium',
+    hfPath: 'ur/ur_PK/fasih/medium/ur_PK-fasih-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Indonesian. MMS is the default: the Piper News voice sounds robotic. Exported at speaking
+  // rate 0.88 (about 10% slower): the owner found Meta's default pace rushed.
+  mmsVoice('id', 'ind', 'Budi', 'male', 29_826_555, 'model_quantized_rate088.onnx'),
+  {
+    id: 'id_ID-news_tts-medium',
+    lang: 'id',
+    label: 'News (Female · ID)',
+    gender: 'female',
+    shortName: 'News',
+    modelId: 'id_ID-news_tts-medium',
+    hfPath: 'id/id_ID/news_tts/medium/id_ID-news_tts-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Swahili. MMS replaced Piper's Lanfrica voice, which sounded poor.
+  mmsVoice('sw', 'swh', 'Baraka', 'male', 29_827_343),
+
+  // Turkish. MMS is the default: the Piper DFKI voice is whispery.
+  mmsVoice('tr', 'tur', 'Emre', 'male', 29_828_131),
+  {
+    id: 'tr_TR-dfki-medium',
+    lang: 'tr',
+    label: 'DFKI (Male · TR)',
+    gender: 'male',
+    shortName: 'DFKI',
+    modelId: 'tr_TR-dfki-medium',
+    hfPath: 'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Simplified Chinese. Both voices need the pinyin step in pinyin.ts.
+  {
+    id: 'zh_CN-xiao_ya-medium',
+    lang: 'zh',
+    label: 'Xiao Ya (Female · CN)',
+    gender: 'female',
+    shortName: 'Xiao Ya',
+    modelId: 'zh_CN-xiao_ya-medium',
+    hfPath: 'zh/zh_CN/xiao_ya/medium/zh_CN-xiao_ya-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
+  {
+    id: 'zh_CN-chaowen-medium',
+    lang: 'zh',
+    label: 'Chaowen (Male · CN)',
+    gender: 'male',
+    shortName: 'Chaowen',
+    modelId: 'zh_CN-chaowen-medium',
+    hfPath: 'zh/zh_CN/chaowen/medium/zh_CN-chaowen-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+    phonemeType: 'pinyin',
+  },
+
+  // Arabic (Jordan)
+  {
+    id: 'ar_JO-kareem-medium',
+    lang: 'ar',
+    label: 'Kareem (Male · JO)',
+    gender: 'male',
+    shortName: 'Kareem',
+    modelId: 'ar_JO-kareem-medium',
+    hfPath: 'ar/ar_JO/kareem/medium/ar_JO-kareem-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // French (France)
+  {
+    id: 'fr_FR-siwis-medium',
+    lang: 'fr',
+    label: 'Siwis (Female · FR)',
+    gender: 'female',
+    shortName: 'Siwis',
+    modelId: 'fr_FR-siwis-medium',
+    hfPath: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-tom-medium',
+    lang: 'fr',
+    label: 'Tom (Male · FR)',
+    gender: 'male',
+    shortName: 'Tom',
+    modelId: 'fr_FR-tom-medium',
+    hfPath: 'fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:0',
+    lang: 'fr',
+    label: 'Jessica (Female · FR)',
+    gender: 'female',
+    shortName: 'Jessica',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fr_FR-upmc-medium:1',
+    lang: 'fr',
+    label: 'Pierre (Male · FR)',
+    gender: 'male',
+    shortName: 'Pierre',
+    modelId: 'fr_FR-upmc-medium',
+    hfPath: 'fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
+    speakerId: 1,
+    useRhasspyRepo: true,
+  },
+
+  // Ukrainian
+  {
+    id: 'uk_UA-tetiana-high',
+    lang: 'uk',
+    label: 'Tetiana (Female · UA)',
+    gender: 'female',
+    shortName: 'Tetiana',
+    modelId: 'uk_UA-tetiana-high',
+    hfPath: 'uk/uk_UA/tetiana/high/uk_UA-tetiana-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-mykyta-high',
+    lang: 'uk',
+    label: 'Mykyta (Male · UA)',
+    gender: 'male',
+    shortName: 'Mykyta',
+    modelId: 'uk_UA-mykyta-high',
+    hfPath: 'uk/uk_UA/mykyta/high/uk_UA-mykyta-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'uk_UA-oleksa-high',
+    lang: 'uk',
+    label: 'Oleksa (Male · UA)',
+    gender: 'male',
+    shortName: 'Oleksa',
+    modelId: 'uk_UA-oleksa-high',
+    hfPath: 'uk/uk_UA/oleksa/high/uk_UA-oleksa-high.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Russian
+  {
+    id: 'ru_RU-irina-medium',
+    lang: 'ru',
+    label: 'Irina (Female · RU)',
+    gender: 'female',
+    shortName: 'Irina',
+    modelId: 'ru_RU-irina-medium',
+    hfPath: 'ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'ru_RU-dmitri-medium',
+    lang: 'ru',
+    label: 'Dmitri (Male · RU)',
+    gender: 'male',
+    shortName: 'Dmitri',
+    modelId: 'ru_RU-dmitri-medium',
+    hfPath: 'ru/ru_RU/dmitri/medium/ru_RU-dmitri-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Dari, using Iranian Persian voices (fa_IR)
+  {
+    id: 'fa_IR-magnoliasis-medium',
+    lang: 'prs',
+    label: 'Magnoliasis (Female · IR)',
+    gender: 'female',
+    shortName: 'Magnoliasis',
+    modelId: 'fa_IR-magnoliasis-medium',
+    hfPath: 'fa/fa_IR/magnoliasis/medium/fa_IR-magnoliasis-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-amir-medium',
+    lang: 'prs',
+    label: 'Amir (Male · IR)',
+    gender: 'male',
+    shortName: 'Amir',
+    modelId: 'fa_IR-amir-medium',
+    hfPath: 'fa/fa_IR/amir/medium/fa_IR-amir-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+  {
+    id: 'fa_IR-ganji_adabi-medium',
+    lang: 'prs',
+    label: 'Ganji Adabi (Male · IR)',
+    gender: 'male',
+    shortName: 'Ganji Adabi',
+    modelId: 'fa_IR-ganji_adabi-medium',
+    hfPath: 'fa/fa_IR/ganji_adabi/medium/fa_IR-ganji_adabi-medium.onnx',
+    speakerId: 0,
+    useRhasspyRepo: true,
+  },
+
+  // Haitian Creole and Somali: Meta MMS only (no Piper voice exists).
+  mmsVoice('ht', 'hat', 'Jean', 'male', 29_825_964),
+  mmsVoice('so', 'som', 'Abdi', 'male', 29_824_978),
+];
+
+export const DEFAULT_PIPER_VOICE_ID: Record<PiperLanguage, string> = {
+  en: 'en_US-hfc_female-medium',
+  es: 'es_MX-claude-high',
+  pt: 'pt_BR-faber-medium',
+  vi: 'vi_VN-vais1000-medium',
+  hi: 'hi_IN-priyamvada-medium',
+  bn: 'bn_BD-google-medium:0',
+  ur: 'ur_PK-aegis_female-medium',
+  id: 'mms-tts-ind',
+  sw: 'mms-tts-swh',
+  tr: 'mms-tts-tur',
+  zh: 'zh_CN-xiao_ya-medium',
+  ar: 'ar_JO-kareem-medium',
+  fr: 'fr_FR-siwis-medium',
+  uk: 'uk_UA-tetiana-high',
+  ru: 'ru_RU-irina-medium',
+  prs: 'fa_IR-magnoliasis-medium',
+  ht: 'mms-tts-hat',
+  so: 'mms-tts-som',
+};
+
+/**
+ * Download size of each voice model (the .onnx file plus its .onnx.json), measured from Hugging
+ * Face in November 2026. Shown before a download so teachers know what the app will take up.
+ * New voices without an entry use PIPER_DEFAULT_MODEL_BYTES (a typical medium model).
+ */
+export const PIPER_MODEL_BYTES: Readonly<Record<string, number>> = {
+  'es_MX-claude-high': 63127272,
+  'es_MX-ald-medium': 63206183,
+  'pt_BR-faber-medium': 63206149,
+  'pt_BR-cadu-medium': 63228240,
+  'en_US-hfc_female-medium': 63206327,
+  'en_US-kristin-medium': 63536347,
+  'en_US-kusal-medium': 63206178,
+  'en_US-ryan-high': 120790958,
+  'en_GB-alba-medium': 63206182,
+  'en_GB-northern_english_male-medium': 63206141,
+  'en_GB-semaine-medium': 76742787,
+  'vi_VN-vais1000-medium': 63228181,
+  'vi_VN-25hours_single-low': 63108702,
+  'hi_IN-priyamvada-medium': 63521023,
+  'hi_IN-pratham-medium': 63521020,
+  'bn_BD-google-medium': 76789071,
+  'ur_PK-aegis_female-medium': 63520825,
+  'ur_PK-fasih-medium': 64835260,
+  'id_ID-news_tts-medium': 62955094,
+  'tr_TR-dfki-medium': 63206254,
+  'zh_CN-xiao_ya-medium': 63224911,
+  'zh_CN-chaowen-medium': 63226344,
+  'ar_JO-kareem-medium': 63206318,
+  'fr_FR-siwis-medium': 63228353,
+  'fr_FR-tom-medium': 63515997,
+  'fr_FR-upmc-medium': 76738611,
+  'uk_UA-tetiana-high': 114208929,
+  'uk_UA-mykyta-high': 114208928,
+  'uk_UA-oleksa-high': 114208928,
+  'ru_RU-irina-medium': 63206059,
+  'ru_RU-dmitri-medium': 63228181,
+  'fa_IR-magnoliasis-medium': 63228054,
+  'fa_IR-amir-medium': 63228051,
+  'fa_IR-ganji_adabi-medium': 63521014,
+};
+
+export const PIPER_DEFAULT_MODEL_BYTES = 63_227_000;
+
+/**
+ * The Piper voice runtime (/ort/ and /piper/: ONNX Runtime WebAssembly plus the eSpeak
+ * phonemizer), downloaded once with the first voice and shared by all of them. About 40 MB.
+ */
+export const PIPER_RUNTIME_BYTES = 40_353_000;

@@ -43,6 +43,7 @@ Open `http://localhost:3000` in **Google Chrome** or **Microsoft Edge** (Web Spe
 ```bash
 npm test -- --run                # Run all Vitest unit, server, and UI suites
 npm run lint                      # Typecheck with tsc --noEmit
+npm run test:e2e                  # Chromium browser tests (first run: npx playwright install chromium)
 npm run build                     # Build client assets into dist/ (includes /ort/ and /piper/ WASM assets)
 NODE_ENV=production node --check server.ts
 npm start                         # Run production server directly on 0.0.0.0:3000

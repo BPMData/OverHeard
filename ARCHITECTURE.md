@@ -77,7 +77,7 @@ src/
     AboutModal.tsx, StorageManager.tsx, PackProgressPanel.tsx
   conversation/         Two-way & Lecture state/reducers, useConversationSpeech, useLectureMode, locales, translateMessage
   rooms/                TeacherRoomControls, StudentRoom, protocol.ts (shared with server), translateStudent, LecturePip/Files
-  tts/                  voices.ts (845 lines — catalog + prefs), piperClient, piperWorker, mmsEngine, mmsTokenizer,
+  tts/                  voiceCatalog.ts (static catalog), voices.ts (selection and prefs), piperClient, piperWorker, mmsEngine, mmsTokenizer,
                         useLecturePlayback, useTwoWayPlayback, liveSegments, VoiceSelect, voiceStorage
   lib/                  googleConfig.ts, googleDrive.ts (GIS OAuth + Picker + Drive v3, drive.file scope only)
   storage/              Settings → "Space used on this device" registry joining voices and translation packs
@@ -111,6 +111,8 @@ bash scripts/smoke.sh
 ```
 
 Note on `scripts/smoke.sh`: it starts the production server on port 3000 (requires `curl` and an unused port 3000) and verifies `/api/config`, `/api/mt` input validation, SPA loading, and room create/rejoin/SSE streaming.
+
+For Chromium browser tests, run `npx playwright install chromium` once, then `npm run test:e2e`. The harness starts a development server on port 3100 (override with `E2E_PORT`) and CI runs the suite separately.
 
 ---
 
