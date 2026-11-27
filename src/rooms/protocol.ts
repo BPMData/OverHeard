@@ -77,8 +77,8 @@ function parseTranslations(value: unknown): Partial<Record<LanguageCode, string>
   return output;
 }
 
-export function parseEntries(value: unknown): LectureEntry[] {
-  if (!Array.isArray(value) || value.length > MAX_ROOM_ENTRIES) throw new Error(`A room can contain up to ${MAX_ROOM_ENTRIES} lines.`);
+function parseEntries(value: unknown): LectureEntry[] {
+  if (!Array.isArray(value)) throw new Error('Invalid lecture entries.');
   const ids = new Set<string>();
   return value.map(raw => {
     const item = record(raw);
@@ -96,6 +96,9 @@ export function parseEntries(value: unknown): LectureEntry[] {
 
 export function parsePatch(value: unknown): RoomPatch {
   const input = record(value);
+  if (Array.isArray(input.entries) && input.entries.length > MAX_ROOM_ENTRIES) {
+    throw new Error(`A room can contain up to ${MAX_ROOM_ENTRIES} lines.`);
+  }
   if (!Array.isArray(input.removedIds) || input.removedIds.length > MAX_ROOM_ENTRIES ||
       input.removedIds.some(id => typeof id !== 'string' || id.length > 100) ||
       typeof input.isListening !== 'boolean') throw new Error('Invalid room update.');
@@ -118,8 +121,13 @@ export function applyPatch<T extends LectureState>(state: T, patch: RoomPatch): 
 
 // Portable data only: never export the teacher credential or a live room identity.
 export function roomJson(state: Pick<LectureState, 'entries' | 'selectedLangs'>): string {
-  return JSON.stringify({ format: 'overheard-lecture', version: 1, exportedAt: new Date().toISOString(),
-    selectedLangs: state.selectedLangs, entries: state.entries }, null, 2);
+  const file = { format: 'overheard-lecture', version: 1, exportedAt: new Date().toISOString(),
+    selectedLangs: state.selectedLangs, entries: state.entries };
+  const pretty = JSON.stringify(file, null, 2);
+  if (new TextEncoder().encode(pretty).length <= MAX_ROOM_FILE_BYTES) return pretty;
+  const compact = JSON.stringify(file);
+  if (new TextEncoder().encode(compact).length <= MAX_ROOM_FILE_BYTES) return compact;
+  throw new Error('This lecture exceeds the 8 MB file limit. Your transcript is still open.');
 }
 
 export function parseRoomJson(text: string): Pick<LectureState, 'entries' | 'selectedLangs'> {

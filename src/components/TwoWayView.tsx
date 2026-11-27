@@ -1,4 +1,4 @@
-import type { ChangeEvent, Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import { memo, type ChangeEvent, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
 import { Square, Volume2 } from 'lucide-react';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
@@ -234,18 +234,18 @@ interface TwoWayViewProps {
   setText: (value: string) => void;
 }
 
-export function TwoWayView({
-  settings, speech, twoWayPlayback, fontSize, isDark, packPanel, uiError, thread, following,
-  messages, onCorrectMessage, newMessage, setNewMessage, nextButton, send, sender, setSender,
-  text, setText,
-}: TwoWayViewProps) {
-  const renderMessage = (message: Message) => {
-    const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
+const MessageHistory = memo(function MessageHistory({
+  messages, placement, fontSize, isDark, onCorrectMessage, playingMessageId, downloadingMessageId, togglePlayMessage,
+}: Pick<TwoWayViewProps, 'messages' | 'fontSize' | 'isDark' | 'onCorrectMessage'> &
+  Pick<Playback, 'playingMessageId' | 'downloadingMessageId' | 'togglePlayMessage'> &
+  { placement: ConversationSettings['placement'] }) {
+  return messages.map((message) => {
+    const placedSide = placement === 'speaker' ? message.side : otherSide(message.side);
     const done = message.status === 'done';
     const canPlay = message.status !== 'translating';
-    const isSpeakingThisBubble = twoWayPlayback.playingMessageId === message.id;
+    const isSpeakingThisBubble = playingMessageId === message.id;
     const isDownloadingThisBubble =
-      isSpeakingThisBubble && twoWayPlayback.downloadingMessageId === message.id;
+      isSpeakingThisBubble && downloadingMessageId === message.id;
     const spokenText = (done && message.translated) || message.original;
     const spokenLang = done && message.translated ? message.reader.lang : message.sender.lang;
     return (
@@ -271,7 +271,7 @@ export function TwoWayView({
                 }
                 title={isSpeakingThisBubble ? 'Stop reading' : 'Play translated speech'}
                 onClick={() =>
-                  twoWayPlayback.togglePlayMessage({
+                  togglePlayMessage({
                     id: message.id,
                     text: spokenText,
                     lang: spokenLang,
@@ -327,7 +327,14 @@ export function TwoWayView({
         )}
       </article>
     );
-  };
+  });
+});
+
+export function TwoWayView({
+  settings, speech, twoWayPlayback, fontSize, isDark, packPanel, uiError, thread, following,
+  messages, onCorrectMessage, newMessage, setNewMessage, nextButton, send, sender, setSender,
+  text, setText,
+}: TwoWayViewProps) {
   const sameSpeechLang = speechLocale(settings.a.lang) === speechLocale(settings.b.lang);
   const livePlacedSide = settings.placement === 'speaker' ? speech.turn : otherSide(speech.turn);
   return (
@@ -363,7 +370,11 @@ export function TwoWayView({
             Start a conversation or type a message. Messages stay here until you clear them.
           </p>
         )}
-        {messages.map(renderMessage)}
+        <MessageHistory
+          messages={messages} placement={settings.placement} fontSize={fontSize} isDark={isDark}
+          onCorrectMessage={onCorrectMessage} playingMessageId={twoWayPlayback.playingMessageId}
+          downloadingMessageId={twoWayPlayback.downloadingMessageId} togglePlayMessage={twoWayPlayback.togglePlayMessage}
+        />
         {(speech.draft || speech.interim) && (
           <article className={`conversation-bubble side-${livePlacedSide}`}>
             <div className="conversation-meta">

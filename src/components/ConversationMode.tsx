@@ -9,6 +9,7 @@ import {
   createMessage,
   messagesReducer,
   otherSide,
+  type Message,
   type Side,
 } from '../conversation/state';
 import { useConversationSpeech } from '../conversation/useConversationSpeech';
@@ -125,6 +126,7 @@ export function ConversationMode({
   );
   const needOnlineNotice = needOnlineText(needOnline, { rooms: isLecture });
   const [messages, dispatch] = useReducer(messagesReducer, []);
+  const onCorrectMessage = useCallback((message: Message) => dispatch({ type: 'correct', message }), []);
   const [sender, setSender] = useState<Side>('a');
   const [text, setText] = useState('');
   const [newMessage, setNewMessage] = useState(false);
@@ -765,7 +767,7 @@ export function ConversationMode({
           settings={settings}
           speech={speech}
           messages={messages}
-          onCorrectMessage={(message) => dispatch({ type: 'correct', message })}
+          onCorrectMessage={onCorrectMessage}
           onToggleManualTurns={() => setSettings((s) => ({ ...s, manualTurns: !s.manualTurns }))}
           fontSize={fontSize}
           isDark={isDark}
@@ -790,7 +792,7 @@ export function ConversationMode({
           thread={thread}
           following={following}
           messages={messages}
-          onCorrectMessage={(message) => dispatch({ type: 'correct', message })}
+          onCorrectMessage={onCorrectMessage}
           newMessage={newMessage}
           setNewMessage={setNewMessage}
           nextButton={nextButton}
