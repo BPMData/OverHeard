@@ -13,6 +13,7 @@ export default defineConfig({
     url: `http://127.0.0.1:${port}/api/config`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
-    env: { E2E_PORT: String(port) },
+    // Vite can otherwise reload an open teacher tab when the student page loads new dependencies.
+    env: { E2E_PORT: String(port), DISABLE_HMR: 'true' },
   },
 });
