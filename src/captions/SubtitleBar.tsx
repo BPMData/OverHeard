@@ -22,28 +22,35 @@ interface SubtitleBarProps {
 }
 
 export function SubtitleBar({
-  selectedLangs, subtitleLang, isListening, isDark, hasPipApi, showPreviousLine, fontSize,
-  currentSegment, previousSegment, segments, liveTranslations, pipWindow, interimTranscript,
-  setSubtitleLang, handleTogglePip,
+  selectedLangs,
+  subtitleLang,
+  isListening,
+  isDark,
+  hasPipApi,
+  showPreviousLine,
+  fontSize,
+  currentSegment,
+  previousSegment,
+  segments,
+  liveTranslations,
+  pipWindow,
+  interimTranscript,
+  setSubtitleLang,
+  handleTogglePip,
 }: SubtitleBarProps) {
   const previousFontSize = Math.max(16, Math.round(fontSize * 0.68));
-  const activeSubtitleLang = selectedLangs.includes(subtitleLang)
-    ? subtitleLang
-    : selectedLangs[0];
-  const subtitleCaptionColor = languageCaptionColor(
-    Math.max(0, selectedLangs.indexOf(activeSubtitleLang))
-  );
+  const activeSubtitleLang = selectedLangs.includes(subtitleLang) ? subtitleLang : selectedLangs[0];
+  const subtitleCaptionColor = languageCaptionColor(Math.max(0, selectedLangs.indexOf(activeSubtitleLang)));
 
   return (
     <main className="flex-1 flex flex-col justify-between p-4 lg:p-8 pb-56">
       <div className="max-w-4xl mx-auto w-full rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">
-              Subtitle Bar Mode Active
-            </h2>
+            <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F8FAFC]">Subtitle Bar Mode Active</h2>
             <p className="text-xs sm:text-sm text-[#64748B] dark:text-[#94A3B8]">
-              The compact two-line caption bar is pinned to the bottom of the screen so you can position slides above it or pop it out into a floating window.
+              The compact two-line caption bar is pinned to the bottom of the screen so you can position slides above it
+              or pop it out into a floating window.
             </p>
           </div>
           {hasPipApi ? (
@@ -57,9 +64,7 @@ export function SubtitleBar({
               }`}
             >
               <PictureInPicture2 className="w-4 h-4" />
-              <span>
-                {pipWindow ? 'Close Floating Window' : 'Pop out captions over slides'}
-              </span>
+              <span>{pipWindow ? 'Close Floating Window' : 'Pop out captions over slides'}</span>
             </button>
           ) : (
             <span className="text-xs text-[#64748B] dark:text-[#94A3B8]">
@@ -78,12 +83,8 @@ export function SubtitleBar({
                 key={seg.id}
                 className="text-xs flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-3 py-1 border-b border-slate-200/50 dark:border-slate-800/60 last:border-0"
               >
-                <span className="font-mono text-[#64748B] dark:text-[#94A3B8] shrink-0">
-                  [{seg.timestamp}]
-                </span>
-                <span className="font-medium text-[#0F172A] dark:text-[#F8FAFC]">
-                  {seg.english}
-                </span>
+                <span className="font-mono text-[#64748B] dark:text-[#94A3B8] shrink-0">[{seg.timestamp}]</span>
+                <span className="font-medium text-[#0F172A] dark:text-[#F8FAFC]">{seg.english}</span>
                 <span
                   dir={LANGUAGE_MAP[activeSubtitleLang].dir}
                   lang={activeSubtitleLang}
@@ -122,9 +123,7 @@ export function SubtitleBar({
               >
                 {interimTranscript.trim().length > 0 || currentSegment ? (
                   <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
-                    {interimTranscript.trim().length > 0
-                      ? interimTranscript
-                      : currentSegment?.english}
+                    {interimTranscript.trim().length > 0 ? interimTranscript : currentSegment?.english}
                   </CaptionText>
                 ) : (
                   <span className="text-[#64748B] dark:text-[#94A3B8]">
@@ -168,14 +167,11 @@ export function SubtitleBar({
             lang={activeSubtitleLang}
             className="border-t border-[#E2E8F0] dark:border-[#1E293B] pt-2"
           >
-            {interimTranscript.trim().length > 0 &&
-            liveTranslations[activeSubtitleLang] ? (
+            {interimTranscript.trim().length > 0 && liveTranslations[activeSubtitleLang] ? (
               <p
                 style={{ fontSize: `${fontSize}px` }}
                 className={`font-bold italic opacity-70 ${
-                  LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl'
-                    ? 'caption-text-rtl'
-                    : 'caption-text-ltr'
+                  LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
                 }`}
               >
                 <CaptionText color={subtitleCaptionColor} isDark={isDark}>
@@ -183,29 +179,22 @@ export function SubtitleBar({
                 </CaptionText>
               </p>
             ) : currentSegment ? (
-              currentSegment.status === 'translating' &&
-              !currentSegment.translations[activeSubtitleLang] ? (
+              currentSegment.status === 'translating' && !currentSegment.translations[activeSubtitleLang] ? (
                 <p
                   style={{ fontSize: `${fontSize}px` }}
                   className="font-semibold text-[#64748B] dark:text-[#94A3B8] animate-pulse"
                 >
                   Translating…
                 </p>
-              ) : currentSegment.translations[activeSubtitleLang] ===
-                'translation unavailable' ? (
-                <p
-                  dir="ltr"
-                  className="text-base font-medium text-amber-600 dark:text-amber-400 italic"
-                >
+              ) : currentSegment.translations[activeSubtitleLang] === 'translation unavailable' ? (
+                <p dir="ltr" className="text-base font-medium text-amber-600 dark:text-amber-400 italic">
                   translation unavailable
                 </p>
               ) : (
                 <p
                   style={{ fontSize: `${fontSize}px` }}
                   className={`font-bold ${
-                    LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl'
-                      ? 'caption-text-rtl'
-                      : 'caption-text-ltr'
+                    LANGUAGE_MAP[activeSubtitleLang].dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
                   }`}
                 >
                   <CaptionText color={subtitleCaptionColor} isDark={isDark}>
@@ -214,10 +203,7 @@ export function SubtitleBar({
                 </p>
               )
             ) : (
-              <p
-                dir="ltr"
-                className="text-sm text-[#64748B] dark:text-[#94A3B8]"
-              >
+              <p dir="ltr" className="text-sm text-[#64748B] dark:text-[#94A3B8]">
                 {LANGUAGE_MAP[activeSubtitleLang].name} subtitle line
               </p>
             )}

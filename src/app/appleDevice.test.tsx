@@ -20,10 +20,16 @@ function pretend(ua: string, platform: string, touchPoints: number) {
 const banners = (hasSpeechApi = true) =>
   render(
     <AppBanners
-      displayMode="conversation" isEmbeddedIframe={false} hasSpeechApi={hasSpeechApi}
-      isSupportedBrowser={false} importError="" pipNotice={null} permissionBanner={null}
-      setImportError={() => {}} setPipNotice={() => {}}
-    />,
+      displayMode="conversation"
+      isEmbeddedIframe={false}
+      hasSpeechApi={hasSpeechApi}
+      isSupportedBrowser={false}
+      importError=""
+      pipNotice={null}
+      permissionBanner={null}
+      setImportError={() => {}}
+      setPipNotice={() => {}}
+    />
   );
 
 afterEach(() => {

@@ -49,7 +49,6 @@ const MT_PROVIDER = MT_CHAIN[0];
 // "Something not working?" reports (see docs/REPORTS.md). Both delivery paths are optional.
 const REPORT_OPTIONS = reportOptionsFromEnv(process.env);
 
-
 export async function startServer({ port = PORT }: { port?: number } = {}) {
   const distPath = path.join(__dirname, 'dist');
   const isProd =
@@ -83,9 +82,7 @@ export async function startServer({ port = PORT }: { port?: number } = {}) {
       `[limits] per tab/min: ${MT_PER_SESSION} translations; per IP: ${IP_LIMIT_MULTIPLIER}x; ` +
         `trusted proxy hops: ${TRUST_PROXY_HOPS}; daily cap: ${CLOUD_DAILY_CHARS || 'unlimited'} Cloud Translation chars`
     );
-    console.log(
-      `[translate] live MT providers: ${MT_CHAIN.join(' → ')}`
-    );
+    console.log(`[translate] live MT providers: ${MT_CHAIN.join(' → ')}`);
     if (MT_PROVIDER === 'gtx') {
       console.warn(
         '[translate] Primary is the unofficial gtx endpoint — free, but Google can throttle or block it without notice.'
@@ -96,9 +93,7 @@ export async function startServer({ port = PORT }: { port?: number } = {}) {
   return server;
 }
 
-const isMainModule =
-  Boolean(process.argv[1]) &&
-  path.resolve(process.argv[1]) === path.resolve(__filename);
+const isMainModule = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (isMainModule) {
   void startServer();
 }

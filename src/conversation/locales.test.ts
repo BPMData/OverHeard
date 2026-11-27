@@ -16,16 +16,15 @@ describe('speech locales', () => {
       so: 'so-SO',
       prs: 'fa-AF',
       ps: 'ps-AF',
-  hi: 'hi-IN',
-  bn: 'bn-BD',
-  ur: 'ur-PK',
-  id: 'id-ID',
-  ja: 'ja-JP',
-  sw: 'sw-KE',
-  tr: 'tr-TR',
+      hi: 'hi-IN',
+      bn: 'bn-BD',
+      ur: 'ur-PK',
+      id: 'id-ID',
+      ja: 'ja-JP',
+      sw: 'sw-KE',
+      tr: 'tr-TR',
     });
-    for (const [code, locale] of Object.entries(SPEECH_LOCALES))
-      expect(speechLocale(code)).toBe(locale);
+    for (const [code, locale] of Object.entries(SPEECH_LOCALES)) expect(speechLocale(code)).toBe(locale);
   });
   it('falls back to the supplied code', () => expect(speechLocale('xx')).toBe('xx'));
 });

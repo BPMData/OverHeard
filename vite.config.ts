@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 
 const BERGAMOT_WORKER_FILES = [
   'translator-worker.js',
@@ -20,11 +20,8 @@ function copyPiperRuntimesToDist() {
   const assetsDir = path.join(distDir, 'assets');
 
   if (fs.existsSync(ortSrcDir)) {
-    fs.mkdirSync(ortDestDir, {recursive: true});
-    for (const file of [
-      'ort-wasm-simd-threaded.jsep.mjs',
-      'ort-wasm-simd-threaded.jsep.wasm',
-    ]) {
+    fs.mkdirSync(ortDestDir, { recursive: true });
+    for (const file of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
       const src = path.join(ortSrcDir, file);
       if (fs.existsSync(src)) {
         fs.copyFileSync(src, path.join(ortDestDir, file));
@@ -33,7 +30,7 @@ function copyPiperRuntimesToDist() {
   }
 
   if (fs.existsSync(piperSrcDir)) {
-    fs.mkdirSync(piperDestDir, {recursive: true});
+    fs.mkdirSync(piperDestDir, { recursive: true });
     for (const file of ['piper_phonemize.wasm', 'piper_phonemize.data']) {
       const src = path.join(piperSrcDir, file);
       if (fs.existsSync(src)) {
@@ -46,7 +43,7 @@ function copyPiperRuntimesToDist() {
   const bergamotSrcDir = path.resolve(__dirname, 'node_modules/@browsermt/bergamot-translator/worker');
   if (fs.existsSync(bergamotSrcDir)) {
     const bergamotDestDir = path.join(distDir, 'bergamot');
-    fs.mkdirSync(bergamotDestDir, {recursive: true});
+    fs.mkdirSync(bergamotDestDir, { recursive: true });
     for (const file of BERGAMOT_WORKER_FILES) {
       fs.copyFileSync(path.join(bergamotSrcDir, file), path.join(bergamotDestDir, file));
     }
@@ -55,7 +52,7 @@ function copyPiperRuntimesToDist() {
   if (fs.existsSync(assetsDir)) {
     for (const file of fs.readdirSync(assetsDir)) {
       if (file.startsWith('ort-wasm')) {
-        fs.rmSync(path.join(assetsDir, file), {force: true});
+        fs.rmSync(path.join(assetsDir, file), { force: true });
       }
     }
   }
@@ -77,7 +74,7 @@ function writeServiceWorkerPrecache() {
 
   const files: string[] = [];
   const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else files.push(path.relative(distDir, full).split(path.sep).join('/'));

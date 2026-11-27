@@ -27,7 +27,8 @@ const sameWord = (a: string, b: string) =>
 export function trackWords(previous: WordTracker, text: string, now: number): WordTracker {
   const words = splitWords(text);
   const changedAt = words.map((word, index) =>
-    index < previous.words.length && sameWord(previous.words[index], word) ? previous.changedAt[index] : now);
+    index < previous.words.length && sameWord(previous.words[index], word) ? previous.changedAt[index] : now
+  );
   return { words, changedAt };
 }
 
@@ -45,7 +46,7 @@ export function stableWordCount(tracker: WordTracker, now: number, stableMs = LI
 export function nextLiveSegment(
   tracker: WordTracker,
   spoken: number,
-  now: number,
+  now: number
 ): { start: number; end: number } | null {
   const stable = stableWordCount(tracker, now);
   const waiting = stable - spoken;

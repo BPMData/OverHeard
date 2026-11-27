@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, ClipboardCopy, Download, ExternalLink, Globe, Lock, Mail, MessageSquareWarning, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  ClipboardCopy,
+  Download,
+  ExternalLink,
+  Globe,
+  Lock,
+  Mail,
+  MessageSquareWarning,
+  X,
+} from 'lucide-react';
 import { useModalDismiss } from '../components/useModalDismiss';
 import { collectDiagnostics, getReportContext } from './diagnostics';
 import {
@@ -172,19 +182,26 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
     fetchImpl('/api/report/status', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data: Partial<ServerStatus>) => {
-        if (!cancelled) setServer({ automatic: data.automatic === true, appVersion: String(data.appVersion ?? 'unknown') });
+        if (!cancelled)
+          setServer({ automatic: data.automatic === true, appVersion: String(data.appVersion ?? 'unknown') });
       })
       .catch(() => {
         if (!cancelled) setServer({ automatic: false, appVersion: 'unknown' });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [fetchImpl]);
 
   useEffect(() => {
     if (!server) return;
     let cancelled = false;
-    void collectDiagnostics(server.appVersion).then((d) => { if (!cancelled) setDiagnostics(d); });
-    return () => { cancelled = true; };
+    void collectDiagnostics(server.appVersion).then((d) => {
+      if (!cancelled) setDiagnostics(d);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [server]);
 
   // Move focus to each step's heading so screen readers announce it
@@ -205,7 +222,7 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
   }, []);
 
   const report: ProblemReport = { category, summary, steps, diagnostics, comments, contact };
-  const fullText = reportAsText(report, outcome?.kind === 'sent' ? outcome.issueUrl ?? undefined : undefined);
+  const fullText = reportAsText(report, outcome?.kind === 'sent' ? (outcome.issueUrl ?? undefined) : undefined);
   const hasPrivate = Boolean(comments.trim() || contact.trim());
   const online = typeof navigator === 'undefined' || navigator.onLine !== false;
   const canSendAutomatically = Boolean(server?.automatic) && online;
@@ -225,13 +242,16 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
         body: JSON.stringify({ ...report, consent: true }),
       });
       const data = (await response.json().catch(() => ({}))) as {
-        ok?: boolean; issueUrl?: string | null; emailed?: boolean; reason?: string;
+        ok?: boolean;
+        issueUrl?: string | null;
+        emailed?: boolean;
+        reason?: string;
       };
       if (response.ok && data.ok) {
         setOutcome({ kind: 'sent', issueUrl: data.issueUrl ?? null, emailed: data.emailed === true });
       } else {
-        const why = data.reason === 'not-configured' ? 'not-configured'
-          : response.status === 429 ? 'rate-limited' : 'error';
+        const why =
+          data.reason === 'not-configured' ? 'not-configured' : response.status === 429 ? 'rate-limited' : 'error';
         setOutcome({ kind: 'failed', why });
       }
     } catch {
@@ -294,8 +314,8 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
         <p className="flex items-start gap-2 text-slate-600 dark:text-[#94A3B8]">
           <Globe className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            These answers will be <strong className="text-slate-900 dark:text-white">public</strong> on GitHub.
-            Skip anything you don’t know. Don’t write student names, room codes or PINs.
+            These answers will be <strong className="text-slate-900 dark:text-white">public</strong> on GitHub. Skip
+            anything you don’t know. Don’t write student names, room codes or PINs.
           </span>
         </p>
         <label className="block space-y-1">
@@ -324,7 +344,9 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
     );
     footer = (
       <>
-        <button type="button" className={secondaryButton} onClick={goBack}>Back</button>
+        <button type="button" className={secondaryButton} onClick={goBack}>
+          Back
+        </button>
         <button type="button" className={primaryButton} onClick={goNext}>
           {summary.trim() || steps.trim() ? 'Next' : 'Skip'}
         </button>
@@ -336,8 +358,8 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
         <p className="flex items-start gap-2 text-slate-600 dark:text-[#94A3B8]">
           <Lock className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            These are <strong className="text-slate-900 dark:text-white">private</strong>. They go only to the
-            OverHeard maintainer by email, never to GitHub.
+            These are <strong className="text-slate-900 dark:text-white">private</strong>. They go only to the OverHeard
+            maintainer by email, never to GitHub.
           </span>
         </p>
         <label className="block space-y-1">
@@ -365,7 +387,9 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
     );
     footer = (
       <>
-        <button type="button" className={secondaryButton} onClick={goBack}>Back</button>
+        <button type="button" className={secondaryButton} onClick={goBack}>
+          Back
+        </button>
         <button type="button" className={primaryButton} onClick={goNext}>
           {hasPrivate ? 'Next' : 'Skip'}
         </button>
@@ -383,15 +407,26 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
             <Globe className="w-4 h-4" aria-hidden="true" /> Public on GitHub: anyone can see this
           </h3>
           <dl className="space-y-1.5 text-xs sm:text-sm">
-            <div><dt className="font-semibold">Title</dt><dd>{publicIssueTitle(report)}</dd></div>
-            <div><dt className="font-semibold">What happened</dt><dd className="whitespace-pre-wrap">{publicSummary || 'Not given.'}</dd></div>
-            <div><dt className="font-semibold">How to make it happen again</dt><dd className="whitespace-pre-wrap">{publicSteps || 'Not given.'}</dd></div>
+            <div>
+              <dt className="font-semibold">Title</dt>
+              <dd>{publicIssueTitle(report)}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">What happened</dt>
+              <dd className="whitespace-pre-wrap">{publicSummary || 'Not given.'}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">How to make it happen again</dt>
+              <dd className="whitespace-pre-wrap">{publicSteps || 'Not given.'}</dd>
+            </div>
             <div>
               <dt className="font-semibold">Diagnostics</dt>
               <dd>
                 <ul className="list-disc list-inside">
                   {diagnosticRows.map(({ key, label }) => (
-                    <li key={key}>{label}: {diagnostics[key]}</li>
+                    <li key={key}>
+                      {label}: {diagnostics[key]}
+                    </li>
                   ))}
                 </ul>
               </dd>
@@ -409,8 +444,14 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
             <Lock className="w-4 h-4" aria-hidden="true" /> Private: emailed only to the maintainer
           </h3>
           <dl className="space-y-1.5 text-xs sm:text-sm">
-            <div><dt className="font-semibold">Other comments</dt><dd className="whitespace-pre-wrap">{comments.trim() || 'None.'}</dd></div>
-            <div><dt className="font-semibold">Your email</dt><dd>{contact.trim() || 'None.'}</dd></div>
+            <div>
+              <dt className="font-semibold">Other comments</dt>
+              <dd className="whitespace-pre-wrap">{comments.trim() || 'None.'}</dd>
+            </div>
+            <div>
+              <dt className="font-semibold">Your email</dt>
+              <dd>{contact.trim() || 'None.'}</dd>
+            </div>
           </dl>
         </section>
         {canSendAutomatically ? (
@@ -428,9 +469,11 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
             <ManualSend
               report={report}
               text={fullText}
-              intro={online
-                ? 'Automatic sending isn’t set up on this server yet.'
-                : 'You’re offline, so this can’t be sent right now.'}
+              intro={
+                online
+                  ? 'Automatic sending isn’t set up on this server yet.'
+                  : 'You’re offline, so this can’t be sent right now.'
+              }
             />
           )
         )}
@@ -438,13 +481,19 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
     );
     footer = (
       <>
-        <button type="button" className={secondaryButton} onClick={goBack}>Back</button>
+        <button type="button" className={secondaryButton} onClick={goBack}>
+          Back
+        </button>
         {canSendAutomatically && (
           <button type="button" className={primaryButton} disabled={!confirmed || sending} onClick={send}>
             {sending ? 'Sending…' : 'Send report'}
           </button>
         )}
-        {!server && <span role="status" className="text-xs">Checking…</span>}
+        {!server && (
+          <span role="status" className="text-xs">
+            Checking…
+          </span>
+        )}
       </>
     );
   } else {
@@ -456,37 +505,45 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
           </p>
           {outcome.issueUrl && (
             <p>
-              <a href={outcome.issueUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline font-semibold">
+              <a
+                href={outcome.issueUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 underline font-semibold"
+              >
                 See it on GitHub <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
               </a>
             </p>
           )}
           {!outcome.emailed && hasPrivate && (
-            <ManualSend
-              report={report}
-              text={fullText}
-              intro="Your private comments or email didn’t go through."
-            />
+            <ManualSend report={report} text={fullText} intro="Your private comments or email didn’t go through." />
           )}
         </div>
       );
     } else {
-      const intro = outcome?.why === 'offline' ? 'You’re offline, so the report wasn’t sent.'
-        : outcome?.why === 'not-configured' ? 'Automatic sending isn’t set up on this server yet.'
-        : outcome?.why === 'rate-limited' ? 'Too many reports were sent from here just now.'
-        : 'The report couldn’t be sent.';
+      const intro =
+        outcome?.why === 'offline'
+          ? 'You’re offline, so the report wasn’t sent.'
+          : outcome?.why === 'not-configured'
+            ? 'Automatic sending isn’t set up on this server yet.'
+            : outcome?.why === 'rate-limited'
+              ? 'Too many reports were sent from here just now.'
+              : 'The report couldn’t be sent.';
       body = (
         <div role="alert">
           <ManualSend report={report} text={fullText} intro={intro} />
         </div>
       );
     }
-    footer = <button type="button" className={primaryButton} onClick={onClose}>Close</button>;
+    footer = (
+      <button type="button" className={primaryButton} onClick={onClose}>
+        Close
+      </button>
+    );
   }
 
-  const title = step === 'result'
-    ? (outcome?.kind === 'sent' ? 'Report sent' : 'Send it another way')
-    : STEP_TITLES[step];
+  const title =
+    step === 'result' ? (outcome?.kind === 'sent' ? 'Report sent' : 'Send it another way') : STEP_TITLES[step];
 
   const modal = (
     <div ref={overlayRef} className={dark ? 'dark' : ''}>
@@ -505,7 +562,12 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
                 <p className="text-xs text-slate-500 dark:text-[#94A3B8]">
                   Something not working?{step !== 'result' && ` Step ${stepIndex + 1} of ${STEP_ORDER.length}`}
                 </p>
-                <h2 id="problem-report-title" ref={headingRef} tabIndex={-1} className="text-base sm:text-lg font-bold tracking-tight focus:outline-none">
+                <h2
+                  id="problem-report-title"
+                  ref={headingRef}
+                  tabIndex={-1}
+                  className="text-base sm:text-lg font-bold tracking-tight focus:outline-none"
+                >
                   {title}
                 </h2>
               </div>

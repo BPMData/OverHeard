@@ -50,7 +50,7 @@ export function createBergamotStorageCategory(
     remove?: (lang: string) => Promise<void>;
     removeAll?: () => Promise<void>;
     cacheStorage?: () => CacheLike | null;
-  } = {},
+  } = {}
 ): StorageCategory {
   const sizes = deps.sizes ?? (() => savedModelSizes());
   const remove = deps.remove ?? deleteBergamotModel;
@@ -77,12 +77,17 @@ export function createBergamotStorageCategory(
       const items: StoredItem[] = saved.map(({ lang, bytes }) =>
         lang
           ? { id: lang, label: bergamotItemLabel(lang), bytes, removable: true }
-          : { id: BERGAMOT_LEFTOVERS_ID, label: 'Unfinished or old translation downloads', bytes, removable: true },
+          : { id: BERGAMOT_LEFTOVERS_ID, label: 'Unfinished or old translation downloads', bytes, removable: true }
       );
       items.sort((a, b) => a.label.localeCompare(b.label));
       const engineBytes = await measureEngine(cacheStorage()).catch(() => 0);
       if (engineBytes > 0) {
-        items.push({ id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language except Swahili)', bytes: engineBytes, removable: true });
+        items.push({
+          id: BERGAMOT_ENGINE_ITEM_ID,
+          label: 'Translation engine (shared by every language except Swahili)',
+          bytes: engineBytes,
+          removable: true,
+        });
       }
       return items;
     },

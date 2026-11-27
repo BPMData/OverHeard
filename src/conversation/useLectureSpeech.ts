@@ -96,10 +96,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     deduperRef.current = createFinalDeduper();
 
     const valid = () =>
-      token === current.generation &&
-      current.active &&
-      !current.suspended &&
-      recognizer.current === rec;
+      token === current.generation && current.active && !current.suspended && recognizer.current === rec;
 
     rec.onstart = () => {
       if (!valid()) return;
@@ -157,9 +154,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
       setInterim('');
       detachRecognition(recognizer);
 
-      current.failures = isFailedSession(current.lastError, Date.now() - current.startedAt)
-        ? current.failures + 1
-        : 0;
+      current.failures = isFailedSession(current.lastError, Date.now() - current.startedAt) ? current.failures + 1 : 0;
 
       const delay = restartDelay(current.failures);
       if (delay === 0) {
@@ -208,7 +203,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
       suspend: () => latest.current.suspend(),
       resume: () => latest.current.resume(),
     }),
-    [],
+    []
   );
 
   return {

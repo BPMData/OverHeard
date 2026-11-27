@@ -9,18 +9,52 @@ import type { useLectureWorkspace } from '../conversation/useLectureWorkspace';
 import type { VoicePreferences } from '../tts/voices';
 import type { ConversationLanguage } from '../types';
 
-type Common = { settings: ConversationSettings; setSettings: Dispatch<SetStateAction<ConversationSettings>>;
-  voicePrefs: VoicePreferences; updateVoicePref: (lang: ConversationLanguage, voiceId: string) => void;
-  showAllControls: boolean; isLecture: boolean };
-type Props = Common & ReturnType<typeof useLectureWorkspace> &
-  Pick<ConversationModeProps, 'active' | 'onSetLanguages' | 'translatorPicker' | 'isDark' | 'fontSize' | 'onAdjustFont'> & {
-  setUiError: (message: string) => void;
+type Common = {
+  settings: ConversationSettings;
+  setSettings: Dispatch<SetStateAction<ConversationSettings>>;
+  voicePrefs: VoicePreferences;
+  updateVoicePref: (lang: ConversationLanguage, voiceId: string) => void;
+  showAllControls: boolean;
+  isLecture: boolean;
 };
-export function LectureToolbar({ settings, setSettings, voicePrefs, updateVoicePref, showAllControls,
-  isLecture, active, onSetLanguages, translatorPicker, isDark, fontSize, onAdjustFont, setUiError,
-  lecture, lectureState, lecturePlayback, activeRoomCode, setDriveStatus, roomControlsId, roomCodeRef,
-  shareSetupOpen, handleRoomCodeChange, lectureToolsId, effectiveLectureLang, setLecturePlaybackLang,
-  lectureLangs, lectureReadAloud, setLectureReadAloud }: Props) {
+type Props = Common &
+  ReturnType<typeof useLectureWorkspace> &
+  Pick<
+    ConversationModeProps,
+    'active' | 'onSetLanguages' | 'translatorPicker' | 'isDark' | 'fontSize' | 'onAdjustFont'
+  > & {
+    setUiError: (message: string) => void;
+  };
+export function LectureToolbar({
+  settings,
+  setSettings,
+  voicePrefs,
+  updateVoicePref,
+  showAllControls,
+  isLecture,
+  active,
+  onSetLanguages,
+  translatorPicker,
+  isDark,
+  fontSize,
+  onAdjustFont,
+  setUiError,
+  lecture,
+  lectureState,
+  lecturePlayback,
+  activeRoomCode,
+  setDriveStatus,
+  roomControlsId,
+  roomCodeRef,
+  shareSetupOpen,
+  handleRoomCodeChange,
+  lectureToolsId,
+  effectiveLectureLang,
+  setLecturePlaybackLang,
+  lectureLangs,
+  lectureReadAloud,
+  setLectureReadAloud,
+}: Props) {
   const driveArchive = (className: string) => (
     <>
       <SaveLectureToDriveControl
@@ -72,7 +106,7 @@ export function LectureToolbar({ settings, setSettings, voicePrefs, updateVoiceP
           state={lectureState}
           visible={isLecture}
           onRoomCodeChange={handleRoomCodeChange}
-          onRestore={restored => {
+          onRestore={(restored) => {
             lecture.replace(restored.entries, { preserveIds: true });
             if (restored.selectedLangs.length > 0) onSetLanguages?.(restored.selectedLangs);
           }}

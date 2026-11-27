@@ -4,7 +4,12 @@ import { SUPPORTED_LANGUAGES, MAX_LANGUAGES } from '../constants';
 import { LanguageCode } from '../types';
 import { CHROME_PACK_SIZE_HINT } from '../translation/packStorage';
 import { useModalDismiss } from './useModalDismiss';
-import { STUDENTS_STILL_TRANSLATE, fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
+import {
+  STUDENTS_STILL_TRANSLATE,
+  fromEnglish,
+  needOnlineText,
+  useLanguagesNeedingOnline,
+} from '../translation/useLanguagesNeedingOnline';
 
 interface LanguageModalProps {
   isOpen: boolean;
@@ -80,21 +85,24 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-5">
           <p className="text-sm text-slate-600 dark:text-[#94A3B8]">
-            Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
+            Select up to {MAX_LANGUAGES} languages to translate simultaneously alongside English. Right-to-left scripts
+            (Arabic, Dari, Pashto, Urdu) render automatically in RTL layout.
           </p>
 
           {downloadsPacks && (
             <p className="text-sm font-medium px-3 py-2 rounded-[2px] border border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-100">
-              Choosing a language starts downloading its on-device translation pack (first time
-              only, usually about a minute). Pick your languages before class so captions
-              translate on this device, for free, from the first sentence. Each pack takes
-              space on this device ({CHROME_PACK_SIZE_HINT}; Chrome doesn't say exactly). Settings
-              lists the packs you have.
+              Choosing a language starts downloading its on-device translation pack (first time only, usually about a
+              minute). Pick your languages before class so captions translate on this device, for free, from the first
+              sentence. Each pack takes space on this device ({CHROME_PACK_SIZE_HINT}; Chrome doesn't say exactly).
+              Settings lists the packs you have.
             </p>
           )}
 
           {needOnline.length > 0 && (
-            <p role="alert" className="text-sm font-semibold px-3 py-2 rounded-[2px] border border-red-600/60 bg-red-600/10 text-red-800 dark:text-red-200">
+            <p
+              role="alert"
+              className="text-sm font-semibold px-3 py-2 rounded-[2px] border border-red-600/60 bg-red-600/10 text-red-800 dark:text-red-200"
+            >
               ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate{' '}
               {needOnline.length > 1 ? 'these languages' : 'this language'}, so{' '}
               {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated on this screen. Choose{' '}
@@ -106,9 +114,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {SUPPORTED_LANGUAGES.map((lang) => {
               const isChecked = selectedLangs.includes(lang.code);
-              const isDisabled =
-                (!isChecked && isMaxReached) ||
-                (isChecked && selectedLangs.length === 1);
+              const isDisabled = (!isChecked && isMaxReached) || (isChecked && selectedLangs.length === 1);
 
               return (
                 <label
@@ -117,8 +123,8 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                     isChecked
                       ? 'border-[#5843A5] dark:border-[#A78BFA] bg-[#EDE9FE]/70 dark:bg-[#2E2356]/55'
                       : isDisabled
-                      ? 'border-[#CBD5E1] dark:border-[#243044] opacity-45 cursor-not-allowed'
-                      : 'border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0D1422] hover:border-[#94A3B8] dark:hover:border-[#475569] cursor-pointer'
+                        ? 'border-[#CBD5E1] dark:border-[#243044] opacity-45 cursor-not-allowed'
+                        : 'border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0D1422] hover:border-[#94A3B8] dark:hover:border-[#475569] cursor-pointer'
                   }`}
                 >
                   <input
@@ -133,9 +139,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
                       <span className="font-semibold text-sm text-slate-900 dark:text-[#F8FAFC] truncate">
                         {lang.name}
                       </span>
-                      <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
-                        {lang.code}
-                      </span>
+                      <span className="text-xs font-mono text-slate-400 dark:text-slate-500">{lang.code}</span>
                     </div>
                     <div
                       dir={lang.dir}
@@ -163,9 +167,7 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
             <div className="text-xs font-medium text-slate-500 dark:text-[#94A3B8]">
               Bookmarkable Classroom Setup URL
             </div>
-            <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate mt-0.5">
-              {bookmarkUrl}
-            </div>
+            <div className="text-xs font-mono text-slate-700 dark:text-slate-300 truncate mt-0.5">{bookmarkUrl}</div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button

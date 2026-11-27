@@ -84,7 +84,7 @@ function mount(readAloud = true) {
       mtPreference="auto"
       onExit={vi.fn()}
       onPermissionDenied={vi.fn()}
-    />,
+    />
   );
   if (readAloud) fireEvent.click(screen.getByRole('checkbox', { name: 'Read aloud' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
@@ -92,8 +92,14 @@ function mount(readAloud = true) {
 }
 
 it('keeps the two-way thread across lecture and hidden workspace switches', async () => {
-  const props = { fontSize: 32, isDark: true, translate: vi.fn(async (text: string) => `translated ${text}`),
-    mtPreference: 'auto', onExit: vi.fn(), onPermissionDenied: vi.fn() };
+  const props = {
+    fontSize: 32,
+    isDark: true,
+    translate: vi.fn(async (text: string) => `translated ${text}`),
+    mtPreference: 'auto',
+    onExit: vi.fn(),
+    onPermissionDenied: vi.fn(),
+  };
   const view = render(<ConversationMode {...props} active />);
   fireEvent.change(screen.getByRole('textbox', { name: 'Message text' }), { target: { value: 'Keep this message' } });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));

@@ -1,17 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useModalDismiss } from './useModalDismiss';
-import {
-  BookOpen,
-  Cloud,
-  ExternalLink,
-  HelpCircle,
-  Keyboard,
-  ShieldAlert,
-  Users,
-  Volume2,
-  X,
-} from 'lucide-react';
+import { BookOpen, Cloud, ExternalLink, HelpCircle, Keyboard, ShieldAlert, Users, Volume2, X } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
 import { openProblemReport } from '../report/ProblemReportModal';
 import { BERGAMOT_ATTRIBUTION, OPUS_ATTRIBUTION } from '../translation/bergamot/models';
@@ -22,11 +12,7 @@ interface AboutModalProps {
   isEmbeddedIframe?: boolean;
 }
 
-export const AboutModal: React.FC<AboutModalProps> = ({
-  isOpen,
-  onClose,
-  isEmbeddedIframe,
-}) => {
+export const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose, isEmbeddedIframe }) => {
   const onBackdropClick = useModalDismiss(isOpen, onClose);
   if (!isOpen) return null;
 
@@ -116,7 +102,8 @@ export const AboutModal: React.FC<AboutModalProps> = ({
           {embedded && (
             <div className="p-3.5 rounded-[3px] border border-[#5843A5]/40 dark:border-[#A78BFA]/40 bg-[#EDE9FE] dark:bg-[#2E2356]/55 flex items-center justify-between gap-4">
               <div className="text-xs text-slate-700 dark:text-slate-200">
-                Running inside an embedded frame? Open OverHeard in a full Chrome tab for the smoothest microphone and Picture-in-Picture experience.
+                Running inside an embedded frame? Open OverHeard in a full Chrome tab for the smoothest microphone and
+                Picture-in-Picture experience.
               </div>
               <a
                 href={window.location.href}
@@ -138,16 +125,25 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             </div>
             <ol className="list-decimal list-inside space-y-1.5 text-slate-600 dark:text-[#94A3B8]">
               <li>
-                Open OverHeard in <strong className="text-slate-800 dark:text-slate-200">Google Chrome</strong> or <strong className="text-slate-800 dark:text-slate-200">Microsoft Edge</strong> and click <strong className="text-slate-800 dark:text-slate-200">Languages</strong> to pick 1–3 target languages.
+                Open OverHeard in <strong className="text-slate-800 dark:text-slate-200">Google Chrome</strong> or{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Microsoft Edge</strong> and click{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Languages</strong> to pick 1–3 target languages.
               </li>
               <li>
-                Click <strong className="text-slate-800 dark:text-slate-200">Start Listening</strong> (or press <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code>) and allow microphone access if prompted.
+                Click <strong className="text-slate-800 dark:text-slate-200">Start Listening</strong> (or press{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code>)
+                and allow microphone access if prompted.
               </li>
               <li>
-                Need quiet testing? Click <strong className="text-slate-800 dark:text-slate-200">Test Input</strong> to type or fire sample classroom sentences without speaking out loud.
+                Need quiet testing? Click <strong className="text-slate-800 dark:text-slate-200">Test Input</strong> to
+                type or fire sample classroom sentences without speaking out loud.
               </li>
               <li>
-                Bookmark the page URL (like <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">?langs=es,pt</code>) to save language setups for different class periods.
+                Bookmark the page URL (like{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">
+                  ?langs=es,pt
+                </code>
+                ) to save language setups for different class periods.
               </li>
             </ol>
           </section>
@@ -160,16 +156,43 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             </div>
             <ul className="space-y-2 text-slate-600 dark:text-[#94A3B8]">
               <li>
-                <strong className="text-slate-800 dark:text-slate-200">Spacebar Shortcut (Columns &amp; Subtitle views):</strong>{' '}
-                In the default <strong className="text-slate-800 dark:text-slate-200">Columns</strong> or <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> projector view, press <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code> anytime (when not typing in a text box or menu) to toggle Start and Pause.
+                <strong className="text-slate-800 dark:text-slate-200">
+                  Spacebar Shortcut (Columns &amp; Subtitle views):
+                </strong>{' '}
+                In the default <strong className="text-slate-800 dark:text-slate-200">Columns</strong> or{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> projector view, press{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code>{' '}
+                anytime (when not typing in a text box or menu) to toggle Start and Pause.
               </li>
               <li>
                 <strong className="text-slate-800 dark:text-slate-200">Spacebar in Conversation / Lecture Mode:</strong>{' '}
-                In <strong className="text-slate-800 dark:text-slate-200">Two-Way Conversation</strong> with <strong className="text-slate-800 dark:text-slate-200">Manual (Press Space)</strong> turn-taking enabled, <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code> switches to the next speaker instead of toggling Start/Pause (and <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Left Shift</code> / <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Right Shift</code> jumps to Speaker A or B). In <strong className="text-slate-800 dark:text-slate-200">Lecture</strong> mode, use the Start/Pause button.
+                In <strong className="text-slate-800 dark:text-slate-200">Two-Way Conversation</strong> with{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Manual (Press Space)</strong> turn-taking
+                enabled,{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Space</code>{' '}
+                switches to the next speaker instead of toggling Start/Pause (and{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">
+                  Left Shift
+                </code>{' '}
+                /{' '}
+                <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">
+                  Right Shift
+                </code>{' '}
+                jumps to Speaker A or B). In <strong className="text-slate-800 dark:text-slate-200">Lecture</strong>{' '}
+                mode, use the Start/Pause button.
               </li>
               <li>
-                <strong className="text-slate-800 dark:text-slate-200">Floating Captions Everywhere (<code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">Pop out captions</code>):</strong>{' '}
-                Click <strong className="text-slate-800 dark:text-slate-200">Pop out captions</strong> to open an always-on-top Picture-in-Picture caption bar that floats above everything on your screen — fullscreen Google Slides, PowerPoint, PDFs, browser tabs, and other desktop windows (exclusive fullscreen apps like some PC games may still stay on top).
+                <strong className="text-slate-800 dark:text-slate-200">
+                  Floating Captions Everywhere (
+                  <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">
+                    Pop out captions
+                  </code>
+                  ):
+                </strong>{' '}
+                Click <strong className="text-slate-800 dark:text-slate-200">Pop out captions</strong> to open an
+                always-on-top Picture-in-Picture caption bar that floats above everything on your screen — fullscreen
+                Google Slides, PowerPoint, PDFs, browser tabs, and other desktop windows (exclusive fullscreen apps like
+                some PC games may still stay on top).
               </li>
             </ul>
           </section>
@@ -184,19 +207,28 @@ export const AboutModal: React.FC<AboutModalProps> = ({
               <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Columns / Subtitle</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
-                  Best for whole-class projection. Switch between multi-language <strong className="text-slate-800 dark:text-slate-200">Columns</strong>, a single-line <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> strip, or <strong className="text-slate-800 dark:text-slate-200">Pop out captions</strong> over slides.
+                  Best for whole-class projection. Switch between multi-language{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Columns</strong>, a single-line{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Subtitle</strong> strip, or{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Pop out captions</strong> over slides.
                 </p>
               </div>
               <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Lecture + Student Rooms</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
-                  Keeps a running lesson transcript. Enter a 4+ character PIN and click <strong className="text-slate-800 dark:text-slate-200">Create room</strong> to give students a live <code className="font-mono">?room=...</code> link on their own devices (or use <strong className="text-slate-800 dark:text-slate-200">Rejoin room</strong> later with the same code + PIN).
+                  Keeps a running lesson transcript. Enter a 4+ character PIN and click{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Create room</strong> to give students a live{' '}
+                  <code className="font-mono">?room=...</code> link on their own devices (or use{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Rejoin room</strong> later with the same code +
+                  PIN).
                 </p>
               </div>
               <div className="p-3 rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#0B1120] space-y-1">
                 <div className="font-bold text-slate-900 dark:text-[#F8FAFC]">Two-Way Conversation</div>
                 <p className="text-slate-600 dark:text-[#94A3B8]">
-                  Built for 1-on-1 conferences across two languages. Choose auto speaker switching or <strong className="text-slate-800 dark:text-slate-200">Manual (Press Space)</strong>, or type messages directly below the thread.
+                  Built for 1-on-1 conferences across two languages. Choose auto speaker switching or{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Manual (Press Space)</strong>, or type messages
+                  directly below the thread.
                 </p>
               </div>
             </div>
@@ -210,18 +242,36 @@ export const AboutModal: React.FC<AboutModalProps> = ({
             </div>
             <ul className="space-y-2 text-slate-600 dark:text-[#94A3B8]">
               <li>
-                <strong className="text-slate-800 dark:text-slate-200">Settings (Voices &amp; Privacy) &amp; Click-to-Read:</strong>{' '}
-                Open <strong className="text-slate-800 dark:text-slate-200">Settings</strong> (gear icon on the main bar, in Two-way and Lecture, and on Student room pages) to pick default Piper neural voices for <strong className="text-slate-800 dark:text-slate-200">English</strong>, <strong className="text-slate-800 dark:text-slate-200">Spanish</strong>, and <strong className="text-slate-800 dark:text-slate-200">Portuguese</strong> with instant audio previews. In Two-way or Lecture, Settings also has <strong className="text-slate-800 dark:text-slate-200">Always show all lecture controls</strong> if you never want the simple lecture toolbar. Click any line&apos;s play button to read aloud from there, or toggle <strong className="text-slate-800 dark:text-slate-200">Read aloud</strong>.
+                <strong className="text-slate-800 dark:text-slate-200">
+                  Settings (Voices &amp; Privacy) &amp; Click-to-Read:
+                </strong>{' '}
+                Open <strong className="text-slate-800 dark:text-slate-200">Settings</strong> (gear icon on the main
+                bar, in Two-way and Lecture, and on Student room pages) to pick default Piper neural voices for{' '}
+                <strong className="text-slate-800 dark:text-slate-200">English</strong>,{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Spanish</strong>, and{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Portuguese</strong> with instant audio previews.
+                In Two-way or Lecture, Settings also has{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Always show all lecture controls</strong> if you
+                never want the simple lecture toolbar. Click any line&apos;s play button to read aloud from there, or
+                toggle <strong className="text-slate-800 dark:text-slate-200">Read aloud</strong>.
               </li>
               <li>
-                <strong className="text-slate-800 dark:text-slate-200">Local JSON Export &amp; Import:</strong>{' '}
-                Both teachers and students can export portable <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">.json</code> transcripts (named cleanly by room and date). Re-open them anytime via <strong className="text-slate-800 dark:text-slate-200">Import JSON</strong> on the main screen or in Lecture mode — no Google account required.
+                <strong className="text-slate-800 dark:text-slate-200">Local JSON Export &amp; Import:</strong> Both
+                teachers and students can export portable{' '}
+                <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-xs">.json</code>{' '}
+                transcripts (named cleanly by room and date). Re-open them anytime via{' '}
+                <strong className="text-slate-800 dark:text-slate-200">Import JSON</strong> on the main screen or in
+                Lecture mode — no Google account required.
               </li>
               <li className="flex items-start gap-2">
                 <Cloud className="w-4 h-4 shrink-0 text-[#5843A5] dark:text-[#A78BFA] mt-0.5" />
                 <span>
-                  <strong className="text-slate-800 dark:text-slate-200">Google Drive Saves:</strong>{' '}
-                  In Lecture mode, <strong className="text-slate-800 dark:text-slate-200">Save to Drive</strong> automatically creates or reuses an <strong className="text-slate-800 dark:text-slate-200">OverHeard Saves</strong> folder in your Drive (or lets you pick/create another folder, update an existing file in place, or save a new copy). <strong className="text-slate-800 dark:text-slate-200">Open from Drive</strong> works from both the main bar and Lecture mode. Saved files never contain teacher room PINs or credentials.
+                  <strong className="text-slate-800 dark:text-slate-200">Google Drive Saves:</strong> In Lecture mode,{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Save to Drive</strong> automatically creates or
+                  reuses an <strong className="text-slate-800 dark:text-slate-200">OverHeard Saves</strong> folder in
+                  your Drive (or lets you pick/create another folder, update an existing file in place, or save a new
+                  copy). <strong className="text-slate-800 dark:text-slate-200">Open from Drive</strong> works from both
+                  the main bar and Lecture mode. Saved files never contain teacher room PINs or credentials.
                 </span>
               </li>
             </ul>
@@ -239,7 +289,12 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   Why isn&apos;t Start Listening working or why do I see a browser warning?
                 </div>
                 <p>
-                  Live microphone speech recognition relies on the browser&apos;s Web Speech API, which is supported in <strong className="text-slate-800 dark:text-slate-200">Chrome</strong> and <strong className="text-slate-800 dark:text-slate-200">Edge</strong> over <code className="font-mono text-xs">https://</code> (or <code className="font-mono text-xs">localhost</code>). If Chrome blocks the mic, click the site settings icon in the address bar and allow Microphone.
+                  Live microphone speech recognition relies on the browser&apos;s Web Speech API, which is supported in{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Chrome</strong> and{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Edge</strong> over{' '}
+                  <code className="font-mono text-xs">https://</code> (or{' '}
+                  <code className="font-mono text-xs">localhost</code>). If Chrome blocks the mic, click the site
+                  settings icon in the address bar and allow Microphone.
                 </p>
               </div>
               <div>
@@ -247,7 +302,10 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   What if my school Google account says Google Drive access is blocked by an administrator?
                 </div>
                 <p>
-                  Some school Google Workspace domains block third-party OAuth apps until IT marks the app trusted. You can still use a personal Google account for Drive saves, or use local <strong className="text-slate-800 dark:text-slate-200">Export JSON</strong> / <strong className="text-slate-800 dark:text-slate-200">Import JSON</strong> anytime.
+                  Some school Google Workspace domains block third-party OAuth apps until IT marks the app trusted. You
+                  can still use a personal Google account for Drive saves, or use local{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Export JSON</strong> /{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Import JSON</strong> anytime.
                 </p>
               </div>
               <div>
@@ -255,7 +313,8 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   Why did a voice pause for a few seconds the first time I played it?
                 </div>
                 <p>
-                  Piper neural voices download their voice model once on first playback and cache it in your browser&apos;s local storage so subsequent sentences play fast and work offline.
+                  Piper neural voices download their voice model once on first playback and cache it in your
+                  browser&apos;s local storage so subsequent sentences play fast and work offline.
                 </p>
               </div>
               <div>
@@ -263,7 +322,27 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                   How does translation work on this device without Chrome?
                 </div>
                 <p>
-                  Where Chrome&apos;s built-in translator isn&apos;t available (Safari, Firefox, some Chromebooks, and languages Chrome lacks such as Urdu), OverHeard can translate on this device with <a href={BERGAMOT_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Firefox Translations (Bergamot)</a> by Mozilla. Each language downloads its model once (about 20–48 MB) when you click its download button, which shows the size first. Dari uses the Persian model, so its translations are approximate (Iranian Persian, not Afghan Dari). Models and engine are licensed under the <a href={BERGAMOT_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Mozilla Public License 2.0</a>. Swahili, which Bergamot lacks, uses <a href={OPUS_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">Opus-MT</a> by Helsinki-NLP (about 132 MB, <a href={OPUS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">Apache License 2.0</a>), run with Transformers.js. Delete them anytime in <strong className="text-slate-800 dark:text-slate-200">Settings → Space used on this device</strong>.
+                  Where Chrome&apos;s built-in translator isn&apos;t available (Safari, Firefox, some Chromebooks, and
+                  languages Chrome lacks such as Urdu), OverHeard can translate on this device with{' '}
+                  <a href={BERGAMOT_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+                    Firefox Translations (Bergamot)
+                  </a>{' '}
+                  by Mozilla. Each language downloads its model once (about 20–48 MB) when you click its download
+                  button, which shows the size first. Dari uses the Persian model, so its translations are approximate
+                  (Iranian Persian, not Afghan Dari). Models and engine are licensed under the{' '}
+                  <a href={BERGAMOT_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">
+                    Mozilla Public License 2.0
+                  </a>
+                  . Swahili, which Bergamot lacks, uses{' '}
+                  <a href={OPUS_ATTRIBUTION.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+                    Opus-MT
+                  </a>{' '}
+                  by Helsinki-NLP (about 132 MB,{' '}
+                  <a href={OPUS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">
+                    Apache License 2.0
+                  </a>
+                  ), run with Transformers.js. Delete them anytime in{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">Settings → Space used on this device</strong>.
                 </p>
               </div>
             </div>
@@ -274,7 +353,18 @@ export const AboutModal: React.FC<AboutModalProps> = ({
                 <span>Privacy Statement</span>
               </div>
               <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200">
-                OverHeard requires no login to caption or translate. Spoken audio is transcribed by your browser&apos;s speech service, and text is translated locally when <strong className="text-slate-900 dark:text-white">On-device first</strong> can use Chrome&apos;s on-device translator or a downloaded Firefox Translations model; otherwise text (including live interim phrases) is sent to Google Translate (the free endpoint first, then Google Cloud Translation). Choose <strong className="text-slate-900 dark:text-white">Only on this device</strong> in the Translator menu so speech, translation, and playback stay completely offline; that mode never falls back to an online translator — unless you actively start a live <strong className="text-slate-900 dark:text-white">Student Room</strong> (held only in temporary server memory to stream JSON updates, never saved to disk or a database) or use <strong className="text-slate-900 dark:text-white">Google Drive</strong> saves (which use Google&apos;s narrow <code className="font-mono text-xs">drive.file</code> scope).
+                OverHeard requires no login to caption or translate. Spoken audio is transcribed by your browser&apos;s
+                speech service, and text is translated locally when{' '}
+                <strong className="text-slate-900 dark:text-white">On-device first</strong> can use Chrome&apos;s
+                on-device translator or a downloaded Firefox Translations model; otherwise text (including live interim
+                phrases) is sent to Google Translate (the free endpoint first, then Google Cloud Translation). Choose{' '}
+                <strong className="text-slate-900 dark:text-white">Only on this device</strong> in the Translator menu
+                so speech, translation, and playback stay completely offline; that mode never falls back to an online
+                translator — unless you actively start a live{' '}
+                <strong className="text-slate-900 dark:text-white">Student Room</strong> (held only in temporary server
+                memory to stream JSON updates, never saved to disk or a database) or use{' '}
+                <strong className="text-slate-900 dark:text-white">Google Drive</strong> saves (which use Google&apos;s
+                narrow <code className="font-mono text-xs">drive.file</code> scope).
               </p>
             </div>
           </section>
@@ -304,7 +394,5 @@ export const AboutModal: React.FC<AboutModalProps> = ({
     </div>
   );
 
-  return typeof document !== 'undefined' && document.body
-    ? createPortal(modal, document.body)
-    : modal;
+  return typeof document !== 'undefined' && document.body ? createPortal(modal, document.body) : modal;
 };

@@ -1,0 +1,24 @@
+# Build output and dependencies
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+saves/
+
+# Lockfiles
+bun.lock
+package-lock.json
+
+# Vendored / large runtime assets (also gitignored)
+public/ort/
+public/piper/
+public/assets/
+
+# Markdown and docs are not reformatted (owner's choice)
+*.md
+docs/
+
+# Binary/branding assets and generated exports
+branding/exports/

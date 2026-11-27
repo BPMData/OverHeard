@@ -55,7 +55,7 @@ function mount(mtPreference: string, onPackProgress = vi.fn()) {
       onPermissionDenied={vi.fn()}
       onPackProgress={onPackProgress}
       packPanel={<div data-testid="packs" />}
-    />,
+    />
   );
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   return { onPackProgress };
@@ -85,7 +85,7 @@ describe('conversation with On this device', () => {
     // French, not the default Spanish: the previous test left Spanish translators cached
     localStorage.setItem(
       'overheard.conversation',
-      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } }),
+      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } })
     );
     mount('auto');
     await vi.waitFor(() => expect(translator.availability).toHaveBeenCalledTimes(4));
@@ -106,11 +106,11 @@ describe('conversation with On this device', () => {
     translator.availability.mockResolvedValue('available');
     localStorage.setItem(
       'overheard.conversation',
-      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } }),
+      JSON.stringify({ a: { name: 'Me', lang: 'en' }, b: { name: 'Student', lang: 'fr' } })
     );
     mount('auto');
     await vi.waitFor(() =>
-      expect(Recognition.install).toHaveBeenCalledWith({ langs: ['fr-FR'], processLocally: true }),
+      expect(Recognition.install).toHaveBeenCalledWith({ langs: ['fr-FR'], processLocally: true })
     );
     expect(Recognition.install).toHaveBeenCalledWith({ langs: ['en-US'], processLocally: true });
     translator.availability.mockResolvedValue('downloadable');
@@ -140,7 +140,10 @@ describe('conversation with On this device', () => {
 describe('languages "Only on this device" cannot translate', () => {
   beforeEach(() => {
     translator.availability.mockImplementation(async (pair?: { sourceLanguage: string; targetLanguage: string }) =>
-      pair && [pair.sourceLanguage, pair.targetLanguage].some((l) => l === 'ht' || l === 'ps') ? 'unavailable' : 'available');
+      pair && [pair.sourceLanguage, pair.targetLanguage].some((l) => l === 'ht' || l === 'ps')
+        ? 'unavailable'
+        : 'available'
+    );
   });
   afterEach(() => translator.availability.mockImplementation(async () => 'downloadable'));
 
@@ -155,7 +158,7 @@ describe('languages "Only on this device" cannot translate', () => {
         onExit={vi.fn()}
         onPermissionDenied={vi.fn()}
         {...props}
-      />,
+      />
     );
   }
 

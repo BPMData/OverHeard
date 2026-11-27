@@ -8,8 +8,7 @@ const setMedia = (getUserMedia?: unknown) =>
     value: getUserMedia ? { getUserMedia } : undefined,
     configurable: true,
   });
-const setSecure = (value: boolean) =>
-  Object.defineProperty(window, 'isSecureContext', { value, configurable: true });
+const setSecure = (value: boolean) => Object.defineProperty(window, 'isSecureContext', { value, configurable: true });
 
 describe('withMicAccess', () => {
   afterEach(() => {

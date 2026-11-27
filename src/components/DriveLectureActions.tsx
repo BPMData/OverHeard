@@ -59,7 +59,7 @@ export const OpenFromDriveButton: React.FC<OpenFromDriveButtonProps> = ({
       if (
         hasExistingEntries?.() &&
         !window.confirm(
-          `Replace the current lecture with "${downloaded.name}" from Google Drive? Export or save first to keep the current transcript.`,
+          `Replace the current lecture with "${downloaded.name}" from Google Drive? Export or save first to keep the current transcript.`
         )
       ) {
         return;

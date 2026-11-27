@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SpeechClient } from './piperClient';
-import { createMmsVoiceStorageCategory, createVoiceStorageCategory, RUNTIME_CACHE_NAME, savedVoiceLabel } from './voiceStorage';
+import {
+  createMmsVoiceStorageCategory,
+  createVoiceStorageCategory,
+  RUNTIME_CACHE_NAME,
+  savedVoiceLabel,
+} from './voiceStorage';
 
 function fakeCaches(entries: Record<string, number>) {
   const store = new Map(Object.entries(entries));
@@ -58,7 +63,7 @@ describe('downloaded voices storage', () => {
           { modelId: '', bytes: 1_000 },
         ],
       }),
-      () => storage,
+      () => storage
     );
     const items = await category.list();
     expect(items.map(({ id, bytes }) => [id, bytes])).toEqual([
@@ -106,7 +111,7 @@ describe('downloaded Meta MMS voices storage', () => {
             { modelId: 'mms-tts-hat', bytes: 38_295_388 },
             { modelId: '', bytes: 500 },
           ]
-        : [{ modelId: 'es_MX-claude-high', bytes: 63_127_272 }],
+        : [{ modelId: 'es_MX-claude-high', bytes: 63_127_272 }]
     );
     const category = createMmsVoiceStorageCategory(client({ listSavedSizes }));
     expect(category.id).toBe('mms-voices');

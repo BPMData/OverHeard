@@ -1,5 +1,10 @@
 import type { Express, Request, Response } from 'express';
-import type { MtErrorResponse, MtRequestBody, MtSuccessResponse, ServerConfigResponse } from '../../src/translation/protocol.ts';
+import type {
+  MtErrorResponse,
+  MtRequestBody,
+  MtSuccessResponse,
+  ServerConfigResponse,
+} from '../../src/translation/protocol.ts';
 import { createDailyBudget } from '../budget.ts';
 import { SESSION_HEADER, sessionKey } from '../clientKeys.ts';
 import {
@@ -47,14 +52,17 @@ export interface MtRouteOptions {
   shortLinkBase: string | null;
 }
 
-export function registerMtRoutes(app: Express, {
-  ipLimitMultiplier: IP_LIMIT_MULTIPLIER,
-  mtPerSession: MT_PER_SESSION,
-  cloudDailyChars,
-  googleTranslateApiKey: GOOGLE_TRANSLATE_API_KEY,
-  mtChain: MT_CHAIN,
-  shortLinkBase: SHORT_LINK_BASE,
-}: MtRouteOptions) {
+export function registerMtRoutes(
+  app: Express,
+  {
+    ipLimitMultiplier: IP_LIMIT_MULTIPLIER,
+    mtPerSession: MT_PER_SESSION,
+    cloudDailyChars,
+    googleTranslateApiKey: GOOGLE_TRANSLATE_API_KEY,
+    mtChain: MT_CHAIN,
+    shortLinkBase: SHORT_LINK_BASE,
+  }: MtRouteOptions
+) {
   const MT_PROVIDER: MtProvider = MT_CHAIN[0];
   const mtSessionLimiter = createRateLimiter(MT_PER_SESSION, RATE_LIMIT_WINDOW_MS);
   const mtIpLimiter = createRateLimiter(MT_PER_SESSION * IP_LIMIT_MULTIPLIER, RATE_LIMIT_WINDOW_MS);
@@ -90,16 +98,9 @@ export function registerMtRoutes(app: Express, {
     return req.ip || 'unknown';
   }
 
-  function isRateLimited(
-    req: Request,
-    ipLimiter: RateLimiter,
-    sessionLimiter: RateLimiter
-  ): boolean {
+  function isRateLimited(req: Request, ipLimiter: RateLimiter, sessionLimiter: RateLimiter): boolean {
     const ip = getClientIp(req);
-    return (
-      ipLimiter.isLimited(ip) ||
-      sessionLimiter.isLimited(sessionKey(req.headers[SESSION_HEADER], ip))
-    );
+    return ipLimiter.isLimited(ip) || sessionLimiter.isLimited(sessionKey(req.headers[SESSION_HEADER], ip));
   }
 
   /** Rate-limit check for an API request; also records who is using the server. */

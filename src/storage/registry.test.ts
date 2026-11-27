@@ -46,7 +46,7 @@ describe('storage registry', () => {
         { id: 'a', label: 'a', bytes: 100, removable: true },
         { id: 'b', label: 'b', bytes: 50, approximate: true, removable: true },
         { id: 'c', label: 'c', bytes: null, removable: false },
-      ]),
+      ])
     ).toEqual({ bytes: 150, approximate: true, unknown: 1 });
     expect(totalBytes([])).toEqual({ bytes: 0, approximate: false, unknown: 0 });
   });

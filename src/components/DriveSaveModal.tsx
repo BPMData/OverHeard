@@ -89,10 +89,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
               <Cloud className="w-4 h-4" />
             </div>
             <div>
-              <h2
-                id="drive-save-modal-title"
-                className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC]"
-              >
+              <h2 id="drive-save-modal-title" className="text-sm font-bold text-[#0F172A] dark:text-[#F8FAFC]">
                 Save lecture to Google Drive
               </h2>
               <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
@@ -155,9 +152,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
-                Drive folder
-              </span>
+              <span className="text-xs font-semibold text-[#0F172A] dark:text-[#F8FAFC]">Drive folder</span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -181,9 +176,7 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
             </div>
 
             <div className="rounded-[3px] border border-[#CBD5E1] dark:border-[#243044] bg-[#F8FAFC] dark:bg-[#020617] px-3 py-2">
-              <div className="text-xs font-medium text-[#0F172A] dark:text-[#F8FAFC]">
-                {folder.name}
-              </div>
+              <div className="text-xs font-medium text-[#0F172A] dark:text-[#F8FAFC]">{folder.name}</div>
               {isAutoDefaultFolder && (
                 <div className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-0.5">
                   Automatically creates or reuses "{DEFAULT_DRIVE_FOLDER_NAME}" in My Drive when saving.
@@ -283,7 +276,5 @@ export const DriveSaveModal: React.FC<DriveSaveModalProps> = ({
     </div>
   );
 
-  return typeof document !== 'undefined' && document.body
-    ? createPortal(modalContent, document.body)
-    : modalContent;
+  return typeof document !== 'undefined' && document.body ? createPortal(modalContent, document.body) : modalContent;
 };

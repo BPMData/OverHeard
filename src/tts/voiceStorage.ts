@@ -28,8 +28,7 @@ export function savedVoiceLabel(modelId: string): string {
 
 type CacheLike = Pick<CacheStorage, 'open' | 'has'>;
 
-const getCaches = (): CacheLike | null =>
-  typeof caches === 'undefined' ? null : (caches as CacheLike);
+const getCaches = (): CacheLike | null => (typeof caches === 'undefined' ? null : (caches as CacheLike));
 
 /** Bytes of the voice runtime files the service worker saved, or 0 when none are saved. */
 export async function measureRuntime(cacheStorage: CacheLike | null = getCaches()): Promise<number> {
@@ -57,7 +56,7 @@ export async function removeRuntime(cacheStorage: CacheLike | null = getCaches()
 
 export function createVoiceStorageCategory(
   client: SpeechClient,
-  cacheStorage: () => CacheLike | null = getCaches,
+  cacheStorage: () => CacheLike | null = getCaches
 ): StorageCategory {
   return {
     id: 'piper-voices',
@@ -79,7 +78,7 @@ export function createVoiceStorageCategory(
         items.push(
           modelId
             ? { id: modelId, label: savedVoiceLabel(modelId), bytes, removable: true }
-            : { id: LEFTOVERS_ITEM_ID, label: 'Unfinished voice downloads', bytes, removable: true },
+            : { id: LEFTOVERS_ITEM_ID, label: 'Unfinished voice downloads', bytes, removable: true }
         );
       }
       items.sort((a, b) => a.label.localeCompare(b.label));
@@ -108,7 +107,8 @@ export function createVoiceStorageCategory(
 const MMS_LEFTOVERS_ITEM_ID = 'mms-leftovers';
 
 export function createMmsVoiceStorageCategory(client: SpeechClient): StorageCategory {
-  const typicalSize = voiceDownloadLabel(PIPER_VOICES.find((voice) => voice.engine === 'mms')?.id ?? '') || 'about 28 MB';
+  const typicalSize =
+    voiceDownloadLabel(PIPER_VOICES.find((voice) => voice.engine === 'mms')?.id ?? '') || 'about 28 MB';
   return {
     id: 'mms-voices',
     title: 'Downloaded Meta MMS voices',
@@ -128,7 +128,7 @@ export function createMmsVoiceStorageCategory(client: SpeechClient): StorageCate
       const items: StoredItem[] = sizes.map(({ modelId, bytes }) =>
         modelId
           ? { id: modelId, label: savedVoiceLabel(modelId), bytes, removable: true }
-          : { id: MMS_LEFTOVERS_ITEM_ID, label: 'Unfinished Meta MMS voice downloads', bytes, removable: true },
+          : { id: MMS_LEFTOVERS_ITEM_ID, label: 'Unfinished Meta MMS voice downloads', bytes, removable: true }
       );
       return items.sort((a, b) => a.label.localeCompare(b.label));
     },

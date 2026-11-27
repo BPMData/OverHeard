@@ -45,8 +45,7 @@ export function rejectAfter<T>(promise: Promise<T>, ms: number): Promise<T> {
 export const mtCacheKey = (preference: string, source: string, lang: string, text: string) =>
   `${preference}\u0000${source}\u0000${lang}\u0000${text}`;
 
-export const overBy = (ms: number) =>
-  ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
+export const overBy = (ms: number) => (ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '');
 
 export type MtProviderId = ServerMtProvider;
 export type TranslatorId = MtProviderId | 'on-device';
@@ -59,7 +58,8 @@ export const TRANSLATED_BY: Record<TranslatorId, { label: string; tone: 'local' 
   'on-device': {
     label: 'this device',
     tone: 'local',
-    title: 'Translated on this device, by Chrome or by Firefox Translations (Bergamot). The text did not leave this computer.',
+    title:
+      'Translated on this device, by Chrome or by Firefox Translations (Bergamot). The text did not leave this computer.',
   },
   gtx: {
     label: 'Google, free',

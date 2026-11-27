@@ -11,11 +11,7 @@ type Speech = ReturnType<typeof useConversationSpeech>;
 
 const direction = (lang: ConversationLanguage) => (lang === 'en' ? 'ltr' : LANGUAGE_MAP[lang].dir);
 const color = (side: Side, lang: ConversationLanguage) =>
-  side === 'a'
-    ? lang === 'en'
-      ? ENGLISH_CAPTION_COLOR
-      : languageCaptionColor(0)
-    : languageCaptionColor(1);
+  side === 'a' ? (lang === 'en' ? ENGLISH_CAPTION_COLOR : languageCaptionColor(0)) : languageCaptionColor(1);
 
 interface FaceToFaceViewProps {
   settings: ConversationSettings;
@@ -38,7 +34,11 @@ interface FaceToFaceViewProps {
 
 // Interim captions change on every recognition event. Completed rows only depend on these props.
 const ReaderHistory = memo(function ReaderHistory({
-  reader, messages, fontSize, isDark, onCorrectMessage,
+  reader,
+  messages,
+  fontSize,
+  isDark,
+  onCorrectMessage,
 }: Pick<FaceToFaceViewProps, 'messages' | 'fontSize' | 'isDark' | 'onCorrectMessage'> & { reader: Side }) {
   return messages.map((message) => {
     const own = message.side === reader;
@@ -47,10 +47,7 @@ const ReaderHistory = memo(function ReaderHistory({
     const shown = own || !done ? message.original : message.translated || message.original;
     const lang = own || !done ? message.sender.lang : message.reader.lang;
     return (
-      <article
-        key={message.id}
-        className={`f2f-message ${own ? 'is-own' : 'is-other'}`}
-      >
+      <article key={message.id} className={`f2f-message ${own ? 'is-own' : 'is-other'}`}>
         <div className="f2f-message-head">
           <small>{message.sender.name}</small>
           <button
@@ -63,21 +60,11 @@ const ReaderHistory = memo(function ReaderHistory({
             ⇄
           </button>
         </div>
-        <div
-          dir={direction(lang)}
-          lang={lang}
-          style={{ fontSize: own ? Math.round(fontSize * 0.6) : fontSize }}
-        >
-          <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>
-            {shown}
-          </span>
+        <div dir={direction(lang)} lang={lang} style={{ fontSize: own ? Math.round(fontSize * 0.6) : fontSize }}>
+          <span style={captionTextStyle(color(message.side, message.sender.lang), isDark)}>{shown}</span>
         </div>
-        {!own && message.status === 'translating' && (
-          <small className="conversation-pulse">Translating…</small>
-        )}
-        {!own && message.status === 'error' && (
-          <small className="conversation-error">translation unavailable</small>
-        )}
+        {!own && message.status === 'translating' && <small className="conversation-pulse">Translating…</small>}
+        {!own && message.status === 'error' && <small className="conversation-error">translation unavailable</small>}
       </article>
     );
   });
@@ -90,8 +77,20 @@ const ReaderHistory = memo(function ReaderHistory({
  * changes a name label, never what anyone can read.
  */
 export function FaceToFaceView({
-  settings, speech, messages, onCorrectMessage, onToggleManualTurns, fontSize, isDark,
-  packPanel, uiError, onStart, onAdjustFont, fullscreen, onToggleFullscreen, controlsOpen,
+  settings,
+  speech,
+  messages,
+  onCorrectMessage,
+  onToggleManualTurns,
+  fontSize,
+  isDark,
+  packPanel,
+  uiError,
+  onStart,
+  onAdjustFont,
+  fullscreen,
+  onToggleFullscreen,
+  controlsOpen,
   onToggleControls,
 }: FaceToFaceViewProps) {
   const threads = { a: useRef<HTMLDivElement>(null), b: useRef<HTMLDivElement>(null) };
@@ -150,11 +149,15 @@ export function FaceToFaceView({
                 : 'Tap your button below, then talk.'}
             </p>
           )}
-          <ReaderHistory reader={reader} messages={messages} fontSize={fontSize} isDark={isDark} onCorrectMessage={onCorrectMessage} />
+          <ReaderHistory
+            reader={reader}
+            messages={messages}
+            fontSize={fontSize}
+            isDark={isDark}
+            onCorrectMessage={onCorrectMessage}
+          />
           {live && (
-            <article
-              className={`f2f-message is-live ${speech.turn === reader ? 'is-own' : 'is-other'}`}
-            >
+            <article className={`f2f-message is-live ${speech.turn === reader ? 'is-own' : 'is-other'}`}>
               <div className="f2f-message-head">
                 <small>{name(speech.turn)} · speaking…</small>
                 {sameSpeechLang && (
@@ -174,9 +177,7 @@ export function FaceToFaceView({
                 lang={settings[speech.turn].lang}
                 style={{ fontSize: speech.turn === reader ? Math.round(fontSize * 0.6) : fontSize }}
               >
-                <span style={captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)}>
-                  {live}
-                </span>
+                <span style={captionTextStyle(color(speech.turn, settings[speech.turn].lang), isDark)}>{live}</span>
               </div>
             </article>
           )}
@@ -190,8 +191,7 @@ export function FaceToFaceView({
         >
           {isTurn ? (
             <>
-              {`🎙 Listening to ${name(reader)}`}{' '}
-              <span className="f2f-talk-hint">· Tap when done</span>
+              {`🎙 Listening to ${name(reader)}`} <span className="f2f-talk-hint">· Tap when done</span>
             </>
           ) : (
             `${name(reader)}: tap, then talk`
@@ -214,10 +214,7 @@ export function FaceToFaceView({
       <div className="f2f">
         {pane('b')}
         <div className="f2f-divider" role="group" aria-label="Conversation controls">
-          <span
-            role="status"
-            className={speech.isListening ? 'conversation-pulse' : undefined}
-          >
+          <span role="status" className={speech.isListening ? 'conversation-pulse' : undefined}>
             {speech.isListening ? `Listening to ${name(speech.turn)}` : 'Stopped'}
           </span>
           {speech.isListening ? (

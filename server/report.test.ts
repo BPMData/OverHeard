@@ -91,13 +91,22 @@ describe('problem report route', () => {
     const fetchImpl = vi.fn(async (target: string | URL | Request) =>
       String(target).startsWith('https://api.github.com')
         ? json({ html_url: 'https://github.com/BPMData/overheard/issues/90', number: 90 }, 201)
-        : json({ ok: true }));
-    const url = await start({ githubToken: 'secret-token', relayUrl: 'https://relay.example/exec', relaySecret: 'shh', fetchImpl });
+        : json({ ok: true })
+    );
+    const url = await start({
+      githubToken: 'secret-token',
+      relayUrl: 'https://relay.example/exec',
+      relaySecret: 'shh',
+      fetchImpl,
+    });
 
     const response = await post(url, REPORT);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      ok: true, issueUrl: 'https://github.com/BPMData/overheard/issues/90', issueNumber: 90, emailed: true,
+      ok: true,
+      issueUrl: 'https://github.com/BPMData/overheard/issues/90',
+      issueNumber: 90,
+      emailed: true,
     });
 
     const [issueUrl, issueInit] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
@@ -128,9 +137,17 @@ describe('problem report route', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const fetchImpl = vi.fn(async (target: string | URL | Request) =>
-      String(target).startsWith('https://api.github.com') ? json({ message: 'Bad credentials' }, 401) : json({ ok: true }));
+      String(target).startsWith('https://api.github.com')
+        ? json({ message: 'Bad credentials' }, 401)
+        : json({ ok: true })
+    );
     let url = await start({ githubToken: 'bad', relayUrl: 'https://relay.example/exec', fetchImpl });
-    expect(await (await post(url, REPORT)).json()).toEqual({ ok: true, issueUrl: null, issueNumber: null, emailed: true });
+    expect(await (await post(url, REPORT)).json()).toEqual({
+      ok: true,
+      issueUrl: null,
+      issueNumber: null,
+      emailed: true,
+    });
 
     await afterEachClose();
     const failing = vi.fn(async () => json({ ok: false }, 500));

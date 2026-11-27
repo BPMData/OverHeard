@@ -58,7 +58,7 @@ describe('roomHistory', () => {
         { code: 'x' },
         { code: 'Valid-1', createdAt: 100, lastUsedAt: 500 },
         { code: 'valid-1', createdAt: 200, lastUsedAt: 900 },
-      ]),
+      ])
     );
     expect(loadRoomHistory()).toEqual([{ code: 'valid-1', createdAt: 100, lastUsedAt: 900 }]);
   });
@@ -74,7 +74,7 @@ describe('roomHistory', () => {
         if (url.endsWith('/gone-1')) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
         if (url.endsWith('/err-1')) return new Response('bad gateway', { status: 502 });
         throw new TypeError('Failed to fetch');
-      }),
+      })
     );
 
     expect(await checkRoomLiveStatus('live-1')).toBe('live');

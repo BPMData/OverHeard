@@ -32,9 +32,7 @@ export const LANGUAGE_MAP: Record<LanguageCode, LanguageConfig> = SUPPORTED_LANG
   {} as Record<LanguageCode, LanguageConfig>
 );
 
-export const VALID_LANGUAGE_CODES = new Set<string>(
-  SUPPORTED_LANGUAGES.map((l) => l.code)
-);
+export const VALID_LANGUAGE_CODES = new Set<string>(SUPPORTED_LANGUAGES.map((l) => l.code));
 
 export const DEFAULT_LANGUAGES: LanguageCode[] = ['es', 'pt'];
 export const MAX_LANGUAGES = 3;

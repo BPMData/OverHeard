@@ -8,16 +8,34 @@ import type { ConversationSettings } from '../components/conversationSettings';
 import type { Dispatch, SetStateAction } from 'react';
 import type { VoicePreferences } from '../tts/voices';
 
-type Shared = Pick<ConversationModeProps, 'active' | 'translate' | 'mtPreference' | 'onStartAttempt' | 'onPermissionDenied' | 'onPackProgress'> & {
+type Shared = Pick<
+  ConversationModeProps,
+  'active' | 'translate' | 'mtPreference' | 'onStartAttempt' | 'onPermissionDenied' | 'onPackProgress'
+> & {
   settings: ConversationSettings;
   voicePrefs: VoicePreferences;
 };
 
-type Options = Shared & { targetLangs: LanguageCode[]; showAllControls: boolean;
+type Options = Shared & {
+  targetLangs: LanguageCode[];
+  showAllControls: boolean;
   setSettings: Dispatch<SetStateAction<ConversationSettings>>;
-  importedLecture: ConversationModeProps['importedLecture']; };
-export function useLectureWorkspace({ active, translate, mtPreference, onStartAttempt, onPermissionDenied,
-  onPackProgress, settings, setSettings, voicePrefs, targetLangs, showAllControls, importedLecture }: Options) {
+  importedLecture: ConversationModeProps['importedLecture'];
+};
+export function useLectureWorkspace({
+  active,
+  translate,
+  mtPreference,
+  onStartAttempt,
+  onPermissionDenied,
+  onPackProgress,
+  settings,
+  setSettings,
+  voicePrefs,
+  targetLangs,
+  showAllControls,
+  importedLecture,
+}: Options) {
   const isLecture = settings.mode === 'lecture';
   const [driveStatus, setDriveStatus] = useState<{ message: string; link?: string } | null>(null);
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
@@ -40,9 +58,7 @@ export function useLectureWorkspace({ active, translate, mtPreference, onStartAt
     setActiveRoomCode(code);
     if (code) setShareSetupOpen(false);
   }, []);
-  const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(
-    () => targetLangs[0] ?? 'en',
-  );
+  const [lecturePlaybackLang, setLecturePlaybackLang] = useState<ConversationLanguage>(() => targetLangs[0] ?? 'en');
   const [lectureReadAloud, setLectureReadAloud] = useState(false);
   const lecture = useLectureMode({
     active: active && isLecture,
@@ -55,7 +71,7 @@ export function useLectureWorkspace({ active, translate, mtPreference, onStartAt
   });
   const translateLiveSpeech = useCallback(
     (text: string, lang: ConversationLanguage) => translate(text, lang, 'en', { live: true }),
-    [translate],
+    [translate]
   );
   const lectureLangs: ConversationLanguage[] = ['en', ...targetLangs];
   const effectiveLectureLang = lectureLangs.includes(lecturePlaybackLang)
@@ -73,8 +89,7 @@ export function useLectureWorkspace({ active, translate, mtPreference, onStartAt
   });
   const wasLecturePlaying = useRef(false);
   useEffect(() => {
-    const isPlaybackActive =
-      lecturePlayback.status === 'playing' || lecturePlayback.status === 'downloading';
+    const isPlaybackActive = lecturePlayback.status === 'playing' || lecturePlayback.status === 'downloading';
     if (isPlaybackActive) {
       wasLecturePlaying.current = true;
     } else if (wasLecturePlaying.current) {
@@ -82,10 +97,13 @@ export function useLectureWorkspace({ active, translate, mtPreference, onStartAt
       lecture.speech.resume();
     }
   }, [lecturePlayback.status, lecture.speech.resume]);
-  const lectureState = { entries: lecture.entries, selectedLangs: targetLangs,
+  const lectureState = {
+    entries: lecture.entries,
+    selectedLangs: targetLangs,
     interim: active && isLecture ? lecture.speech.interim : '',
     liveTranslations: lecture.liveTranslations,
-    isListening: active && isLecture && lecture.speech.isListening };
+    isListening: active && isLecture && lecture.speech.isListening,
+  };
   useEffect(() => {
     if (!importedLecture || importedLecture.seq === lastImportedSeq.current) return;
     lastImportedSeq.current = importedLecture.seq;
@@ -102,10 +120,32 @@ export function useLectureWorkspace({ active, translate, mtPreference, onStartAt
     }
     lecture.start();
   };
-  const stopLectureWorkspace = () => { lecture.stop(); lecturePlayback.stop(); };
-  return { lecture, lectureState, lecturePlayback, lectureLangs, effectiveLectureLang,
-    lecturePlaybackLang, setLecturePlaybackLang, lectureReadAloud, setLectureReadAloud,
-    activeRoomCode, shareSetupOpen, setShareSetupOpen, roomJustEnded, handleRoomCodeChange,
-    roomControlsId, lectureToolsId, roomCodeRef, driveStatus, setDriveStatus, startLecture,
-    stopLectureWorkspace, online };
+  const stopLectureWorkspace = () => {
+    lecture.stop();
+    lecturePlayback.stop();
+  };
+  return {
+    lecture,
+    lectureState,
+    lecturePlayback,
+    lectureLangs,
+    effectiveLectureLang,
+    lecturePlaybackLang,
+    setLecturePlaybackLang,
+    lectureReadAloud,
+    setLectureReadAloud,
+    activeRoomCode,
+    shareSetupOpen,
+    setShareSetupOpen,
+    roomJustEnded,
+    handleRoomCodeChange,
+    roomControlsId,
+    lectureToolsId,
+    roomCodeRef,
+    driveStatus,
+    setDriveStatus,
+    startLecture,
+    stopLectureWorkspace,
+    online,
+  };
 }

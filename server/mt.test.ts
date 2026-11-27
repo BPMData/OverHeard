@@ -29,10 +29,7 @@ describe('buildProviderChain', () => {
   });
 
   it('lets MT_PROVIDER=google-cloud go first and keeps gtx as the fallback', () => {
-    expect(buildProviderChain({ googleKey: 'k', requested: 'google-cloud' })).toEqual([
-      'google-cloud',
-      'gtx',
-    ]);
+    expect(buildProviderChain({ googleKey: 'k', requested: 'google-cloud' })).toEqual(['google-cloud', 'gtx']);
   });
 
   it('tries free first, then Cloud', () => {
@@ -41,10 +38,7 @@ describe('buildProviderChain', () => {
 
   it('ignores a requested provider that is unknown or unavailable', () => {
     expect(buildProviderChain({ requested: 'google-cloud' })).toEqual(['gtx']);
-    expect(buildProviderChain({ googleKey: 'k', requested: 'deepl' })).toEqual([
-      'gtx',
-      'google-cloud',
-    ]);
+    expect(buildProviderChain({ googleKey: 'k', requested: 'deepl' })).toEqual(['gtx', 'google-cloud']);
   });
 });
 
@@ -58,11 +52,14 @@ describe('toGoogleCode', () => {
 describe('translateGtx', () => {
   it('joins every sentence chunk of the response', async () => {
     const fetchImpl = vi.fn(async () =>
-      jsonResponse([[['Hola. ', 'Hello. '], ['¿Cómo estás?', 'How are you?']]])
+      jsonResponse([
+        [
+          ['Hola. ', 'Hello. '],
+          ['¿Cómo estás?', 'How are you?'],
+        ],
+      ])
     );
-    await expect(translateGtx('Hello. How are you?', 'es', fetchImpl)).resolves.toBe(
-      'Hola. ¿Cómo estás?'
-    );
+    await expect(translateGtx('Hello. How are you?', 'es', fetchImpl)).resolves.toBe('Hola. ¿Cómo estás?');
     const url = String((fetchImpl.mock.calls[0] as unknown[])[0]);
     expect(url).toContain('tl=es');
     expect(url).toContain('q=Hello.%20How%20are%20you%3F');
@@ -89,9 +86,7 @@ describe('translateGtx', () => {
 
 describe('translateGoogleCloud', () => {
   it('posts the text and returns the translation', async () => {
-    const fetchImpl = vi.fn(async () =>
-      jsonResponse({ data: { translations: [{ translatedText: 'Olá' }] } })
-    );
+    const fetchImpl = vi.fn(async () => jsonResponse({ data: { translations: [{ translatedText: 'Olá' }] } }));
     await expect(translateGoogleCloud('Hello', 'pt', 'KEY', fetchImpl)).resolves.toBe('Olá');
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain('key=KEY');
@@ -124,10 +119,7 @@ describe('isBenchingError', () => {
 });
 
 describe('createMachineTranslator', () => {
-  const setup = (
-    chain: MtProvider[],
-    behavior: Partial<Record<MtProvider, () => Promise<string>>>
-  ) => {
+  const setup = (chain: MtProvider[], behavior: Partial<Record<MtProvider, () => Promise<string>>>) => {
     let clock = 1_000_000;
     const callProvider = vi.fn(async (provider: MtProvider) => {
       const fn = behavior[provider];
@@ -212,12 +204,7 @@ describe('createMachineTranslator', () => {
     expect(translator.cooldowns().size).toBe(0);
     // Next request still tries Cloud first
     await translator.translate('Goodbye', 'es');
-    expect(callProvider.mock.calls.map((c) => c[0])).toEqual([
-      'google-cloud',
-      'gtx',
-      'google-cloud',
-      'gtx',
-    ]);
+    expect(callProvider.mock.calls.map((c) => c[0])).toEqual(['google-cloud', 'gtx', 'google-cloud', 'gtx']);
   });
 
   it('benches a provider after a quota error and retries it once the cooldown ends', async () => {
@@ -327,7 +314,11 @@ describe('free-only requests', () => {
       return 'Hola (cloud)';
     });
     const translator = createMachineTranslator({
-      chain: ['gtx', 'google-cloud'], callProvider, cooldownMs: 60_000, now: () => clock, log: quietLog,
+      chain: ['gtx', 'google-cloud'],
+      callProvider,
+      cooldownMs: 60_000,
+      now: () => clock,
+      log: quietLog,
     });
     await expect(translator.translate('Hello', 'es', 'gtx', 'en', true)).rejects.toThrow('429');
     expect(callProvider.mock.calls.map((c) => c[0])).toEqual(['gtx']);
@@ -338,7 +329,9 @@ describe('free-only requests', () => {
     await expect(translator.translate('Bye', 'es')).resolves.toMatchObject({ provider: 'google-cloud' });
     clock += 61_000;
     callProvider.mockResolvedValueOnce('Adiós (gtx)');
-    await expect(translator.translate('Later', 'es', undefined, 'en', true)).resolves.toMatchObject({ provider: 'gtx' });
+    await expect(translator.translate('Later', 'es', undefined, 'en', true)).resolves.toMatchObject({
+      provider: 'gtx',
+    });
   });
 });
 
@@ -355,7 +348,9 @@ describe('bidirectional translation', () => {
   });
 
   it('isolates language pairs and passes the source to the provider', async () => {
-    const callProvider = vi.fn(async (_provider: MtProvider, _text: string, target: string, source: string) => `${source}>${target}`);
+    const callProvider = vi.fn(
+      async (_provider: MtProvider, _text: string, target: string, source: string) => `${source}>${target}`
+    );
     const translator = createMachineTranslator({ chain: ['google-cloud'], callProvider, log: quietLog });
     expect((await translator.translate('same', 'en', undefined, 'es')).translation).toBe('es>en');
     expect((await translator.translate('same', 'es')).translation).toBe('en>es');
@@ -370,9 +365,13 @@ describe('bidirectional translation', () => {
 describe('simultaneous classroom translations', () => {
   it('shares the complete provider chain and caches its result for later students', async () => {
     let resolve!: (value: string) => void;
-    const callProvider = vi.fn((provider: MtProvider) => provider === 'gtx'
-      ? Promise.reject(new Error('unavailable'))
-      : new Promise<string>(done => { resolve = done; }));
+    const callProvider = vi.fn((provider: MtProvider) =>
+      provider === 'gtx'
+        ? Promise.reject(new Error('unavailable'))
+        : new Promise<string>((done) => {
+            resolve = done;
+          })
+    );
     const translator = createMachineTranslator({ chain: ['gtx', 'google-cloud'], callProvider, log: quietLog });
     const first = translator.translate('Hello', 'es');
     const second = translator.translate('Hello', 'es');
@@ -387,8 +386,11 @@ describe('simultaneous classroom translations', () => {
   it('removes failed shared work so a subsequent request can retry', async () => {
     const callProvider = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue('Bonjour');
     const translator = createMachineTranslator({ chain: ['gtx'], callProvider, log: quietLog });
-    const outcomes = await Promise.allSettled([translator.translate('Hello', 'fr'), translator.translate('Hello', 'fr')]);
-    expect(outcomes.map(value => value.status)).toEqual(['rejected', 'rejected']);
+    const outcomes = await Promise.allSettled([
+      translator.translate('Hello', 'fr'),
+      translator.translate('Hello', 'fr'),
+    ]);
+    expect(outcomes.map((value) => value.status)).toEqual(['rejected', 'rejected']);
     expect(callProvider).toHaveBeenCalledTimes(1);
     expect((await translator.translate('Hello', 'fr')).translation).toBe('Bonjour');
   });

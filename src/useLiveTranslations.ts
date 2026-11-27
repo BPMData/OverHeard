@@ -61,7 +61,7 @@ export function useLiveTranslations<L extends string>(
   text: string,
   requestedLangs: readonly L[],
   translate: (text: string, lang: L) => Promise<string>,
-  segmentKey: string,
+  segmentKey: string
 ): Partial<Record<L, string>> {
   // Callers often pass a fresh array each render; key on its contents instead
   const langKey = requestedLangs.join(',');
@@ -116,7 +116,7 @@ export function useLiveTranslations<L extends string>(
             inFlight.current.delete(key);
             failed.current.set(key, chunk);
             bump((value) => value + 1);
-          },
+          }
         );
       });
     }

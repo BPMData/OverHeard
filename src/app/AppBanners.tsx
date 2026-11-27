@@ -17,21 +17,31 @@ interface AppBannersProps {
 }
 
 export function AppBanners({
-  displayMode, isEmbeddedIframe, hasSpeechApi, isSupportedBrowser, importError, pipNotice,
-  permissionBanner, setImportError, setPipNotice,
+  displayMode,
+  isEmbeddedIframe,
+  hasSpeechApi,
+  isSupportedBrowser,
+  importError,
+  pipNotice,
+  permissionBanner,
+  setImportError,
+  setPipNotice,
 }: AppBannersProps) {
   const apple = isAppleMobile();
   return (
     <>
       {/* iPhone / iPad: only Safari can hear speech. Shown on every page, Lecture and Two-way too. */}
       {apple && (isAppleMobileNotSafari() || !hasSpeechApi) && (
-        <div role="note" className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
+        <div
+          role="note"
+          className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-start gap-2.5 text-amber-800 dark:text-amber-200"
+        >
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
           <span>
             {isAppleMobileNotSafari() ? (
               <>
-                <strong>On iPad or iPhone, open OverHeard in Safari.</strong> Other browsers there
-                (Chrome included) can&apos;t hear speech.{' '}
+                <strong>On iPad or iPhone, open OverHeard in Safari.</strong> Other browsers there (Chrome included)
+                can&apos;t hear speech.{' '}
               </>
             ) : (
               <strong>Speech recognition is off on this device. </strong>
@@ -47,8 +57,8 @@ export function AppBanners({
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>
-              <strong>Browser Compatibility Notice:</strong> OverHeard is designed for{' '}
-              <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> using the Web Speech API.
+              <strong>Browser Compatibility Notice:</strong> OverHeard is designed for <strong>Google Chrome</strong> or{' '}
+              <strong>Microsoft Edge</strong> using the Web Speech API.
               {!hasSpeechApi &&
                 ' SpeechRecognition is not available in this browser — use the Silent Test Bar below or open in Chrome/Edge.'}
             </span>
@@ -74,11 +84,7 @@ export function AppBanners({
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
-            <button
-              type="button"
-              onClick={() => setPipNotice(null)}
-              className="underline hover:opacity-80"
-            >
+            <button type="button" onClick={() => setPipNotice(null)} className="underline hover:opacity-80">
               Dismiss
             </button>
           </div>
@@ -86,7 +92,10 @@ export function AppBanners({
       )}
 
       {importError && displayMode !== 'conversation' && (
-        <div role="alert" className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between gap-4 text-amber-800 dark:text-amber-200">
+        <div
+          role="alert"
+          className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 text-xs flex items-center justify-between gap-4 text-amber-800 dark:text-amber-200"
+        >
           <span>{importError}</span>
           <button type="button" onClick={() => setImportError('')} className="underline hover:opacity-80">
             Dismiss

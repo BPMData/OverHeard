@@ -15,8 +15,7 @@ export const LANGUAGE_CAPTION_COLORS = [
 /** Caption color for the language at `index` in the selected list. */
 export const languageCaptionColor = (index: number): string =>
   LANGUAGE_CAPTION_COLORS[
-    ((index % LANGUAGE_CAPTION_COLORS.length) + LANGUAGE_CAPTION_COLORS.length) %
-      LANGUAGE_CAPTION_COLORS.length
+    ((index % LANGUAGE_CAPTION_COLORS.length) + LANGUAGE_CAPTION_COLORS.length) % LANGUAGE_CAPTION_COLORS.length
   ];
 
 /**
@@ -41,9 +40,7 @@ export const CaptionText: React.FC<{
   color: string;
   isDark: boolean;
   children: React.ReactNode;
-}> = ({ color, isDark, children }) => (
-  <span style={captionTextStyle(color, isDark)}>{children}</span>
-);
+}> = ({ color, isDark, children }) => <span style={captionTextStyle(color, isDark)}>{children}</span>;
 
 /** Small color dot used next to language names so headers match their caption color. */
 export const CaptionSwatch: React.FC<{ color: string }> = ({ color }) => (

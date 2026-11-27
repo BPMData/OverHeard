@@ -59,9 +59,7 @@ export function LectureTranscript({
     return (
       <span className="lecture-play-actions" dir="ltr">
         {isActive && (
-          <span className="lecture-live-label">
-            {isPaused ? 'Paused' : isDownloading ? 'Loading…' : 'Reading'}
-          </span>
+          <span className="lecture-live-label">{isPaused ? 'Paused' : isDownloading ? 'Loading…' : 'Reading'}</span>
         )}
         <button
           type="button"
@@ -156,7 +154,8 @@ export function LectureTranscript({
           {entries.length === 0 && !hasInterim && (
             <div className="lecture-empty-cell">
               <p className="conversation-empty">
-                {onAddLine ? 'Start lecture or type a line below. Spoken English and live translations stay saved here in side-by-side columns until you clear them.'
+                {onAddLine
+                  ? 'Start lecture or type a line below. Spoken English and live translations stay saved here in side-by-side columns until you clear them.'
                   : 'Waiting for your teacher. Captions will appear here as the lecture begins.'}
               </p>
             </div>
@@ -169,7 +168,9 @@ export function LectureTranscript({
               <React.Fragment key={entry.id}>
                 <div className={`lecture-cell lecture-cell-en ${isEnActive ? 'lecture-cell-speaking' : ''}`}>
                   <div className="lecture-meta">
-                    <span>#{idx + 1} · {formatLectureTime(entry.timestamp)}</span>
+                    <span>
+                      #{idx + 1} · {formatLectureTime(entry.timestamp)}
+                    </span>
                     {renderCellActions(entry.id, idx + 1, 'en', 'English')}
                   </div>
                   <div style={{ fontSize }} className="caption-text-ltr font-semibold">
@@ -202,9 +203,7 @@ export function LectureTranscript({
                           )}
                           <div
                             style={{ fontSize }}
-                            className={`font-semibold ${
-                              lang.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'
-                            }`}
+                            className={`font-semibold ${lang.dir === 'rtl' ? 'caption-text-rtl' : 'caption-text-ltr'}`}
                           >
                             <CaptionText color={color} isDark={isDark}>
                               {translated}
@@ -244,12 +243,7 @@ export function LectureTranscript({
                 const color = languageCaptionColor(langIndex);
                 const liveText = liveTranslations[code];
                 return (
-                  <div
-                    key={`live-${code}`}
-                    className="lecture-cell lecture-cell-live"
-                    dir={lang.dir}
-                    lang={code}
-                  >
+                  <div key={`live-${code}`} className="lecture-cell lecture-cell-live" dir={lang.dir} lang={code}>
                     {liveText ? (
                       <div
                         style={{ fontSize }}
@@ -296,31 +290,38 @@ export function LectureTranscript({
           className={`conversation-listening ${isListening ? 'conversation-pulse' : ''}`}
           style={{ color: isListening ? (isDark ? ENGLISH_CAPTION_COLOR : '#0F172A') : undefined }}
         >
-          {onAddLine ? (isListening ? 'Listening continuously in English…' : 'Lecture stopped')
-            : (isListening ? 'Teacher is speaking · Live captions' : 'Waiting for teacher to resume')}{' '}
+          {onAddLine
+            ? isListening
+              ? 'Listening continuously in English…'
+              : 'Lecture stopped'
+            : isListening
+              ? 'Teacher is speaking · Live captions'
+              : 'Waiting for teacher to resume'}{' '}
           {isListening && onAddLine && <small>🎙 {speechLocal ? 'local' : 'cloud'}</small>}
         </div>
-        {onAddLine && <details>
-          <summary>Type a line</summary>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!typedLine.trim()) return;
-              onAddLine(typedLine);
-              setTypedLine('');
-            }}
-          >
-            <input
-              aria-label="Lecture line text"
-              value={typedLine}
-              onChange={(e) => setTypedLine(e.target.value)}
-              placeholder="Type an English sentence to add to the lecture transcript"
-            />
-            <button type="submit" disabled={!typedLine.trim()}>
-              Send
-            </button>
-          </form>
-        </details>}
+        {onAddLine && (
+          <details>
+            <summary>Type a line</summary>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!typedLine.trim()) return;
+                onAddLine(typedLine);
+                setTypedLine('');
+              }}
+            >
+              <input
+                aria-label="Lecture line text"
+                value={typedLine}
+                onChange={(e) => setTypedLine(e.target.value)}
+                placeholder="Type an English sentence to add to the lecture transcript"
+              />
+              <button type="submit" disabled={!typedLine.trim()}>
+                Send
+              </button>
+            </form>
+          </details>
+        )}
       </footer>
     </>
   );

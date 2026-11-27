@@ -20,7 +20,12 @@ const ICON = 'w-3.5 h-3.5 text-[#5843A5] dark:text-[#A78BFA]';
 
 /** Import, open, export and clear: lecture-file actions a teacher needs now and then, not every minute. */
 export function FileMenu({
-  canExport, canClear, applyImportedLecture, setImportError, handleExportJson, requestClear,
+  canExport,
+  canClear,
+  applyImportedLecture,
+  setImportError,
+  handleExportJson,
+  requestClear,
 }: FileMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -136,13 +141,12 @@ export function FileMenu({
             if (file.size > MAX_ROOM_FILE_BYTES) {
               throw new Error('Room file is too large (8 MB maximum).');
             }
-            const raw =
-              typeof file.text === 'function' ? await file.text() : await new Response(file).text();
+            const raw = typeof file.text === 'function' ? await file.text() : await new Response(file).text();
             const imported = parseRoomJson(raw);
             if (
               loadLectureEntries().length > 0 &&
               !window.confirm(
-                'Replace the saved lecture with the imported file? Export JSON first to keep the current transcript.',
+                'Replace the saved lecture with the imported file? Export JSON first to keep the current transcript.'
               )
             ) {
               return;

@@ -15,7 +15,7 @@ function setup(langB = 'es') {
       participants: { a: { lang: 'en' }, b: { lang: langB } },
       switchAfterMs: 2500,
       onSend,
-    }),
+    })
   );
   act(() => hook.result.current.start());
   return { ...hook, onSend };
@@ -82,7 +82,7 @@ describe('conversation turn recognition', () => {
       latest().onresult?.({
         resultIndex: 0,
         results: ['why', 'why is', 'why is it doubling'].map((t) => ({ isFinal: false, 0: { transcript: t } })),
-      }),
+      })
     );
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it doubling');
@@ -90,7 +90,10 @@ describe('conversation turn recognition', () => {
   it('replaces a corrected word instead of repeating the paragraph', () => {
     const { onSend } = setup();
     const finals = (texts: string[]) =>
-      latest().onresult?.({ resultIndex: texts.length - 1, results: texts.map((t) => ({ isFinal: true, 0: { transcript: t } })) });
+      latest().onresult?.({
+        resultIndex: texts.length - 1,
+        results: texts.map((t) => ({ isFinal: true, 0: { transcript: t } })),
+      });
     const a = 'and never bugs all you have the bee bug mode';
     const b = 'and never bugs while you have the bee bug mode on';
     act(() => finals([a]));
@@ -100,11 +103,7 @@ describe('conversation turn recognition', () => {
   });
   it('waits indefinitely through no-speech and unexpected ends', async () => {
     const { result, onSend } = setup();
-    await speech.replay([
-      { type: 'error', error: 'no-speech' },
-      { type: 'end' },
-      { afterMs: 400, type: 'start' },
-    ]);
+    await speech.replay([{ type: 'error', error: 'no-speech' }, { type: 'end' }, { afterMs: 400, type: 'start' }]);
     act(() => vi.advanceTimersByTime(35000));
     expect(result.current.turn).toBe('a');
     expect(result.current.isListening).toBe(true);
@@ -168,7 +167,7 @@ describe('conversation turn recognition', () => {
         participants: { a: { lang: 'en' }, b: { lang: 'en' } },
         switchAfterMs: 2000,
         onSend,
-      }),
+      })
     );
     act(() => result.current.start());
     const mic = latest();
@@ -261,7 +260,7 @@ describe('conversation turn recognition', () => {
       () =>
         new Promise<boolean>((complete) => {
           resolve = complete;
-        }),
+        })
     );
     const { result } = setup();
     act(() => result.current.start(true));
@@ -301,21 +300,18 @@ describe('conversation turn recognition', () => {
     expect(result.current.turn).toBe('b');
   });
 
-  it.each(['not-allowed', 'service-not-allowed', 'language-not-supported'])(
-    'stops on fatal error %s',
-    (error) => {
-      const { result, onSend } = setup();
-      act(() => latest().result('unfinished'));
-      act(() => latest().onerror?.({ error }));
-      act(() => vi.advanceTimersByTime(30000));
-      expect(result.current.isListening).toBe(false);
-      expect(result.current.error).toMatch(
-        error === 'language-not-supported' ? /doesn't support en/ : /Microphone permission/,
-      );
-      expect(onSend).not.toHaveBeenCalled();
-      expect(speech.instances).toHaveLength(1);
-    },
-  );
+  it.each(['not-allowed', 'service-not-allowed', 'language-not-supported'])('stops on fatal error %s', (error) => {
+    const { result, onSend } = setup();
+    act(() => latest().result('unfinished'));
+    act(() => latest().onerror?.({ error }));
+    act(() => vi.advanceTimersByTime(30000));
+    expect(result.current.isListening).toBe(false);
+    expect(result.current.error).toMatch(
+      error === 'language-not-supported' ? /doesn't support en/ : /Microphone permission/
+    );
+    expect(onSend).not.toHaveBeenCalled();
+    expect(speech.instances).toHaveLength(1);
+  });
 
   it('hears an immediate same-language reply when Android already restarted after the final words', () => {
     const { result, onSend } = setup('en');
@@ -334,7 +330,10 @@ describe('conversation turn recognition', () => {
     expect(result.current.interim).toBe('Yes I am');
     act(() => mic.result('Yes I am'));
     act(() => vi.advanceTimersByTime(2500));
-    expect(onSend.mock.calls).toEqual([['a', 'Are you ready?'], ['b', 'Yes I am']]);
+    expect(onSend.mock.calls).toEqual([
+      ['a', 'Are you ready?'],
+      ['b', 'Yes I am'],
+    ]);
     // B's session contained words, so it still needs a clean boundary before A speaks.
     expect(mic.abort).toHaveBeenCalledTimes(1);
   });
@@ -364,7 +363,10 @@ describe('conversation turn recognition', () => {
     expect(result.current.draft).toBe('');
     act(() => latest().result('still talking I can see it', true, 2));
     act(() => vi.advanceTimersByTime(2500));
-    expect(onSend.mock.calls).toEqual([['a', 'still talkin'], ['b', 'I can see it']]);
+    expect(onSend.mock.calls).toEqual([
+      ['a', 'still talkin'],
+      ['b', 'I can see it'],
+    ]);
   });
 
   it('keeps a new reply that shares one word with the previous unfinished phrase', () => {
@@ -375,7 +377,10 @@ describe('conversation turn recognition', () => {
     expect(result.current.interim).toBe('you are welcome');
     act(() => latest().result('you are welcome'));
     act(() => vi.advanceTimersByTime(2500));
-    expect(onSend.mock.calls).toEqual([['a', 'thank you'], ['b', 'you are welcome']]);
+    expect(onSend.mock.calls).toEqual([
+      ['a', 'thank you'],
+      ['b', 'you are welcome'],
+    ]);
   });
 
   it('keeps one recognizer but starts a fresh session when both people speak the same language', () => {

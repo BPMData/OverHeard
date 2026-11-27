@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  normalizeReport,
-  publicIssueBody,
-  publicIssueTitle,
-  reportAsText,
-  scrubPublicText,
-} from './protocol';
+import { normalizeReport, publicIssueBody, publicIssueTitle, reportAsText, scrubPublicText } from './protocol';
 
 describe('problem report protocol', () => {
   it('keeps only known diagnostics and trims every field', () => {
@@ -29,7 +23,7 @@ describe('problem report protocol', () => {
 
   it('removes emails and phone numbers from public text but keeps versions and dates', () => {
     expect(scrubPublicText('mail a.b@school.org or call (203) 555-0142')).toBe(
-      'mail [email removed] or call [number removed]',
+      'mail [email removed] or call [number removed]'
     );
     expect(scrubPublicText('Chrome 142.0.7444.59 on 2026-11-24')).toBe('Chrome 142.0.7444.59 on 2026-11-24');
   });
@@ -46,7 +40,9 @@ describe('problem report protocol', () => {
     expect(body).not.toContain('me@example.com');
     // User text sits inside a fenced block, and a fence in the text can't close it early
     expect(body).toContain('~~~text\nStudents see nothing @everyone ~~ ![x](http://evil)\n~~~');
-    expect(publicIssueTitle(report)).toBe('[User report] Student rooms: Students see nothing @everyone ~~~ ![x](http://evil)');
+    expect(publicIssueTitle(report)).toBe(
+      '[User report] Student rooms: Students see nothing @everyone ~~~ ![x](http://evil)'
+    );
   });
 
   it('shortens long titles and works with no description at all', () => {

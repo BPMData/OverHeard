@@ -1,6 +1,22 @@
 export type PiperLanguage =
-  | 'en' | 'es' | 'pt' | 'vi' | 'hi' | 'bn' | 'ur' | 'id' | 'sw' | 'tr' | 'zh' | 'ar' | 'fr' | 'uk' | 'ru' | 'prs'
-  | 'ht' | 'so';
+  | 'en'
+  | 'es'
+  | 'pt'
+  | 'vi'
+  | 'hi'
+  | 'bn'
+  | 'ur'
+  | 'id'
+  | 'sw'
+  | 'tr'
+  | 'zh'
+  | 'ar'
+  | 'fr'
+  | 'uk'
+  | 'ru'
+  | 'prs'
+  | 'ht'
+  | 'so';
 
 /** Which engine speaks a voice: Piper (eSpeak/pinyin phonemes) or Meta MMS (characters). */
 export type VoiceEngine = 'piper' | 'mms';
@@ -58,7 +74,7 @@ function mmsVoice(
   shortName: string,
   gender: 'female' | 'male',
   downloadBytes: number,
-  mmsFile?: string,
+  mmsFile?: string
 ): PiperVoiceOption {
   const genderLabel = gender === 'female' ? 'Female' : 'Male';
   return {

@@ -59,7 +59,7 @@ export function useColumnPlayback(displayMode: DisplayMode) {
         handle.stop();
       }
     },
-    [stopColumnPlayback, voicePrefs],
+    [stopColumnPlayback, voicePrefs]
   );
 
   useEffect(() => {

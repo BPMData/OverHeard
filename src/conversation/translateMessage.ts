@@ -3,7 +3,7 @@ import type { ConversationLanguage } from '../types';
 export type TranslateText = (
   text: string,
   target: ConversationLanguage,
-  source?: ConversationLanguage,
+  source?: ConversationLanguage
 ) => Promise<string>;
 
 // /api/mt accepts at most 500 UTF-16 units. Keep each conversation request within
@@ -34,7 +34,7 @@ export async function translateConversationMessage(
   text: string,
   target: ConversationLanguage,
   source: ConversationLanguage,
-  translate: TranslateText,
+  translate: TranslateText
 ): Promise<string> {
   if (source === target) return text;
   const translated: string[] = [];

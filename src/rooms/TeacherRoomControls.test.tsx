@@ -55,9 +55,7 @@ describe('TeacherRoomControls', () => {
 
     const onRestore = vi.fn();
     const emptyState: LectureState = { ...emptyLecture() };
-    const { rerender } = render(
-      <TeacherRoomControls state={emptyState} visible onRestore={onRestore} />,
-    );
+    const { rerender } = render(<TeacherRoomControls state={emptyState} visible onRestore={onRestore} />);
 
     // Clicking Create room without a PIN shows inline validation without issuing network request
     fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
@@ -100,7 +98,7 @@ describe('TeacherRoomControls', () => {
         }}
         visible
         onRestore={onRestore}
-      />,
+      />
     );
     await waitFor(() => expect(screen.getByText('Room: abc123')).toBeTruthy());
   });
@@ -161,7 +159,7 @@ describe('TeacherRoomControls', () => {
     await waitFor(() => expect(screen.getByText('Room: room-9')).toBeTruthy());
     expect(onRestore).not.toHaveBeenCalled();
     await waitFor(() =>
-      expect(fetchMock.mock.calls.some(([u, init]) => u === '/api/rooms/room-9' && init?.method === 'PUT')).toBe(true),
+      expect(fetchMock.mock.calls.some(([u, init]) => u === '/api/rooms/room-9' && init?.method === 'PUT')).toBe(true)
     );
   });
 
@@ -184,7 +182,7 @@ describe('TeacherRoomControls', () => {
           return { ok: false, status: 404, json: async () => ({ error: 'Not found' }) };
         }
         return { ok: true, status: 200, json: async () => ({ revision: 1 }) };
-      }),
+      })
     );
 
     render(<TeacherRoomControls state={emptyLecture()} visible />);
@@ -241,7 +239,7 @@ describe('TeacherRoomControls', () => {
           return new Response(JSON.stringify({ code: 'retry-ok', token: 'tok-ok' }), { status: 201 });
         }
         return new Response(JSON.stringify({ revision: 1 }), { status: 200 });
-      }),
+      })
     );
 
     render(<TeacherRoomControls state={emptyLecture()} visible />);
@@ -265,11 +263,23 @@ describe('TeacherRoomControls class codes', () => {
     recordRoomHistory('murphy-p3');
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === '/api/rooms' && init?.method === 'POST') {
-        return { ok: false, status: 409, text: async () => JSON.stringify({ error: 'That room code is already in use.' }) };
+        return {
+          ok: false,
+          status: 409,
+          text: async () => JSON.stringify({ error: 'That room code is already in use.' }),
+        };
       }
       if (url === '/api/rooms/murphy-p3/rejoin') {
-        return { ok: true, status: 200, text: async () => JSON.stringify({
-          code: 'murphy-p3', token: 'tok', snapshot: { ...emptyLecture(), revision: 1, teacherOnline: true, ended: false } }) };
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              code: 'murphy-p3',
+              token: 'tok',
+              snapshot: { ...emptyLecture(), revision: 1, teacherOnline: true, ended: false },
+            }),
+        };
       }
       return { ok: true, status: 200, text: async () => JSON.stringify({ revision: 2 }) };
     });
@@ -285,8 +295,9 @@ describe('TeacherRoomControls class codes', () => {
 
     await waitFor(() => expect(screen.getByText('Room: murphy-p3')).toBeTruthy());
     expect(fetchMock).toHaveBeenCalledWith('/api/rooms/murphy-p3/rejoin', expect.anything());
-    expect((screen.getByLabelText('Student room link') as HTMLInputElement).value)
-      .toBe(`${window.location.origin}/murphy-p3`);
+    expect((screen.getByLabelText('Student room link') as HTMLInputElement).value).toBe(
+      `${window.location.origin}/murphy-p3`
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Show join code' }));
     const card = screen.getByRole('dialog', { name: 'Join this room' });

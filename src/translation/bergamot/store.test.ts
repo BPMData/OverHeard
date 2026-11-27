@@ -3,8 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { FakeCacheStorage } from './__fixtures__/fakeCaches';
 import { BERGAMOT_MODELS, type BergamotModel } from './models';
 import {
-  BERGAMOT_CACHE_NAME, downloadAndSaveModel, downloadFile, fileUrl, isModelSaved, readSavedModel,
-  removeSavedModel, savedModelSizes,
+  BERGAMOT_CACHE_NAME,
+  downloadAndSaveModel,
+  downloadFile,
+  fileUrl,
+  isModelSaved,
+  readSavedModel,
+  removeSavedModel,
+  savedModelSizes,
 } from './store';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -36,7 +42,9 @@ const fetchFor = (bodies: Map<string, Uint8Array>, override?: (url: string) => R
     if (replaced) return replaced;
     const body = bodies.get(url);
     // GitHub Pages sends a gzip Content-Length that doesn't match the body; it must be ignored
-    return body ? new Response(body as unknown as BodyInit, { headers: { 'Content-Length': '5' } }) : new Response('no', { status: 404 });
+    return body
+      ? new Response(body as unknown as BodyInit, { headers: { 'Content-Length': '5' } })
+      : new Response('no', { status: 404 });
   }) as unknown as typeof fetch;
 
 describe('downloadFile', () => {
@@ -44,16 +52,22 @@ describe('downloadFile', () => {
     const body = bytesOf(8, 7);
     const fetchImpl = fetchFor(new Map([['u', body]]));
     const seen: number[] = [];
-    await expect(downloadFile('u', { bytes: 8, sha256: sha(body) }, (n) => seen.push(n), fetchImpl)).resolves.toEqual(body);
+    await expect(downloadFile('u', { bytes: 8, sha256: sha(body) }, (n) => seen.push(n), fetchImpl)).resolves.toEqual(
+      body
+    );
     expect(seen.at(-1)).toBe(8);
   });
 
   it('rejects a short, long or damaged download', async () => {
     const body = bytesOf(8, 7);
     const fetchImpl = fetchFor(new Map([['u', body]]));
-    await expect(downloadFile('u', { bytes: 9, sha256: sha(body) }, () => {}, fetchImpl)).rejects.toThrow('interrupted');
+    await expect(downloadFile('u', { bytes: 9, sha256: sha(body) }, () => {}, fetchImpl)).rejects.toThrow(
+      'interrupted'
+    );
     await expect(downloadFile('u', { bytes: 7, sha256: sha(body) }, () => {}, fetchImpl)).rejects.toThrow('wrong size');
-    await expect(downloadFile('u', { bytes: 8, sha256: '0'.repeat(64) }, () => {}, fetchImpl)).rejects.toThrow('damaged');
+    await expect(downloadFile('u', { bytes: 8, sha256: '0'.repeat(64) }, () => {}, fetchImpl)).rejects.toThrow(
+      'damaged'
+    );
     await expect(downloadFile('missing', { bytes: 8, sha256: '' }, () => {}, fetchImpl)).rejects.toThrow('HTTP 404');
   });
 });
@@ -76,7 +90,9 @@ describe('saved models', () => {
     const storage = new FakeCacheStorage();
     const { model, bodies } = tinyModel();
     const lexUrl = fileUrl(model.files[1].path);
-    const fetchImpl = fetchFor(bodies, (url) => (url === lexUrl ? new Response(bytesOf(2, 0) as unknown as BodyInit) : undefined));
+    const fetchImpl = fetchFor(bodies, (url) =>
+      url === lexUrl ? new Response(bytesOf(2, 0) as unknown as BodyInit) : undefined
+    );
     await expect(downloadAndSaveModel(model, () => {}, { storage, fetchImpl })).rejects.toThrow();
     expect(await isModelSaved(model, storage)).toBe(false);
     const cache = await storage.open(BERGAMOT_CACHE_NAME);

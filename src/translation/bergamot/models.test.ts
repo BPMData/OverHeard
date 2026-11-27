@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { VALID_LANGUAGE_CODES } from '../../constants';
 import {
-  BERGAMOT_APPROXIMATE, BERGAMOT_BASE_URL, BERGAMOT_MODELS, bergamotDownloadLabel, bergamotModelFor, maxNewTokens,
-  modelBytes, modelFileUrl, ON_DEVICE_MODELS, OPUS_BASE_URL, OPUS_MODELS,
+  BERGAMOT_APPROXIMATE,
+  BERGAMOT_BASE_URL,
+  BERGAMOT_MODELS,
+  bergamotDownloadLabel,
+  bergamotModelFor,
+  maxNewTokens,
+  modelBytes,
+  modelFileUrl,
+  ON_DEVICE_MODELS,
+  OPUS_BASE_URL,
+  OPUS_MODELS,
 } from './models';
 
 describe('Bergamot model catalog', () => {
@@ -60,7 +69,7 @@ describe('Opus-MT (Swahili)', () => {
     expect(OPUS_MODELS).toContain(model);
     expect(OPUS_BASE_URL).toBe('https://bpmdata.github.io/overheard-translation-models');
     expect(modelFileUrl(model, model.files[4])).toBe(
-      'https://bpmdata.github.io/overheard-translation-models/opus-mt-en-sw/onnx/encoder_model_quantized.onnx',
+      'https://bpmdata.github.io/overheard-translation-models/opus-mt-en-sw/onnx/encoder_model_quantized.onnx'
     );
     expect(bergamotModelFor('sw', 'es')).toBeNull();
   });
@@ -68,8 +77,12 @@ describe('Opus-MT (Swahili)', () => {
   it('lists every file Transformers.js loads, with exact sizes and hashes', () => {
     const model = bergamotModelFor('sw')!;
     expect(model.files.map((f) => f.path.replace('opus-mt-en-sw/', '')).sort()).toEqual([
-      'config.json', 'generation_config.json', 'onnx/decoder_model_merged_quantized.onnx',
-      'onnx/encoder_model_quantized.onnx', 'tokenizer.json', 'tokenizer_config.json',
+      'config.json',
+      'generation_config.json',
+      'onnx/decoder_model_merged_quantized.onnx',
+      'onnx/encoder_model_quantized.onnx',
+      'tokenizer.json',
+      'tokenizer_config.json',
     ]);
     for (const file of model.files) expect(file.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(modelBytes(model)).toBe(138422157);

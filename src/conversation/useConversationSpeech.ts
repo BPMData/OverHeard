@@ -1,8 +1,6 @@
 import { createRecognition, detachRecognition, recognitionConstructor } from '../speech/recognition';
 import type { SpeechRecognitionInstance } from '../speech/types';
-import {
-  appendDistinct, createFinalDeduper, dropLastWords, mergeInterim, stripEcho,
-} from '../speechDedupe';
+import { appendDistinct, createFinalDeduper, dropLastWords, mergeInterim, stripEcho } from '../speechDedupe';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareOnDeviceSpeech } from '../onDevice';
@@ -129,13 +127,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     if (silence.current !== null) clearTimeout(silence.current);
     silence.current = null;
     const delay = opts.current.switchAfterMs;
-    if (
-      delay === null ||
-      !current.active ||
-      current.suspended ||
-      !(current.draft || current.interim)
-    )
-      return;
+    if (delay === null || !current.active || current.suspended || !(current.draft || current.interim)) return;
     silence.current = setTimeout(() => passTurn(token), delay);
   }
 
@@ -171,10 +163,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     recognizer.current = recognition;
     recognition.processLocally = local;
     const valid = () =>
-      token === current.generation &&
-      current.active &&
-      !current.suspended &&
-      recognizer.current === recognition;
+      token === current.generation && current.active && !current.suspended && recognizer.current === recognition;
     let startedAt = Date.now();
     let lastError: string | null = null;
     let finals = new Set<number>();
@@ -258,8 +247,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     function scheduleRestart() {
       if (!valid()) return;
       logSpeechNote(`end (${lastError ?? 'ok'})`);
-      const endedAfterFinal = !current.boundary && lastError === null && !current.interim
-        && (current.freshAfterFinal || finals.size > 0);
+      const endedAfterFinal =
+        !current.boundary && lastError === null && !current.interim && (current.freshAfterFinal || finals.size > 0);
       current.freshAfterFinal = false;
       if (current.boundary) {
         // Ended on purpose at a turn change: start the next person's session right away
@@ -271,9 +260,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
         current.failures = 0;
       } else {
         preserveInterim();
-        current.failures = isFailedSession(lastError, Date.now() - startedAt)
-          ? current.failures + 1
-          : 0;
+        current.failures = isFailedSession(lastError, Date.now() - startedAt) ? current.failures + 1 : 0;
       }
       const again = () => {
         restart.current = null;
@@ -420,7 +407,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       session.current.active = false;
       invalidate();
     },
-    [],
+    []
   );
 
   // Stable public controls let consumers safely use them in effect dependencies.
@@ -435,7 +422,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       suspend: () => latestControls.current.suspend(),
       resume: () => latestControls.current.resume(),
     }),
-    [],
+    []
   );
 
   return {

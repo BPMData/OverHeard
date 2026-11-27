@@ -28,7 +28,7 @@ describe('Chrome language packs storage', () => {
     vi.useFakeTimers();
     try {
       const availability = vi.fn((code: string) =>
-        code === 'es' ? Promise.resolve('available') : new Promise<never>(() => undefined),
+        code === 'es' ? Promise.resolve('available') : new Promise<never>(() => undefined)
       );
       const listing = createChromePackStorageCategory(availability as never, () => true).list();
       await vi.advanceTimersByTimeAsync(3000);

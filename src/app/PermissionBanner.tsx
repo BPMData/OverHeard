@@ -9,9 +9,7 @@ interface PermissionBannerProps {
   micInsecure: boolean;
 }
 
-export function PermissionBanner({
-  displayMode, isEmbeddedIframe, micInsecure,
-}: PermissionBannerProps) {
+export function PermissionBanner({ displayMode, isEmbeddedIframe, micInsecure }: PermissionBannerProps) {
   return (
     <div className="bg-red-500/15 border-b border-red-500/30 px-4 py-3 text-xs sm:text-sm flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-start sm:items-center gap-2.5 text-red-800 dark:text-red-200">
@@ -19,31 +17,30 @@ export function PermissionBanner({
         <div>
           {micInsecure ? (
             <>
-              <strong>Microphone unavailable on this address:</strong> browsers only allow the
-              microphone on <strong>https://</strong> pages (or localhost). Open OverHeard from its
-              https link instead of {window.location.origin}.
+              <strong>Microphone unavailable on this address:</strong> browsers only allow the microphone on{' '}
+              <strong>https://</strong> pages (or localhost). Open OverHeard from its https link instead of{' '}
+              {window.location.origin}.
             </>
           ) : isAppleMobile() ? (
             <>
-              <strong>Speech is blocked on this iPad or iPhone.</strong> <AppleSpeechSteps /> Then
-              press{' '}
+              <strong>Speech is blocked on this iPad or iPhone.</strong> <AppleSpeechSteps /> Then press{' '}
               <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
             </>
           ) : (
             <>
-              <strong>Microphone Permission Blocked:</strong> the browser didn&apos;t allow the
-              microphone. On a computer, click the tune/lock icon in the address bar and set{' '}
-              <strong>Microphone</strong> to <strong>Allow</strong>. On Android, tap the tune/lock
-              icon → <strong>Permissions</strong> → <strong>Microphone</strong> → Allow (in the
-              installed app: long-press its icon → App info → Permissions). If Chrome itself lacks
-              mic access, enable it in Android Settings → Apps → Chrome → Permissions. Then press{' '}
+              <strong>Microphone Permission Blocked:</strong> the browser didn&apos;t allow the microphone. On a
+              computer, click the tune/lock icon in the address bar and set <strong>Microphone</strong> to{' '}
+              <strong>Allow</strong>. On Android, tap the tune/lock icon → <strong>Permissions</strong> →{' '}
+              <strong>Microphone</strong> → Allow (in the installed app: long-press its icon → App info → Permissions).
+              If Chrome itself lacks mic access, enable it in Android Settings → Apps → Chrome → Permissions. Then press{' '}
               <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
             </>
           )}
           {isEmbeddedIframe && (
             <span>
               {' '}
-              (Note: Microphones are often blocked inside embedded preview panes — open OverHeard in a full browser tab.)
+              (Note: Microphones are often blocked inside embedded preview panes — open OverHeard in a full browser
+              tab.)
             </span>
           )}
         </div>

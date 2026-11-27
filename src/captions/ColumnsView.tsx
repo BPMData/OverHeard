@@ -20,8 +20,17 @@ interface ColumnsViewProps {
 }
 
 export function ColumnsView({
-  selectedLangs, isListening, isDark, showPreviousLine, fontSize, currentSegment,
-  previousSegment, liveTranslations, interimTranscript, columnPlayback, speakColumnTranslation,
+  selectedLangs,
+  isListening,
+  isDark,
+  showPreviousLine,
+  fontSize,
+  currentSegment,
+  previousSegment,
+  liveTranslations,
+  interimTranscript,
+  columnPlayback,
+  speakColumnTranslation,
   stopColumnPlayback,
 }: ColumnsViewProps) {
   const previousFontSize = Math.max(16, Math.round(fontSize * 0.68));
@@ -29,8 +38,8 @@ export function ColumnsView({
     selectedLangs.length === 1
       ? 'grid-cols-1 lg:grid-cols-2'
       : selectedLangs.length === 2
-      ? 'grid-cols-1 lg:grid-cols-3'
-      : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
+        ? 'grid-cols-1 lg:grid-cols-3'
+        : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
 
   return (
     <main className="flex-1 p-4 lg:p-6 flex flex-col">
@@ -42,12 +51,8 @@ export function ColumnsView({
         >
           <div className="oh-panel-header flex items-center justify-between px-5 py-3 border-b border-[#CBD5E1] dark:border-[#243044] bg-[#F1F5F9] dark:bg-[#162033]">
             <div className="flex items-center gap-2.5">
-              <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
-                English
-              </span>
-              <span className="text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">
-                en-US · Teacher
-              </span>
+              <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">English</span>
+              <span className="text-xs font-medium text-[#64748B] dark:text-[#94A3B8]">en-US · Teacher</span>
             </div>
             {currentSegment && (
               <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
@@ -71,9 +76,7 @@ export function ColumnsView({
                     {previousSegment.english}
                   </p>
                 ) : (
-                  <p className="text-sm text-slate-400 dark:text-slate-600 italic">
-                    No preceding sentence yet
-                  </p>
+                  <p className="text-sm text-slate-400 dark:text-slate-600 italic">No preceding sentence yet</p>
                 )}
               </div>
             )}
@@ -81,10 +84,7 @@ export function ColumnsView({
             {/* Current Line + Dimmed Live Interim Speech */}
             <div className="flex-1 flex flex-col justify-center space-y-4">
               {currentSegment ? (
-                <p
-                  style={{ fontSize: `${fontSize}px` }}
-                  className="font-bold caption-text-ltr tracking-tight"
-                >
+                <p style={{ fontSize: `${fontSize}px` }} className="font-bold caption-text-ltr tracking-tight">
                   <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
                     {currentSegment.english}
                   </CaptionText>
@@ -101,7 +101,8 @@ export function ColumnsView({
                         : 'Press Start Listening (or Spacebar) to begin live classroom captions.'}
                     </p>
                     <p className="text-xs sm:text-sm text-[#64748B] dark:text-[#94A3B8]">
-                      Want to test silently first? Click <strong>Test Input</strong> in the top bar to try sample Science, Math, or History sentences.
+                      Want to test silently first? Click <strong>Test Input</strong> in the top bar to try sample
+                      Science, Math, or History sentences.
                     </p>
                   </div>
                 )
@@ -113,10 +114,7 @@ export function ColumnsView({
                   <span className="inline-block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5843A5] dark:text-[#C4B5FD] mb-1">
                     Speaking live…
                   </span>
-                  <p
-                    style={{ fontSize: `${fontSize}px` }}
-                    className="font-semibold italic opacity-70 caption-text-ltr"
-                  >
+                  <p style={{ fontSize: `${fontSize}px` }} className="font-semibold italic opacity-70 caption-text-ltr">
                     <CaptionText color={ENGLISH_CAPTION_COLOR} isDark={isDark}>
                       {interimTranscript}
                     </CaptionText>
@@ -134,8 +132,7 @@ export function ColumnsView({
           const captionColor = languageCaptionColor(langIndex);
           const prevText = previousSegment?.translations[code];
           const currText = currentSegment?.translations[code];
-          const isTranslating =
-            currentSegment?.status === 'translating' && !currText;
+          const isTranslating = currentSegment?.status === 'translating' && !currText;
           const isUnavailable = currText === 'translation unavailable';
           const canPlay = Boolean(currText && !isTranslating && !isUnavailable);
           const isThisColActive = columnPlayback?.code === code;
@@ -152,11 +149,7 @@ export function ColumnsView({
                   <span className="text-base font-bold tracking-tight text-[#0F172A] dark:text-[#F8FAFC]">
                     {lang.name}
                   </span>
-                  <span
-                    dir={lang.dir}
-                    lang={lang.code}
-                    className="text-xs text-[#64748B] dark:text-[#94A3B8]"
-                  >
+                  <span dir={lang.dir} lang={lang.code} className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                     {lang.nativeName}
                     {isRtl ? ' · RTL' : ''}
                   </span>
@@ -170,9 +163,7 @@ export function ColumnsView({
                       else if (currText) speakColumnTranslation(code, currText);
                     }}
                     aria-label={
-                      isThisColActive
-                        ? `Stop reading ${lang.name} translation`
-                        : `Read ${lang.name} translation aloud`
+                      isThisColActive ? `Stop reading ${lang.name} translation` : `Read ${lang.name} translation aloud`
                     }
                     title={
                       isThisColActive
@@ -190,9 +181,7 @@ export function ColumnsView({
                     {isThisColActive ? (
                       <>
                         <Square className="w-3 h-3" />
-                        <span>
-                          {columnPlayback.status === 'downloading' ? 'Loading…' : 'Stop'}
-                        </span>
+                        <span>{columnPlayback.status === 'downloading' ? 'Loading…' : 'Stop'}</span>
                       </>
                     ) : (
                       <>
@@ -201,17 +190,11 @@ export function ColumnsView({
                       </>
                     )}
                   </button>
-                  <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">
-                    {code}
-                  </span>
+                  <span className="text-xs font-mono text-[#64748B] dark:text-[#94A3B8]">{code}</span>
                 </div>
               </div>
 
-              <div
-                dir={lang.dir}
-                lang={lang.code}
-                className="flex-1 flex flex-col justify-between p-6 lg:p-8 gap-6"
-              >
+              <div dir={lang.dir} lang={lang.code} className="flex-1 flex flex-col justify-between p-6 lg:p-8 gap-6">
                 {/* Previous Translated Line */}
                 {showPreviousLine && (
                   <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
@@ -228,16 +211,10 @@ export function ColumnsView({
                           isRtl ? 'caption-text-rtl' : 'caption-text-ltr'
                         }`}
                       >
-                        {prevText ||
-                          (previousSegment.status === 'translating'
-                            ? '…'
-                            : 'translation unavailable')}
+                        {prevText || (previousSegment.status === 'translating' ? '…' : 'translation unavailable')}
                       </p>
                     ) : (
-                      <p
-                        dir="ltr"
-                        className="text-sm text-slate-400 dark:text-slate-600 italic"
-                      >
+                      <p dir="ltr" className="text-sm text-slate-400 dark:text-slate-600 italic">
                         No preceding sentence yet
                       </p>
                     )}
@@ -255,18 +232,13 @@ export function ColumnsView({
                         Translating…
                       </p>
                     ) : isUnavailable ? (
-                      <p
-                        dir="ltr"
-                        className="text-lg font-medium text-amber-600 dark:text-amber-400 italic"
-                      >
+                      <p dir="ltr" className="text-lg font-medium text-amber-600 dark:text-amber-400 italic">
                         translation unavailable
                       </p>
                     ) : (
                       <p
                         style={{ fontSize: `${fontSize}px` }}
-                        className={`font-bold tracking-tight ${
-                          isRtl ? 'caption-text-rtl' : 'caption-text-ltr'
-                        }`}
+                        className={`font-bold tracking-tight ${isRtl ? 'caption-text-rtl' : 'caption-text-ltr'}`}
                       >
                         <CaptionText color={captionColor} isDark={isDark}>
                           {currText}
@@ -274,10 +246,7 @@ export function ColumnsView({
                       </p>
                     )
                   ) : (
-                    <p
-                      dir="ltr"
-                      className="text-base text-slate-400 dark:text-slate-600"
-                    >
+                    <p dir="ltr" className="text-base text-slate-400 dark:text-slate-600">
                       {lang.name} translation will appear here as each sentence completes.
                     </p>
                   )}

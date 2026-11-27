@@ -20,14 +20,8 @@ beforeEach(() => {
 
 describe('Piper voice catalog and preferences', () => {
   it('contains the curated Spanish, Brazilian Portuguese, and US/UK English voices', () => {
-    expect(voicesForLanguage('es').map((v) => v.id)).toEqual([
-      'es_MX-claude-high',
-      'es_MX-ald-medium',
-    ]);
-    expect(voicesForLanguage('pt').map((v) => v.id)).toEqual([
-      'pt_BR-faber-medium',
-      'pt_BR-cadu-medium',
-    ]);
+    expect(voicesForLanguage('es').map((v) => v.id)).toEqual(['es_MX-claude-high', 'es_MX-ald-medium']);
+    expect(voicesForLanguage('pt').map((v) => v.id)).toEqual(['pt_BR-faber-medium', 'pt_BR-cadu-medium']);
     expect(voicesForLanguage('en').map((v) => v.id)).toEqual([
       'en_US-hfc_female-medium',
       'en_US-kristin-medium',
@@ -40,22 +34,10 @@ describe('Piper voice catalog and preferences', () => {
       'en_GB-semaine-medium:1',
       'en_GB-semaine-medium:2',
     ]);
-    expect(voicesForLanguage('vi').map((v) => v.id)).toEqual([
-      'vi_VN-vais1000-medium',
-      'vi_VN-25hours_single-low',
-    ]);
-    expect(voicesForLanguage('hi').map((v) => v.id)).toEqual([
-      'hi_IN-priyamvada-medium',
-      'hi_IN-pratham-medium',
-    ]);
-    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual([
-      'bn_BD-google-medium:0',
-      'bn_BD-google-medium:3',
-    ]);
-    expect(voicesForLanguage('ur').map((v) => v.id)).toEqual([
-      'ur_PK-aegis_female-medium',
-      'ur_PK-fasih-medium',
-    ]);
+    expect(voicesForLanguage('vi').map((v) => v.id)).toEqual(['vi_VN-vais1000-medium', 'vi_VN-25hours_single-low']);
+    expect(voicesForLanguage('hi').map((v) => v.id)).toEqual(['hi_IN-priyamvada-medium', 'hi_IN-pratham-medium']);
+    expect(voicesForLanguage('bn').map((v) => v.id)).toEqual(['bn_BD-google-medium:0', 'bn_BD-google-medium:3']);
+    expect(voicesForLanguage('ur').map((v) => v.id)).toEqual(['ur_PK-aegis_female-medium', 'ur_PK-fasih-medium']);
     expect(voicesForLanguage('id').map((v) => v.id)).toEqual(['mms-tts-ind', 'id_ID-news_tts-medium']);
     expect(voicesForLanguage('sw').map((v) => v.id)).toEqual(['mms-tts-swh']);
     expect(voicesForLanguage('tr').map((v) => v.id)).toEqual(['mms-tts-tur', 'tr_TR-dfki-medium']);
@@ -91,8 +73,8 @@ describe('Piper voice catalog and preferences', () => {
       hfPath: 'pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx',
       useRhasspyRepo: true,
     });
-    for (const voice of PIPER_VOICES.filter((v) =>
-      ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang) && v.engine !== 'mms'
+    for (const voice of PIPER_VOICES.filter(
+      (v) => ['vi', 'hi', 'bn', 'ur', 'id', 'sw', 'tr', 'zh'].includes(v.lang) && v.engine !== 'mms'
     )) {
       // These models are newer than the default mirror, so they load from rhasspy.
       expect(voice.useRhasspyRepo).toBe(true);
@@ -130,7 +112,7 @@ describe('Piper voice catalog and preferences', () => {
     expect(resolveVoiceId('en', { en: 'en_US-hifi_tts-low:0' })).toBe(DEFAULT_PIPER_VOICE_ID.en);
     localStorage.setItem(
       VOICE_PREFS_STORAGE_KEY,
-      JSON.stringify({ en: 'en_US-hifi_tts-low:0', es: 'es_MX-ald-medium' }),
+      JSON.stringify({ en: 'en_US-hifi_tts-low:0', es: 'es_MX-ald-medium' })
     );
     expect(loadVoicePreferences()).toEqual({ es: 'es_MX-ald-medium' });
   });
@@ -211,7 +193,11 @@ describe('Meta MMS voices', () => {
     const mms = PIPER_VOICES.filter((voice) => voiceEngine(voice) === 'mms');
     expect(mms.map((voice) => voice.mmsIso3)).toEqual(['ind', 'swh', 'tur', 'hat', 'som']);
     for (const voice of mms) {
-      expect(voice).toMatchObject({ id: `mms-tts-${voice.mmsIso3}`, modelId: `mms-tts-${voice.mmsIso3}`, gender: 'male' });
+      expect(voice).toMatchObject({
+        id: `mms-tts-${voice.mmsIso3}`,
+        modelId: `mms-tts-${voice.mmsIso3}`,
+        gender: 'male',
+      });
       expect(voice.label).toContain('Meta MMS');
       expect(voiceDownloadLabel(voice.id)).toBe('28 MB');
       const file = voice.mmsIso3 === 'ind' ? 'model_quantized_rate088.onnx' : 'model_quantized.onnx';

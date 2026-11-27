@@ -15,7 +15,10 @@ function mockServer({ automatic = true, report }: { automatic?: boolean; report?
   return vi.fn(async (url: string | URL | Request) => {
     if (String(url) === '/api/report/status') return json({ automatic, appVersion: 'over-heard-00042' });
     if (typeof report === 'function') return report();
-    return report ?? json({ ok: true, issueUrl: 'https://github.com/BPMData/overheard/issues/90', issueNumber: 90, emailed: true });
+    return (
+      report ??
+      json({ ok: true, issueUrl: 'https://github.com/BPMData/overheard/issues/90', issueNumber: 90, emailed: true })
+    );
   });
 }
 
@@ -73,7 +76,11 @@ describe('ProblemReportModal', () => {
 
   it('shows exactly what will be public and keeps private fields apart', async () => {
     render(<ProblemReportModal onClose={() => {}} fetchImpl={mockServer()} />);
-    await fillAndReview({ summary: 'Stopped. Write me at me@school.org', comments: 'My period 3 class', contact: 'me@school.org' });
+    await fillAndReview({
+      summary: 'Stopped. Write me at me@school.org',
+      comments: 'My period 3 class',
+      contact: 'me@school.org',
+    });
 
     const publicPart = screen.getByRole('region', { name: /Public on GitHub/ });
     const privatePart = screen.getByRole('region', { name: /Private/ });
@@ -110,7 +117,12 @@ describe('ProblemReportModal', () => {
   });
 
   it('falls back to sending it another way when the server fails', async () => {
-    render(<ProblemReportModal onClose={() => {}} fetchImpl={mockServer({ report: json({ ok: false, reason: 'delivery-failed' }, 502) })} />);
+    render(
+      <ProblemReportModal
+        onClose={() => {}}
+        fetchImpl={mockServer({ report: json({ ok: false, reason: 'delivery-failed' }, 502) })}
+      />
+    );
     await fillAndReview();
     fireEvent.click(await screen.findByLabelText(/I checked this/));
     fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
@@ -120,7 +132,12 @@ describe('ProblemReportModal', () => {
   });
 
   it('says when private details did not reach the inbox even though the issue was filed', async () => {
-    const report = json({ ok: true, issueUrl: 'https://github.com/BPMData/overheard/issues/91', issueNumber: 91, emailed: false });
+    const report = json({
+      ok: true,
+      issueUrl: 'https://github.com/BPMData/overheard/issues/91',
+      issueNumber: 91,
+      emailed: false,
+    });
     render(<ProblemReportModal onClose={() => {}} fetchImpl={mockServer({ report })} />);
     await fillAndReview({ contact: 'me@school.org' });
     fireEvent.click(await screen.findByLabelText(/I checked this/));

@@ -44,28 +44,33 @@ export function createDeviceFirstTranslator() {
   function queueCheck(pair: Pair, target: ConversationLanguage, source: ConversationLanguage) {
     const key = source + '>' + target;
     if (pair.timer !== undefined || pair.checking || pairs.get(key) !== pair) return;
-    pair.timer = setTimeout(async () => {
-      pair.timer = undefined;
-      pair.checking = true;
-      try {
-        if (await rejectAfter(getOnDeviceAvailability(target, source), AUTO_ON_DEVICE_TIMEOUT_MS) === 'available') {
-          for (const sample of samples[source]) {
-            if (pairs.get(key) !== pair) return;
-            const value = await translateOnDevice(sample, target, source, AUTO_ON_DEVICE_TIMEOUT_MS, { waitForSetup: false });
-            if (!value.trim()) return;
+    pair.timer = setTimeout(
+      async () => {
+        pair.timer = undefined;
+        pair.checking = true;
+        try {
+          if ((await rejectAfter(getOnDeviceAvailability(target, source), AUTO_ON_DEVICE_TIMEOUT_MS)) === 'available') {
+            for (const sample of samples[source]) {
+              if (pairs.get(key) !== pair) return;
+              const value = await translateOnDevice(sample, target, source, AUTO_ON_DEVICE_TIMEOUT_MS, {
+                waitForSetup: false,
+              });
+              if (!value.trim()) return;
+            }
+            pair.recovering = false;
           }
-          pair.recovering = false;
+        } catch {
+          // Continue serving captions online until a full local check succeeds.
+        } finally {
+          pair.checking = false;
+          pair.nextCheck = Date.now() + RECOVERY_INTERVAL_MS;
+          if (pair.recovering && Date.now() - pair.lastUsed < RECOVERY_INTERVAL_MS) {
+            queueCheck(pair, target, source);
+          }
         }
-      } catch {
-        // Continue serving captions online until a full local check succeeds.
-      } finally {
-        pair.checking = false;
-        pair.nextCheck = Date.now() + RECOVERY_INTERVAL_MS;
-        if (pair.recovering && Date.now() - pair.lastUsed < RECOVERY_INTERVAL_MS) {
-          queueCheck(pair, target, source);
-        }
-      }
-    }, Math.max(0, pair.nextCheck - Date.now()));
+      },
+      Math.max(0, pair.nextCheck - Date.now())
+    );
   }
 
   // Share one grace period across captions for a downloading pair. Once it expires,
@@ -73,7 +78,7 @@ export function createDeviceFirstTranslator() {
   async function waitForDownload(key: string, pair: Pair, target: ConversationLanguage, source: ConversationLanguage) {
     const deadline = Date.now() + DOWNLOAD_GRACE_MS;
     while (pairs.get(key) === pair && Date.now() < deadline) {
-      await new Promise(resolve => setTimeout(resolve, Math.min(500, deadline - Date.now())));
+      await new Promise((resolve) => setTimeout(resolve, Math.min(500, deadline - Date.now())));
       const remaining = Math.max(0, deadline - Date.now());
       const status = await rejectAfter(getOnDeviceAvailability(target, source), remaining);
       if (status !== 'downloading') return status === 'available';
@@ -81,7 +86,13 @@ export function createDeviceFirstTranslator() {
     return false;
   }
 
-  async function tryPair(pair: Pair, key: string, text: string, target: ConversationLanguage, source: ConversationLanguage) {
+  async function tryPair(
+    pair: Pair,
+    key: string,
+    text: string,
+    target: ConversationLanguage,
+    source: ConversationLanguage
+  ) {
     if (pair.recovering) {
       // Resume checks immediately if this pair has been idle since the last one.
       queueCheck(pair, target, source);
@@ -91,7 +102,7 @@ export function createDeviceFirstTranslator() {
       const status = await rejectAfter(getOnDeviceAvailability(target, source), AUTO_ON_DEVICE_TIMEOUT_MS);
       if (status === 'downloading') {
         pair.download ??= waitForDownload(key, pair, target, source);
-        if (!await pair.download) return null;
+        if (!(await pair.download)) return null;
       } else {
         pair.download = undefined;
         if (status !== 'available') return null;

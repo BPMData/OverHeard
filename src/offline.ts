@@ -3,8 +3,7 @@
 import type { MtPreference } from './app/settings';
 
 /** True only when the browser knows it has no network at all. */
-export const isOffline = (): boolean =>
-  typeof navigator !== 'undefined' && navigator.onLine === false;
+export const isOffline = (): boolean => typeof navigator !== 'undefined' && navigator.onLine === false;
 
 /**
  * How speech should pick where it runs: always on this device, never, or only while offline.

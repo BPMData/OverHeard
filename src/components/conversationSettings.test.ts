@@ -31,7 +31,7 @@ describe('conversation settings', () => {
   it('survives blocked storage and validates stored settings', () => {
     localStorage.setItem(
       'overheard.conversation',
-      JSON.stringify({ a: { lang: 'xx' }, switchAfterMs: 42, placement: 'anything', layout: 'up' }),
+      JSON.stringify({ a: { lang: 'xx' }, switchAfterMs: 42, placement: 'anything', layout: 'up' })
     );
     expect(loadConversationSettings().layout).toBe('side-by-side');
     expect(loadConversationSettings().a.lang).toBe('en');
@@ -83,7 +83,7 @@ describe('conversation settings', () => {
       timestamp: reply.timestamp,
     });
     expect(() => parseConversationJson('{"wrong":true}', participants)).toThrow(
-      'Choose an OverHeard conversation JSON file (version 1).',
+      'Choose an OverHeard conversation JSON file (version 1).'
     );
   });
 });

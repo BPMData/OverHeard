@@ -7,11 +7,7 @@ export interface RateLimiter {
   prune(): void;
 }
 
-export function createRateLimiter(
-  maxRequests: number,
-  windowMs: number,
-  now: () => number = Date.now
-): RateLimiter {
+export function createRateLimiter(maxRequests: number, windowMs: number, now: () => number = Date.now): RateLimiter {
   const bucket = new Map<string, number[]>();
   return {
     isLimited(ip) {

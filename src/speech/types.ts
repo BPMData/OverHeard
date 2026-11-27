@@ -29,10 +29,7 @@ declare global {
     SpeechRecognition?: new () => SpeechRecognitionInstance;
     webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
     documentPictureInPicture?: {
-      requestWindow: (options?: {
-        width?: number;
-        height?: number;
-      }) => Promise<Window>;
+      requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
       window?: Window | null;
     };
   }

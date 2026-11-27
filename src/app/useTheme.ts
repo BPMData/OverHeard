@@ -9,12 +9,10 @@ export function useTheme(pipWindow: Window | null) {
     const root = document.documentElement;
     if (isDark) {
       root.classList.add('dark');
-      document.body.className =
-        'bg-[#090D16] text-[#F8FAFC] antialiased selection:bg-[#5843A5]/35';
+      document.body.className = 'bg-[#090D16] text-[#F8FAFC] antialiased selection:bg-[#5843A5]/35';
     } else {
       root.classList.remove('dark');
-      document.body.className =
-        'bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#5843A5]/20';
+      document.body.className = 'bg-[#F8FAFC] text-[#0F172A] antialiased selection:bg-[#5843A5]/20';
     }
   }, [isDark, pipWindow]);
 

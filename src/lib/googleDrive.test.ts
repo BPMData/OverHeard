@@ -75,7 +75,7 @@ describe('googleDrive helpers', () => {
     setRoomDriveSave(
       'room-1',
       { id: 'f-a', name: 'day1.json', folderId: 'folder-a', folderName: 'Period 1' },
-      teacherA,
+      teacherA
     );
 
     expect(getLastDriveFolder(teacherA)).toEqual({ id: 'folder-a', name: 'Period 1' });
@@ -92,13 +92,13 @@ describe('googleDrive helpers', () => {
         new Response(JSON.stringify({ files: [] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        }),
+        })
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ id: 'new-folder-id', name: DEFAULT_DRIVE_FOLDER_NAME }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
-        }),
+        })
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -123,7 +123,7 @@ describe('googleDrive helpers', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ files: [] }), { status: 200 }))
       // 2) Folder create -> OverHeard Saves
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 'folder-oh', name: 'OverHeard Saves' }), { status: 200 }),
+        new Response(JSON.stringify({ id: 'folder-oh', name: 'OverHeard Saves' }), { status: 200 })
       )
       // 3) File upload POST
       .mockResolvedValueOnce(
@@ -133,20 +133,17 @@ describe('googleDrive helpers', () => {
             name: 'Bio Lecture.json',
             webViewLink: 'https://drive.google.com/file/d/drive-file-1/view',
           }),
-          { status: 200 },
-        ),
+          { status: 200 }
+        )
       )
       // 4) Update PATCH
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ id: 'drive-file-1', name: 'Bio Lecture.json' }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify({ id: 'drive-file-1', name: 'Bio Lecture.json' }), { status: 200 })
       )
       // 5) Update PATCH -> 404 (deleted in Drive), then 6) fallback POST
       .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'Not found' } }), { status: 404 }))
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: 'drive-file-2', name: 'Bio Lecture.json' }), { status: 200 }),
+        new Response(JSON.stringify({ id: 'drive-file-2', name: 'Bio Lecture.json' }), { status: 200 })
       );
     vi.stubGlobal('fetch', fetchMock);
 
@@ -190,8 +187,8 @@ describe('googleDrive helpers', () => {
       vi.fn().mockResolvedValueOnce(
         new Response(JSON.stringify({ id: 'big-1', name: 'huge.json', size: String(9 * 1024 * 1024) }), {
           status: 200,
-        }),
-      ),
+        })
+      )
     );
     await expect(downloadDriveJsonFile('big-1')).rejects.toThrow(/8 MB/);
 
@@ -227,8 +224,12 @@ describe('googleDrive helpers', () => {
           Action: { PICKED: 'picked', CANCEL: 'cancel' },
           ViewId: { DOCS: 'docs', FOLDERS: 'folders' },
           DocsView: class {
-            setMimeTypes() { return this; }
-            setIncludeFolders() { return this; }
+            setMimeTypes() {
+              return this;
+            }
+            setIncludeFolders() {
+              return this;
+            }
             setSelectFolderEnabled(v: boolean) {
               setSelectFolderEnabled(v);
               return this;
@@ -236,15 +237,25 @@ describe('googleDrive helpers', () => {
           },
           PickerBuilder: class {
             private cb: ((data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) | null = null;
-            addView() { return this; }
-            setOAuthToken() { return this; }
-            setDeveloperKey() { return this; }
-            setAppId() { return this; }
+            addView() {
+              return this;
+            }
+            setOAuthToken() {
+              return this;
+            }
+            setDeveloperKey() {
+              return this;
+            }
+            setAppId() {
+              return this;
+            }
             setOrigin(origin: string) {
               setOrigin(origin);
               return this;
             }
-            setTitle() { return this; }
+            setTitle() {
+              return this;
+            }
             setCallback(cb: (data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) {
               this.cb = cb;
               return this;

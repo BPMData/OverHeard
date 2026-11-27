@@ -22,10 +22,8 @@ function sanitizeEntries(raw: unknown): RoomHistoryEntry[] {
     if (!validRoomCode(code)) continue;
     const createdAtRaw = (item as { createdAt?: unknown }).createdAt;
     const lastUsedAtRaw = (item as { lastUsedAt?: unknown }).lastUsedAt;
-    const lastUsedAt =
-      typeof lastUsedAtRaw === 'number' && Number.isFinite(lastUsedAtRaw) ? lastUsedAtRaw : Date.now();
-    const createdAt =
-      typeof createdAtRaw === 'number' && Number.isFinite(createdAtRaw) ? createdAtRaw : lastUsedAt;
+    const lastUsedAt = typeof lastUsedAtRaw === 'number' && Number.isFinite(lastUsedAtRaw) ? lastUsedAtRaw : Date.now();
+    const createdAt = typeof createdAtRaw === 'number' && Number.isFinite(createdAtRaw) ? createdAtRaw : lastUsedAt;
     const prev = byCode.get(code);
     if (!prev || lastUsedAt > prev.lastUsedAt) {
       byCode.set(code, {
@@ -35,9 +33,7 @@ function sanitizeEntries(raw: unknown): RoomHistoryEntry[] {
       });
     }
   }
-  return [...byCode.values()]
-    .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
-    .slice(0, MAX_ROOM_HISTORY);
+  return [...byCode.values()].sort((a, b) => b.lastUsedAt - a.lastUsedAt).slice(0, MAX_ROOM_HISTORY);
 }
 
 function saveRoomHistory(entries: RoomHistoryEntry[]): void {
@@ -68,10 +64,7 @@ export function recordRoomHistory(rawCode: string, now = Date.now()): RoomHistor
     createdAt: existing?.createdAt ?? now,
     lastUsedAt: now,
   };
-  const updated = [nextEntry, ...current.filter((entry) => entry.code !== code)].slice(
-    0,
-    MAX_ROOM_HISTORY,
-  );
+  const updated = [nextEntry, ...current.filter((entry) => entry.code !== code)].slice(0, MAX_ROOM_HISTORY);
   saveRoomHistory(updated);
   return updated;
 }
@@ -84,9 +77,7 @@ export function clearRoomHistory(): void {
   }
 }
 
-export async function checkRoomLiveStatus(
-  rawCode: string,
-): Promise<Exclude<RoomLiveStatus, 'checking'>> {
+export async function checkRoomLiveStatus(rawCode: string): Promise<Exclude<RoomLiveStatus, 'checking'>> {
   const code = normalizeRoomCode(rawCode);
   if (!validRoomCode(code)) return 'expired';
   try {

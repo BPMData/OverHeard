@@ -11,7 +11,5 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
 /** The rate-limit key for a request: its session ID if valid, otherwise its IP. */
 export function sessionKey(header: unknown, ip: string): string {
   const value = Array.isArray(header) ? header[0] : header;
-  return typeof value === 'string' && SESSION_ID_PATTERN.test(value)
-    ? `s:${value}`
-    : `ip:${ip}`;
+  return typeof value === 'string' && SESSION_ID_PATTERN.test(value) ? `s:${value}` : `ip:${ip}`;
 }

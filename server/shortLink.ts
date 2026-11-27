@@ -9,9 +9,12 @@ const PRODUCTION_SHORT_LINK_BASE = 'https://bpmdata.github.io';
  * production Cloud Run service uses the GitHub Pages address.
  */
 export function shortLinkBase(env: Record<string, string | undefined> = process.env): string | null {
-  const raw = env.SHORT_LINK_BASE !== undefined
-    ? env.SHORT_LINK_BASE.trim()
-    : env.K_SERVICE === PRODUCTION_SERVICE ? PRODUCTION_SHORT_LINK_BASE : '';
+  const raw =
+    env.SHORT_LINK_BASE !== undefined
+      ? env.SHORT_LINK_BASE.trim()
+      : env.K_SERVICE === PRODUCTION_SERVICE
+        ? PRODUCTION_SHORT_LINK_BASE
+        : '';
   if (!raw) return null;
   try {
     const url = new URL(raw);

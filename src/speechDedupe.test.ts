@@ -53,7 +53,6 @@ describe('corrections to an earlier word', () => {
     next('hello there my friend');
     expect(next('how are you')).toBe('how are you');
   });
-
 });
 
 describe('stripEcho', () => {

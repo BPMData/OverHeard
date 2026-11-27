@@ -6,7 +6,14 @@ import { ChevronDown } from 'lucide-react';
  * file picker or Drive picker started from inside it survives the panel closing.
  */
 export function DropdownMenu({
-  label, icon, title, children, closeOnClick = true, align = 'left', panelLabel, ariaLabel,
+  label,
+  icon,
+  title,
+  children,
+  closeOnClick = true,
+  align = 'left',
+  panelLabel,
+  ariaLabel,
 }: {
   label: ReactNode;
   ariaLabel?: string;
@@ -57,9 +64,13 @@ export function DropdownMenu({
         hidden={!open}
         role="group"
         aria-label={panelLabel}
-        onClick={closeOnClick ? (event) => {
-          if ((event.target as HTMLElement).closest('button')) setOpen(false);
-        } : undefined}
+        onClick={
+          closeOnClick
+            ? (event) => {
+                if ((event.target as HTMLElement).closest('button')) setOpen(false);
+              }
+            : undefined
+        }
       >
         {children}
       </div>

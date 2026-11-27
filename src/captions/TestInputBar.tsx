@@ -11,14 +11,15 @@ interface TestInputBarProps {
 }
 
 export function TestInputBar({
-  manualInput, handleManualSubmit, setManualInput, handleFinalizedPhrase, handleBurstTest,
+  manualInput,
+  handleManualSubmit,
+  setManualInput,
+  handleFinalizedPhrase,
+  handleBurstTest,
 }: TestInputBarProps) {
   return (
     <div className="mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#1E293B] flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-      <form
-        onSubmit={handleManualSubmit}
-        className="flex-1 flex items-center gap-2"
-      >
+      <form onSubmit={handleManualSubmit} className="flex-1 flex items-center gap-2">
         <input
           type="text"
           value={manualInput}
@@ -38,9 +39,7 @@ export function TestInputBar({
       </form>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-[#64748B] dark:text-[#94A3B8] mr-1">
-          Samples:
-        </span>
+        <span className="text-xs text-[#64748B] dark:text-[#94A3B8] mr-1">Samples:</span>
         {SAMPLE_SENTENCES.map((sample) => (
           <button
             key={sample.subject}

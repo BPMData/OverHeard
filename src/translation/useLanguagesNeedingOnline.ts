@@ -16,7 +16,12 @@ export const fromEnglish = (langs: readonly LanguageCode[]): LanguagePair[] =>
 
 /** Both directions of a two-way conversation. */
 export const bothWays = (a: ConversationLanguage, b: ConversationLanguage): LanguagePair[] =>
-  a === b ? [] : [{ source: a, target: b }, { source: b, target: a }];
+  a === b
+    ? []
+    : [
+        { source: a, target: b },
+        { source: b, target: a },
+      ];
 
 /**
  * Languages that "Only on this device" can't translate here, so the page can say why their
@@ -42,9 +47,9 @@ export function useLanguagesNeedingOnline(pairs: readonly LanguagePair[], active
         const named = (target === 'en' ? source : target) as LanguageCode;
         return rejectAfter(getOnDeviceAvailability(target, source), ON_DEVICE_TIMEOUT_MS).then(
           (status) => (status === 'unavailable' ? named : null),
-          () => (hasBergamotModel(target, source) || hasOnDeviceWorked(target, source) ? null : named),
+          () => (hasBergamotModel(target, source) || hasOnDeviceWorked(target, source) ? null : named)
         );
-      }),
+      })
     ).then((results) => {
       if (cancelled) return;
       const found = results.filter((lang): lang is LanguageCode => lang !== null && lang in LANGUAGE_MAP);
@@ -68,7 +73,7 @@ export const STUDENTS_STILL_TRANSLATE =
  */
 export function needOnlineText(
   langs: readonly LanguageCode[],
-  { rooms = false }: { rooms?: boolean } = {},
+  { rooms = false }: { rooms?: boolean } = {}
 ): { names: string; label: string; title: string } {
   const names = langs.map((lang) => LANGUAGE_MAP[lang].name).join(', ');
   const many = langs.length > 1;

@@ -171,17 +171,19 @@ export const StorageManager: React.FC<StorageManagerProps> = ({ isDark, categori
           <h3 id="storage-title">Space used on this device</h3>
         </div>
         <p className={`text-sm ${muted}`} aria-live="polite">
-          {loading && allItems.length === 0
-            ? 'Checking…'
-            : overall.bytes > 0
-              ? <>Downloads from OverHeard take up <strong>{sizeText(overall.bytes, overall.approximate)}</strong>
-                  {overall.unknown > 0 ? ', plus Chrome language packs (size not reported)' : ''}.</>
-              : overall.unknown > 0
-                ? 'Only Chrome language packs are downloaded (Chrome doesn’t report their size).'
-                : 'Nothing is downloaded yet.'}
-          {site && site.usage > 0 && (
-            <> Chrome reports {formatBytes(site.usage)} used by this site in total.</>
+          {loading && allItems.length === 0 ? (
+            'Checking…'
+          ) : overall.bytes > 0 ? (
+            <>
+              Downloads from OverHeard take up <strong>{sizeText(overall.bytes, overall.approximate)}</strong>
+              {overall.unknown > 0 ? ', plus Chrome language packs (size not reported)' : ''}.
+            </>
+          ) : overall.unknown > 0 ? (
+            'Only Chrome language packs are downloaded (Chrome doesn’t report their size).'
+          ) : (
+            'Nothing is downloaded yet.'
           )}
+          {site && site.usage > 0 && <> Chrome reports {formatBytes(site.usage)} used by this site in total.</>}
         </p>
       </div>
 
@@ -273,13 +275,19 @@ export const StorageManager: React.FC<StorageManagerProps> = ({ isDark, categori
             {!category.removeAll && category.cannotRemoveNote && items.length > 0 && (
               <div
                 className={`p-2.5 rounded-[2px] border text-xs space-y-2 ${
-                  isDark ? 'border-amber-500/40 bg-amber-500/10 text-amber-100' : 'border-amber-600/40 bg-amber-50 text-amber-950'
+                  isDark
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-100'
+                    : 'border-amber-600/40 bg-amber-50 text-amber-950'
                 }`}
               >
                 <p>{category.cannotRemoveNote}</p>
                 {category.cannotRemoveNote.includes(CHROME_PACKS_PAGE) && (
                   <button type="button" className={smallBtn} onClick={() => void copyChromeAddress()}>
-                    {copied ? <Check className="w-3 h-3" aria-hidden="true" /> : <Copy className="w-3 h-3" aria-hidden="true" />}
+                    {copied ? (
+                      <Check className="w-3 h-3" aria-hidden="true" />
+                    ) : (
+                      <Copy className="w-3 h-3" aria-hidden="true" />
+                    )}
                     {copied ? 'Copied' : 'Copy Chrome address'}
                   </button>
                 )}

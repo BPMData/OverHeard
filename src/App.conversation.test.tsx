@@ -18,11 +18,7 @@ vi.mock('./components/ConversationMode', () => ({
     active: boolean;
     onExit: () => void;
     onHome?: () => void;
-    translate: (
-      text: string,
-      target: ConversationLanguage,
-      source?: ConversationLanguage,
-    ) => Promise<string>;
+    translate: (text: string, target: ConversationLanguage, source?: ConversationLanguage) => Promise<string>;
   }) =>
     active ? (
       <section aria-label="Conversation test surface">
@@ -76,12 +72,10 @@ beforeEach(() => {
       if (url === '/api/mt') {
         const body = JSON.parse(String(init?.body));
         mtCalls.push(body);
-        return new Response(
-          JSON.stringify({ translation: `${body.source}>${body.lang}`, provider: 'gtx' }),
-        );
+        return new Response(JSON.stringify({ translation: `${body.source}>${body.lang}`, provider: 'gtx' }));
       }
       return new Response(JSON.stringify({ providers: ['gtx'] }));
-    }),
+    })
   );
 });
 afterEach(() => {
@@ -189,7 +183,7 @@ describe('App conversation integration', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
       fireEvent.change(
         screen.getByPlaceholderText('Type an English classroom sentence to test translation silently…'),
-        { target: { value: 'Hello class' } },
+        { target: { value: 'Hello class' } }
       );
       fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
 
@@ -252,21 +246,17 @@ describe('App conversation integration', () => {
         urls.push(url);
         if (url === '/api/mt') {
           const body = JSON.parse(String(init?.body));
-          return new Response(
-            JSON.stringify({ translation: `${body.source}>${body.lang}`, provider: 'gtx' }),
-          );
+          return new Response(JSON.stringify({ translation: `${body.source}>${body.lang}`, provider: 'gtx' }));
         }
         return new Response(JSON.stringify({ providers: ['gtx'] }));
-      }),
+      })
     );
 
     render(<App />);
     await act(async () => {});
 
     fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
-    const input = screen.getByPlaceholderText(
-      'Type an English classroom sentence to test translation silently…',
-    );
+    const input = screen.getByPlaceholderText('Type an English classroom sentence to test translation silently…');
     fireEvent.change(input, { target: { value: 'First sentence' } });
     fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
     await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
@@ -281,13 +271,11 @@ describe('App conversation integration', () => {
   it('reads aloud and stops translated speech in Columns view using the selected voice', async () => {
     const stopMock = vi.fn();
     let callbacks: { onStart?: () => void; onEnd?: () => void } | undefined;
-    const speakSpy = vi
-      .spyOn(piperClient, 'speak')
-      .mockImplementation((_text, opts) => {
-        callbacks = opts;
-        opts.onStart?.();
-        return { pause: vi.fn(), resume: vi.fn(), stop: stopMock };
-      });
+    const speakSpy = vi.spyOn(piperClient, 'speak').mockImplementation((_text, opts) => {
+      callbacks = opts;
+      opts.onStart?.();
+      return { pause: vi.fn(), resume: vi.fn(), stop: stopMock };
+    });
     const unlockSpy = vi.spyOn(piperClient, 'unlockAudio').mockImplementation(() => {});
 
     try {
@@ -300,7 +288,7 @@ describe('App conversation integration', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test Input' }));
       fireEvent.change(
         screen.getByPlaceholderText('Type an English classroom sentence to test translation silently…'),
-        { target: { value: 'Hello class' } },
+        { target: { value: 'Hello class' } }
       );
       fireEvent.click(screen.getByRole('button', { name: 'Translate' }));
       await waitFor(() => expect(screen.getByText('en>es')).toBeTruthy());
@@ -311,7 +299,7 @@ describe('App conversation integration', () => {
       expect(unlockSpy).toHaveBeenCalledTimes(1);
       expect(speakSpy).toHaveBeenCalledWith(
         'en>es',
-        expect.objectContaining({ lang: 'es', voiceId: 'es_MX-ald-medium' }),
+        expect.objectContaining({ lang: 'es', voiceId: 'es_MX-ald-medium' })
       );
 
       const stopButton = screen.getByRole('button', { name: 'Stop reading Spanish translation' });

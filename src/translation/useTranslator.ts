@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  MT_CLIENT_CACHE_MAX, MT_PREFERENCE_STORAGE_KEY, MT_PROVIDER_LABELS,
-  ON_DEVICE_TIMEOUT_MS, mtCacheKey, overBy,
-  type MtPreference, type MtProviderId, type TranslatorId,
+  MT_CLIENT_CACHE_MAX,
+  MT_PREFERENCE_STORAGE_KEY,
+  MT_PROVIDER_LABELS,
+  ON_DEVICE_TIMEOUT_MS,
+  mtCacheKey,
+  overBy,
+  type MtPreference,
+  type MtProviderId,
+  type TranslatorId,
 } from '../app/settings';
 import { createTranslationCache } from './translationCache';
 import type { MtRequestBody, MtSuccessResponse } from './protocol';
@@ -50,7 +56,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       text: string,
       lang: ConversationLanguage,
       source: ConversationLanguage = 'en',
-      options: { live?: boolean } = {},
+      options: { live?: boolean } = {}
     ): Promise<string> => {
       if (source === lang) return Promise.resolve(text);
       const preference = mtPreferenceRef.current;
@@ -81,9 +87,7 @@ export function useTranslator(availableProviders: MtProviderId[]) {
             text,
             lang,
             source,
-            ...(preference === 'auto' || preference === 'on-device'
-              ? {}
-              : { provider: preference }),
+            ...(preference === 'auto' || preference === 'on-device' ? {} : { provider: preference }),
             ...(live ? { freeOnly: true } : {}),
           } satisfies MtRequestBody),
         });
@@ -131,8 +135,12 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       const run = () =>
         attempt().catch(async (error) => {
           // Throttled: retrying straight away would only add load
-          if (error instanceof RateLimitedError || (error instanceof DOMException && error.name === 'AbortError') ||
-              preference !== mtPreferenceRef.current) throw error;
+          if (
+            error instanceof RateLimitedError ||
+            (error instanceof DOMException && error.name === 'AbortError') ||
+            preference !== mtPreferenceRef.current
+          )
+            throw error;
           await new Promise((resolve) => setTimeout(resolve, 250));
           return attempt();
         });
@@ -147,15 +155,19 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       ? onDeviceSupported
         ? 'on-device'
         : 'auto'
-      : mtPreference !== 'auto' &&
-          availableProviders.length > 0 &&
-          !availableProviders.includes(mtPreference)
+      : mtPreference !== 'auto' && availableProviders.length > 0 && !availableProviders.includes(mtPreference)
         ? 'auto'
         : mtPreference;
 
   return {
-    fetchMT, mtPreference, effectiveMtPreference, setMtPreference,
-    mtPreferenceRef, onDeviceSupported, lastUsedProvider, lastTranslateMs,
+    fetchMT,
+    mtPreference,
+    effectiveMtPreference,
+    setMtPreference,
+    mtPreferenceRef,
+    onDeviceSupported,
+    lastUsedProvider,
+    lastTranslateMs,
     onDeviceFailing,
   };
 }

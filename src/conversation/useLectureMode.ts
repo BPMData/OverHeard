@@ -9,15 +9,9 @@ import {
 import { speechLocality } from '../offline';
 import type { ConversationLanguage, LanguageCode } from '../types';
 import type { LectureEntry } from './lectureState';
-import {
-  createLectureEntry,
-  lectureReducer,
-  loadLectureEntries,
-  saveLectureEntries,
-} from './lectureState';
+import { createLectureEntry, lectureReducer, loadLectureEntries, saveLectureEntries } from './lectureState';
 import { useLectureSpeech } from './useLectureSpeech';
 import { useLiveTranslations } from '../useLiveTranslations';
-
 
 export interface UseLectureModeOptions {
   active: boolean;
@@ -27,7 +21,7 @@ export interface UseLectureModeOptions {
     text: string,
     target: ConversationLanguage,
     source: ConversationLanguage,
-    options?: { live?: boolean },
+    options?: { live?: boolean }
   ) => Promise<string>;
   onStartAttempt?: () => void;
   onPermissionDenied: (reason?: MicBlock) => void;
@@ -49,14 +43,11 @@ export function useLectureMode({
   const inFlightRef = useRef<Set<string>>(new Set());
   const generation = useRef(0);
 
-  const addLine = useCallback(
-    (rawText: string) => {
-      const phrase = rawText.trim().slice(0, 500);
-      if (!phrase) return;
-      dispatch({ type: 'add', entry: createLectureEntry(phrase) });
-    },
-    [],
-  );
+  const addLine = useCallback((rawText: string) => {
+    const phrase = rawText.trim().slice(0, 500);
+    if (!phrase) return;
+    dispatch({ type: 'add', entry: createLectureEntry(phrase) });
+  }, []);
 
   const speech = useLectureSpeech({
     onFinal: addLine,
@@ -64,15 +55,10 @@ export function useLectureMode({
   });
   const translateLive = useCallback(
     (text: string, code: LanguageCode) => translate(text, code, 'en', { live: true }),
-    [translate],
+    [translate]
   );
   const lastEntryId = entries.length ? entries[entries.length - 1].id : '';
-  const liveTranslations = useLiveTranslations(
-    active ? speech.interim : '',
-    selectedLangs,
-    translateLive,
-    lastEntryId,
-  );
+  const liveTranslations = useLiveTranslations(active ? speech.interim : '', selectedLangs, translateLive, lastEntryId);
 
   // Persist finalized lecture entries locally in the browser until explicitly cleared
   useEffect(() => {
@@ -106,7 +92,7 @@ export function useLectureMode({
             if (generation.current !== startedGeneration) return;
             inFlightRef.current.delete(key);
             dispatch({ type: 'resolve', id: entry.id, lang: code, translation: null });
-          },
+          }
         );
       }
     }
@@ -122,16 +108,14 @@ export function useLectureMode({
       // Speech stays on Google's free service while online. Fetch the on-device pack during
       // this click (installs need one) so speech can switch over if the network drops.
       prepareOfflineSpeechIfTranslatorsReady(
-        isOnDeviceTranslationSupported()
-          ? selectedLangs.map((code) => ({ code, source: 'en' }))
-          : [],
+        isOnDeviceTranslationSupported() ? selectedLangs.map((code) => ({ code, source: 'en' })) : [],
         [{ key: 'speech', locale: 'en-US' }],
         onPackProgress
       );
     }
     withMicAccess(
       () => speech.start(speechLocality(mtPreference)),
-      (reason) => onPermissionDenied(reason),
+      (reason) => onPermissionDenied(reason)
     );
   }, [mtPreference, selectedLangs, onPackProgress, onStartAttempt, onPermissionDenied, speech]);
 
@@ -163,7 +147,7 @@ export function useLectureMode({
             })),
       });
     },
-    [speech.stop],
+    [speech.stop]
   );
 
   return {

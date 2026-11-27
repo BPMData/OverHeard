@@ -36,7 +36,7 @@ describe('DriveSaveModal', () => {
         onSwitchAccount={onSwitchAccount}
         onConfirm={onConfirm}
         onClose={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getByText('teacher@school.edu')).toBeTruthy();
@@ -70,7 +70,7 @@ describe('DriveSaveModal', () => {
         onSwitchAccount={onSwitchAccount}
         onConfirm={onConfirm}
         onClose={vi.fn()}
-      />,
+      />
     );
 
     expect(screen.getByRole('button', { name: /Update in Drive/i })).toBeTruthy();
@@ -107,21 +107,45 @@ describe('DriveLectureActions', () => {
         Action: { PICKED: 'picked', CANCEL: 'cancel' },
         ViewId: { DOCS: 'docs', FOLDERS: 'folders' },
         DocsView: class {
-          setMimeTypes() { return this; }
-          setIncludeFolders() { return this; }
-          setSelectFolderEnabled() { return this; }
-          setLabel() { return this; }
-          setOwnedByMe() { return this; }
-          setParent() { return this; }
+          setMimeTypes() {
+            return this;
+          }
+          setIncludeFolders() {
+            return this;
+          }
+          setSelectFolderEnabled() {
+            return this;
+          }
+          setLabel() {
+            return this;
+          }
+          setOwnedByMe() {
+            return this;
+          }
+          setParent() {
+            return this;
+          }
         },
         PickerBuilder: class {
           private cb: ((data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) | null = null;
-          addView() { return this; }
-          setOAuthToken() { return this; }
-          setDeveloperKey() { return this; }
-          setAppId() { return this; }
-          setOrigin() { return this; }
-          setTitle() { return this; }
+          addView() {
+            return this;
+          }
+          setOAuthToken() {
+            return this;
+          }
+          setDeveloperKey() {
+            return this;
+          }
+          setAppId() {
+            return this;
+          }
+          setOrigin() {
+            return this;
+          }
+          setTitle() {
+            return this;
+          }
           setCallback(cb: (data: { action: string; docs?: Array<{ id: string; name?: string }> }) => void) {
             this.cb = cb;
             return this;
@@ -145,7 +169,7 @@ describe('DriveLectureActions', () => {
       if (url.includes('/drive/v3/about')) {
         return new Response(
           JSON.stringify({ user: { displayName: 'Prof', emailAddress: 'prof@school.edu', permissionId: 'p1' } }),
-          { status: 200 },
+          { status: 200 }
         );
       }
       if (url.includes('/drive/v3/files?q=')) {
@@ -191,7 +215,7 @@ describe('DriveLectureActions', () => {
           onError={onError}
         />
         <OpenFromDriveButton onImport={onImport} onError={onError} />
-      </div>,
+      </div>
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Save to Drive' }));

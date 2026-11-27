@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  captionTextStyle,
-  LANGUAGE_CAPTION_COLORS,
-  languageCaptionColor,
-} from './captionColors';
+import { captionTextStyle, LANGUAGE_CAPTION_COLORS, languageCaptionColor } from './captionColors';
 
 describe('languageCaptionColor', () => {
   it('gives each selected language a different color: blue, then yellow, then pink', () => {
@@ -15,9 +11,7 @@ describe('languageCaptionColor', () => {
 
   it('wraps around instead of failing for out-of-range indexes', () => {
     expect(languageCaptionColor(LANGUAGE_CAPTION_COLORS.length)).toBe(languageCaptionColor(0));
-    expect(languageCaptionColor(-1)).toBe(
-      LANGUAGE_CAPTION_COLORS[LANGUAGE_CAPTION_COLORS.length - 1]
-    );
+    expect(languageCaptionColor(-1)).toBe(LANGUAGE_CAPTION_COLORS[LANGUAGE_CAPTION_COLORS.length - 1]);
   });
 });
 

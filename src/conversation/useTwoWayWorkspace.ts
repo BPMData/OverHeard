@@ -4,7 +4,11 @@ import { SUPPORTED_LANGUAGES } from '../constants';
 import { createMessage, messagesReducer, otherSide, type Message, type Side } from './state';
 import { useConversationSpeech } from './useConversationSpeech';
 import { withMicAccess } from '../micPermission';
-import { isOnDeviceTranslationSupported, prepareOfflineSpeechIfTranslatorsReady, prepareOnDeviceConversation } from '../onDevice';
+import {
+  isOnDeviceTranslationSupported,
+  prepareOfflineSpeechIfTranslatorsReady,
+  prepareOnDeviceConversation,
+} from '../onDevice';
 import { speechLocale } from './locales';
 import { speechLocality } from '../offline';
 import { conversationJson, parseConversationJson } from '../components/conversationSettings';
@@ -15,14 +19,26 @@ import type { ConversationModeProps } from '../components/ConversationMode';
 import type { ConversationSettings } from '../components/conversationSettings';
 import type { VoicePreferences } from '../tts/voices';
 
-type Shared = Pick<ConversationModeProps, 'active' | 'translate' | 'mtPreference' | 'onStartAttempt' | 'onPermissionDenied' | 'onPackProgress'> & {
+type Shared = Pick<
+  ConversationModeProps,
+  'active' | 'translate' | 'mtPreference' | 'onStartAttempt' | 'onPermissionDenied' | 'onPackProgress'
+> & {
   settings: ConversationSettings;
   voicePrefs: VoicePreferences;
 };
 
 type Options = Shared & { setUiError: (message: string) => void };
-export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAttempt, onPermissionDenied,
-  onPackProgress, settings, voicePrefs, setUiError }: Options) {
+export function useTwoWayWorkspace({
+  active,
+  translate,
+  mtPreference,
+  onStartAttempt,
+  onPermissionDenied,
+  onPackProgress,
+  settings,
+  voicePrefs,
+  setUiError,
+}: Options) {
   const isLecture = settings.mode === 'lecture';
   const [messages, dispatch] = useReducer(messagesReducer, []);
   const onCorrectMessage = useCallback((message: Message) => dispatch({ type: 'correct', message }), []);
@@ -37,10 +53,9 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
   const spoken = useRef(new Set<string>());
   const send = useCallback(
     (side: Side, value: string) => {
-      if (value.trim())
-        dispatch({ type: 'add', message: createMessage(side, value.trim(), settings) });
+      if (value.trim()) dispatch({ type: 'add', message: createMessage(side, value.trim(), settings) });
     },
-    [settings],
+    [settings]
   );
   const speech = useConversationSpeech({
     participants: settings,
@@ -49,7 +64,7 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
     onPermissionDenied,
     onUnsupportedLanguage: (language) =>
       setUiError(
-        `Speech recognition doesn't support ${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name ?? 'English'} in this browser. You can type a message below.`,
+        `Speech recognition doesn't support ${SUPPORTED_LANGUAGES.find((l) => l.code === language)?.name ?? 'English'} in this browser. You can type a message below.`
       ),
   });
   const twoWayPlayback = useTwoWayPlayback({
@@ -58,8 +73,7 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
     onResumeSpeech: speech.resume,
   });
   useEffect(() => {
-    if (active && !isLecture && settings.manualTurns && speech.isListening)
-      nextButton.current?.focus();
+    if (active && !isLecture && settings.manualTurns && speech.isListening) nextButton.current?.focus();
   }, [active, isLecture, settings.manualTurns, speech.isListening]);
   useEffect(() => {
     if (!active || isLecture) return;
@@ -82,8 +96,7 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
       }
       if (
         event.repeat ||
-        (event.target instanceof Element &&
-          event.target.closest('input,textarea,select,[contenteditable="true"]'))
+        (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]'))
       )
         return;
       if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
@@ -100,28 +113,25 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
       if (message.status !== 'translating' || requests.current.has(key)) continue;
       requests.current.add(key);
       void translate(message.original, message.reader.lang, message.sender.lang).then(
-        (translated) =>
-          dispatch({ type: 'resolve', id: message.id, revision: message.revision, translated }),
+        (translated) => dispatch({ type: 'resolve', id: message.id, revision: message.revision, translated }),
         () =>
           dispatch({
             type: 'resolve',
             id: message.id,
             revision: message.revision,
             translated: null,
-          }),
+          })
       );
     }
   }, [messages, translate]);
   useEffect(() => {
     if (!active || isLecture || !settings.readAloud) return;
-    const pending = messages.filter(
-      (m) => m.status === 'done' && !spoken.current.has(`${m.id}:${m.revision}`),
-    );
+    const pending = messages.filter((m) => m.status === 'done' && !spoken.current.has(`${m.id}:${m.revision}`));
     if (!pending.length) return;
     const speakable = pending.filter(
       (m) =>
         piperClient.shouldUsePiper(m.reader.lang, resolveVoiceId(m.reader.lang, voicePrefs)) ||
-        Boolean(window.speechSynthesis),
+        Boolean(window.speechSynthesis)
     );
     if (!speakable.length) return;
     speakable.forEach((m) => spoken.current.add(`${m.id}:${m.revision}`));
@@ -130,7 +140,7 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
         id: m.id,
         text: m.translated || m.original,
         lang: m.reader.lang,
-      })),
+      }))
     );
   }, [messages, active, isLecture, settings.readAloud, voicePrefs, twoWayPlayback.enqueueAuto]);
   useEffect(() => {
@@ -158,7 +168,10 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
       prepareOnDeviceConversation(langs, onPackProgress, { speech: false });
       if (langs.a !== langs.b) {
         prepareOfflineSpeechIfTranslatorsReady(
-          [{ code: langs.b, source: langs.a }, { code: langs.a, source: langs.b }],
+          [
+            { code: langs.b, source: langs.a },
+            { code: langs.a, source: langs.b },
+          ],
           [...new Set([langs.a, langs.b])].map((code) => ({ key: `speech:${code}`, locale: speechLocale(code) })),
           onPackProgress
         );
@@ -166,13 +179,11 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
     }
     withMicAccess(
       () => speech.start(speechLocality(mtPreference), side),
-      (reason) => onPermissionDenied(reason),
+      (reason) => onPermissionDenied(reason)
     );
   };
   const exportJson = () => {
-    const url = URL.createObjectURL(
-      new Blob([conversationJson(messages, settings)], { type: 'application/json' }),
-    );
+    const url = URL.createObjectURL(new Blob([conversationJson(messages, settings)], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = `conversation-${new Date().toISOString().slice(0, 10)}.json`;
@@ -184,8 +195,7 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
     event.target.value = '';
     if (!file) return;
     try {
-      const content =
-        typeof file.text === 'function' ? await file.text() : await new Response(file).text();
+      const content = typeof file.text === 'function' ? await file.text() : await new Response(file).text();
       const imported = parseConversationJson(content, settings);
       setUiError('');
       imported.forEach((m) => {
@@ -196,8 +206,31 @@ export function useTwoWayWorkspace({ active, translate, mtPreference, onStartAtt
       setUiError(err instanceof Error ? err.message : 'Could not import JSON.');
     }
   };
-  const stopTwoWayWorkspace = () => { speech.stop(); twoWayPlayback.cancelAll(); };
-  return { messages, dispatch, onCorrectMessage, sender, setSender, text, setText, newMessage,
-    setNewMessage, thread, nextButton, fileInput, following, send, speech, twoWayPlayback,
-    start, startFrom, exportJson, importJson, stopTwoWayWorkspace };
+  const stopTwoWayWorkspace = () => {
+    speech.stop();
+    twoWayPlayback.cancelAll();
+  };
+  return {
+    messages,
+    dispatch,
+    onCorrectMessage,
+    sender,
+    setSender,
+    text,
+    setText,
+    newMessage,
+    setNewMessage,
+    thread,
+    nextButton,
+    fileInput,
+    following,
+    send,
+    speech,
+    twoWayPlayback,
+    start,
+    startFrom,
+    exportJson,
+    importJson,
+    stopTwoWayWorkspace,
+  };
 }

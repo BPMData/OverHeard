@@ -1,20 +1,13 @@
 import { LanguageCode, PipLine } from './types';
 
 /** On-screen order: English first, then languages in the order they were selected. */
-export const pipLineOrder = (selectedLangs: LanguageCode[]): PipLine[] => [
-  'en',
-  ...selectedLangs,
-];
+export const pipLineOrder = (selectedLangs: LanguageCode[]): PipLine[] => ['en', ...selectedLangs];
 
 /**
  * Lines the pop-out should show: the saved choice, minus languages no longer selected,
  * in on-screen order and capped at `max`. Falls back to the first `max` lines if nothing is left.
  */
-export function visiblePipLines(
-  saved: PipLine[],
-  selectedLangs: LanguageCode[],
-  max: number
-): PipLine[] {
+export function visiblePipLines(saved: PipLine[], selectedLangs: LanguageCode[], max: number): PipLine[] {
   const order = pipLineOrder(selectedLangs);
   const kept = order.filter((line) => saved.includes(line));
   return (kept.length > 0 ? kept : order).slice(0, max);

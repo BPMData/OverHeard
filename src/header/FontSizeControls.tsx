@@ -5,9 +5,7 @@ interface FontSizeControlsProps {
   handleAdjustFont: (delta: number) => void;
 }
 
-export function FontSizeControls({
-  fontSize, handleAdjustFont,
-}: FontSizeControlsProps) {
+export function FontSizeControls({ fontSize, handleAdjustFont }: FontSizeControlsProps) {
   return (
     <div
       className="inline-flex items-center rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#EAEFF6] dark:bg-[#090D16] p-0.5"

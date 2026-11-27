@@ -14,7 +14,10 @@ type TranscriptOptions = Pick<ReturnType<typeof useTranslator>, 'fetchMT'> & {
 };
 
 export function useCaptionTranscript({
-  selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT,
+  selectedLangs,
+  selectedLangsRef,
+  stopColumnPlayback,
+  fetchMT,
 }: TranscriptOptions) {
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
@@ -35,13 +38,13 @@ export function useCaptionTranscript({
   const clearLiveTranslation = useCallback(() => setLiveSegment((value) => value + 1), []);
   const fetchLive = useCallback(
     (text: string, lang: LanguageCode) => fetchMT(text, lang, 'en', { live: true }),
-    [fetchMT],
+    [fetchMT]
   );
   const liveTranslations: Partial<Record<string, string>> = useLiveTranslations(
     LIVE_INTERIM_TRANSLATION ? interimTranscript : '',
     selectedLangs,
     fetchLive,
-    String(liveSegment),
+    String(liveSegment)
   );
 
   // Finalized phrase: fast MT per language in parallel (each column paints as soon as it lands)
@@ -65,9 +68,7 @@ export function useCaptionTranscript({
       ]);
 
       const patch = (fn: (seg: CaptionSegment) => CaptionSegment) =>
-        setSegments((prev) =>
-          prev.map((seg) => (seg.id === segmentId ? fn(seg) : seg))
-        );
+        setSegments((prev) => prev.map((seg) => (seg.id === segmentId ? fn(seg) : seg)));
 
       let failures = 0;
       const mtJobs = langs.map((code) =>
@@ -181,15 +182,25 @@ export function useCaptionTranscript({
     });
   };
 
-  const currentSegment =
-    segments.length > 0 ? segments[segments.length - 1] : null;
-  const previousSegment =
-    segments.length > 1 ? segments[segments.length - 2] : null;
+  const currentSegment = segments.length > 0 ? segments[segments.length - 1] : null;
+  const previousSegment = segments.length > 1 ? segments[segments.length - 2] : null;
 
   return {
-    segments, currentSegment, previousSegment, handleFinalizedPhrase,
-    interimTranscript, setInterimTranscript, clearLiveTranslation, liveTranslations,
-    confirmClear, setConfirmClear, handleClearConfirm, handleExportJson,
-    manualInput, setManualInput, handleManualSubmit, handleBurstTest,
+    segments,
+    currentSegment,
+    previousSegment,
+    handleFinalizedPhrase,
+    interimTranscript,
+    setInterimTranscript,
+    clearLiveTranslation,
+    liveTranslations,
+    confirmClear,
+    setConfirmClear,
+    handleClearConfirm,
+    handleExportJson,
+    manualInput,
+    setManualInput,
+    handleManualSubmit,
+    handleBurstTest,
   };
 }

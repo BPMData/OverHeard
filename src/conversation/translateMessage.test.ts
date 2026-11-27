@@ -4,9 +4,7 @@ import { splitTranslationChunks, translateConversationMessage } from './translat
 describe('conversation message translation', () => {
   it('keeps a short message in one request and preserves both languages', async () => {
     const translate = vi.fn(async () => 'Hello');
-    await expect(translateConversationMessage('Hola', 'en', 'es', translate)).resolves.toBe(
-      'Hello',
-    );
+    await expect(translateConversationMessage('Hola', 'en', 'es', translate)).resolves.toBe('Hello');
     expect(translate).toHaveBeenCalledExactlyOnceWith('Hola', 'en', 'es');
   });
 
@@ -19,9 +17,7 @@ describe('conversation message translation', () => {
       active--;
       return text;
     });
-    await expect(translateConversationMessage(original, 'es', 'en', translate)).resolves.toBe(
-      original,
-    );
+    await expect(translateConversationMessage(original, 'es', 'en', translate)).resolves.toBe(original);
     expect(translate.mock.calls.length).toBeGreaterThan(1);
     expect(translate.mock.calls.every(([chunk]) => chunk.length <= 500)).toBe(true);
   });
@@ -38,20 +34,13 @@ describe('conversation message translation', () => {
   it('returns equal-language messages verbatim without translation', async () => {
     const translate = vi.fn();
     const original = '  ' + 'hello '.repeat(200);
-    await expect(translateConversationMessage(original, 'en', 'en', translate)).resolves.toBe(
-      original,
-    );
+    await expect(translateConversationMessage(original, 'en', 'en', translate)).resolves.toBe(original);
     expect(translate).not.toHaveBeenCalled();
   });
 
   it('rejects on a failed chunk instead of returning an incomplete translation', async () => {
-    const translate = vi
-      .fn()
-      .mockResolvedValueOnce('first')
-      .mockRejectedValueOnce(new Error('offline'));
-    await expect(
-      translateConversationMessage('hello '.repeat(200), 'es', 'en', translate),
-    ).rejects.toThrow('offline');
+    const translate = vi.fn().mockResolvedValueOnce('first').mockRejectedValueOnce(new Error('offline'));
+    await expect(translateConversationMessage('hello '.repeat(200), 'es', 'en', translate)).rejects.toThrow('offline');
     expect(translate).toHaveBeenCalledTimes(2);
   });
 });

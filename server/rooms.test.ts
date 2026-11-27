@@ -12,7 +12,8 @@ const streams: AbortController[] = [];
 beforeEach(async () => {
   clock = 1000;
   service = createRoomRouter({ now: () => clock });
-  const app = express(); app.use('/api/rooms', service.router);
+  const app = express();
+  app.use('/api/rooms', service.router);
   server = await new Promise<Server>((resolve, reject) => {
     const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
     instance.once('error', reject);
@@ -23,28 +24,47 @@ afterEach(async () => {
   for (const controller of streams.splice(0)) controller.abort();
   service.close();
   server?.closeAllConnections();
-  if (server) await new Promise<void>(resolve => server.close(() => resolve()));
+  if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
 });
-const request = (path: string, method = 'GET', body?: unknown, token?: string) => fetch(base + path, {
-  method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  body: body === undefined ? undefined : JSON.stringify(body),
-});
+const request = (path: string, method = 'GET', body?: unknown, token?: string) =>
+  fetch(base + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 const create = async (code = 'science-101', pin = '1234') => (await request('', 'POST', { code, pin })).json();
-const patch = (text = 'Gravity pulls objects down.') => ({ ...emptyLecture(), selectedLangs: ['es'],
-  entries: [{ id: 'one', timestamp: 1000, english: text, translations: { es: 'La gravedad atrae los objetos.' }, failedLangs: {} }], removedIds: [],
-  isListening: true, interim: 'Our next topic', liveTranslations: { es: 'Nuestro siguiente tema' } });
+const patch = (text = 'Gravity pulls objects down.') => ({
+  ...emptyLecture(),
+  selectedLangs: ['es'],
+  entries: [
+    {
+      id: 'one',
+      timestamp: 1000,
+      english: text,
+      translations: { es: 'La gravedad atrae los objetos.' },
+      failedLangs: {},
+    },
+  ],
+  removedIds: [],
+  isListening: true,
+  interim: 'Our next topic',
+  liveTranslations: { es: 'Nuestro siguiente tema' },
+});
 
 async function stream(code: string) {
-  const controller = new AbortController(); streams.push(controller);
+  const controller = new AbortController();
+  streams.push(controller);
   const response = await fetch(`${base}/${code}/events`, { signal: controller.signal });
   expect(response.status).toBe(200);
   const reader = response.body!.getReader();
-  const decoder = new TextDecoder(); let buffer = '';
+  const decoder = new TextDecoder();
+  let buffer = '';
   return async () => {
     while (true) {
       const end = buffer.indexOf('\n\n');
       if (end >= 0) {
-        const block = buffer.slice(0, end); buffer = buffer.slice(end + 2);
+        const block = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
         const event = /^event: (.+)$/m.exec(block)?.[1];
         const data = /^data: (.+)$/m.exec(block)?.[1];
         if (event && data) return { event, data: JSON.parse(data) };
@@ -60,16 +80,22 @@ async function stream(code: string) {
 // Reads raw SSE bytes until the first complete block for `event`, so tests can compare the
 // exact wire format (field order, blank-line terminator) rather than the parsed JSON.
 async function rawStream(code: string) {
-  const controller = new AbortController(); streams.push(controller);
+  const controller = new AbortController();
+  streams.push(controller);
   const response = await fetch(`${base}/${code}/events`, { signal: controller.signal });
   expect(response.status).toBe(200);
   const reader = response.body!.getReader();
-  const decoder = new TextDecoder(); let buffer = '';
+  const decoder = new TextDecoder();
+  let buffer = '';
   return async (event: string) => {
     while (true) {
       const start = buffer.indexOf(`event: ${event}\n`);
       const end = start >= 0 ? buffer.indexOf('\n\n', start) : -1;
-      if (end >= 0) { const block = buffer.slice(start, end + 2); buffer = buffer.slice(end + 2); return block; }
+      if (end >= 0) {
+        const block = buffer.slice(start, end + 2);
+        buffer = buffer.slice(end + 2);
+        return block;
+      }
       const { value, done } = await reader.read();
       if (done) throw new Error('Unexpected closed stream');
       buffer += decoder.decode(value, { stream: true });
@@ -83,13 +109,13 @@ describe('live classroom rooms', () => {
     const readers = [await rawStream(code), await rawStream(code), await rawStream(code)];
     for (const read of readers) await read('snapshot');
     await request(`/${code}`, 'PUT', patch(), token);
-    const patches = await Promise.all(readers.map(read => read('patch')));
+    const patches = await Promise.all(readers.map((read) => read('patch')));
     expect(new Set(patches).size).toBe(1);
     expect(patches[0]).toMatch(/^event: patch\ndata: [^\n]+\n\n$/);
     const sent = JSON.parse(patches[0].slice('event: patch\ndata: '.length));
     expect(sent).toMatchObject({ revision: 1, teacherOnline: true, ended: false, interim: 'Our next topic' });
     await request(`/${code}`, 'DELETE', undefined, token);
-    const ended = await Promise.all(readers.map(read => read('snapshot')));
+    const ended = await Promise.all(readers.map((read) => read('snapshot')));
     expect(new Set(ended).size).toBe(1);
     expect(ended[0]).toMatch(/^event: snapshot\ndata: [^\n]+\n\n$/);
     expect(JSON.parse(ended[0].slice('event: snapshot\ndata: '.length))).toMatchObject({ ended: true, revision: 2 });
@@ -110,11 +136,14 @@ describe('live classroom rooms', () => {
   });
   it('streams interim text and translations to two students, catches late joins up, and ends the room', async () => {
     const { code, token } = await create();
-    const first = await stream(code); const second = await stream(code);
-    expect((await first()).data.entries).toEqual([]); await second();
+    const first = await stream(code);
+    const second = await stream(code);
+    expect((await first()).data.entries).toEqual([]);
+    await second();
     await request(`/${code}`, 'PUT', patch(), token);
     for (const next of [first, second]) {
-      const event = await next(); expect(event.event).toBe('patch');
+      const event = await next();
+      expect(event.event).toBe('patch');
       expect(event.data.liveTranslations.es).toBe('Nuestro siguiente tema');
       expect(event.data.entries[0].translations.es).toBe('La gravedad atrae los objetos.');
       expect(JSON.stringify(event)).not.toContain(token);
@@ -128,18 +157,41 @@ describe('live classroom rooms', () => {
   it('rejects malformed updates atomically and supports clear/import replacement', async () => {
     const { code, token } = await create();
     await request(`/${code}`, 'PUT', patch(), token);
-    expect((await request(`/${code}`, 'PUT', { ...patch(), entries: [{ ...patch().entries[0], english: 'x'.repeat(501) }] }, token)).status).toBe(400);
-    let next = await stream(code); expect((await next()).data.entries[0].english).toBe('Gravity pulls objects down.');
-    await request(`/${code}`, 'PUT', { ...patch('Imported lesson'), reset: true, entries: [{ ...patch('Imported lesson').entries[0], id: 'imported' }] }, token);
-    next = await stream(code); expect((await next()).data.entries.map((row: { id: string }) => row.id)).toEqual(['imported']);
+    expect(
+      (
+        await request(
+          `/${code}`,
+          'PUT',
+          { ...patch(), entries: [{ ...patch().entries[0], english: 'x'.repeat(501) }] },
+          token
+        )
+      ).status
+    ).toBe(400);
+    let next = await stream(code);
+    expect((await next()).data.entries[0].english).toBe('Gravity pulls objects down.');
+    await request(
+      `/${code}`,
+      'PUT',
+      {
+        ...patch('Imported lesson'),
+        reset: true,
+        entries: [{ ...patch('Imported lesson').entries[0], id: 'imported' }],
+      },
+      token
+    );
+    next = await stream(code);
+    expect((await next()).data.entries.map((row: { id: string }) => row.id)).toEqual(['imported']);
     await request(`/${code}`, 'PUT', { ...emptyLecture(), entries: [], removedIds: ['imported'] }, token);
-    next = await stream(code); expect((await next()).data.entries).toEqual([]);
+    next = await stream(code);
+    expect((await next()).data.entries).toEqual([]);
   });
   it('marks disconnected teachers offline, resumes on publish, and expires idle rooms', async () => {
     const { code, token } = await create();
     await request(`/${code}`, 'PUT', patch(), token);
-    const next = await stream(code); await next();
-    clock += 36_000; service.sweep();
+    const next = await stream(code);
+    await next();
+    clock += 36_000;
+    service.sweep();
     expect((await next()).data.teacherOnline).toBe(false);
     await request(`/${code}`, 'PUT', { ...patch(), entries: [] }, token);
     expect((await next()).data.teacherOnline).toBe(true);
@@ -153,7 +205,8 @@ describe('live classroom rooms', () => {
   it('lets a teacher rejoin an active room with matching PIN, rotates token, and preserves student streams', async () => {
     const { code, token: originalToken } = await create('bio-202', '9876');
     await request(`/${code}`, 'PUT', patch('Cell division begins.'), originalToken);
-    clock += 36_000; service.sweep();
+    clock += 36_000;
+    service.sweep();
     const student = await stream(code);
     const initial = await student();
     expect(initial.data.teacherOnline).toBe(false);
@@ -202,25 +255,42 @@ describe('school-network limits', () => {
   it('limits joins per room, so one busy class behind a shared IP does not block another', async () => {
     service.close();
     service = createRoomRouter({ now: () => clock, joinsPerMinute: 2 });
-    server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve()));
-    const app = express(); app.use('/api/rooms', service.router);
-    server = await new Promise<Server>(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const app = express();
+    app.use('/api/rooms', service.router);
+    server = await new Promise<Server>((resolve) => {
+      const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
+    });
     base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/rooms`;
-    const a = await create('room-a'); const b = await create('room-b');
-    await stream(a.code); await stream(a.code);
+    const a = await create('room-a');
+    const b = await create('room-b');
+    await stream(a.code);
+    await stream(a.code);
     expect((await request(`/${a.code}/events`)).status).toBe(429);
     await stream(b.code);
   });
   it('lets a whole department create rooms from one IP at the same bell', async () => {
-    for (let i = 0; i < 30; i++) expect((await request('', 'POST', { code: `teacher-${i}`, pin: '1234' })).status).toBe(201);
+    for (let i = 0; i < 30; i++)
+      expect((await request('', 'POST', { code: `teacher-${i}`, pin: '1234' })).status).toBe(201);
   });
 });
 
 describe('event writing', () => {
   const fakeReader = (writableLength = 0, destroyed = false) => {
-    const written: string[] = []; let ended = false;
-    const res = { destroyed, writableLength, write: (chunk: string) => { written.push(chunk); return true; },
-      end: () => { ended = true; } } as unknown as EventWriter;
+    const written: string[] = [];
+    let ended = false;
+    const res = {
+      destroyed,
+      writableLength,
+      write: (chunk: string) => {
+        written.push(chunk);
+        return true;
+      },
+      end: () => {
+        ended = true;
+      },
+    } as unknown as EventWriter;
     return { res, written, isEnded: () => ended };
   };
   it('formats events exactly as the SSE wire format', () => {
@@ -235,7 +305,9 @@ describe('event writing', () => {
     for (const reader of [slow, healthy, closed, atLimit]) writeEvent(reader.res, frame);
     expect(healthy.written).toEqual([frame]);
     expect(atLimit.written).toEqual([frame]);
-    expect(slow.written).toEqual([]); expect(slow.isEnded()).toBe(true);
-    expect(closed.written).toEqual([]); expect(closed.isEnded()).toBe(false);
+    expect(slow.written).toEqual([]);
+    expect(slow.isEnded()).toBe(true);
+    expect(closed.written).toEqual([]);
+    expect(closed.isEnded()).toBe(false);
   });
 });

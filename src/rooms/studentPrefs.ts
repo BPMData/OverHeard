@@ -37,8 +37,7 @@ export function loadStudentPrefs(): StudentPrefs {
     if (!parsed || typeof parsed !== 'object') return DEFAULT_STUDENT_PREFS;
     const isDark = typeof parsed.isDark === 'boolean' ? parsed.isDark : DEFAULT_STUDENT_PREFS.isDark;
     const language =
-      parsed.language === 'en' ||
-      (typeof parsed.language === 'string' && VALID_LANGUAGE_CODES.has(parsed.language))
+      parsed.language === 'en' || (typeof parsed.language === 'string' && VALID_LANGUAGE_CODES.has(parsed.language))
         ? (parsed.language as LanguageCode | 'en')
         : DEFAULT_STUDENT_PREFS.language;
     const fontSize = clampStudentFontSize(parsed.fontSize);
@@ -66,8 +65,7 @@ export function loadPipPrefs(prefix: string): PipPrefs {
     const rawLines = JSON.parse(localStorage.getItem(`${prefix}.lines`) || 'null');
     const lines = Array.isArray(rawLines)
       ? (rawLines.filter(
-          (item): item is PipLine =>
-            item === 'en' || (typeof item === 'string' && VALID_LANGUAGE_CODES.has(item)),
+          (item): item is PipLine => item === 'en' || (typeof item === 'string' && VALID_LANGUAGE_CODES.has(item))
         ) as PipLine[])
       : [];
     const layout = parsePipLayout(localStorage.getItem(`${prefix}.layout`));

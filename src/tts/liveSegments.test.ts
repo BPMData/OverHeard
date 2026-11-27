@@ -36,7 +36,10 @@ describe('live read-aloud segments', () => {
   });
 
   it('speaks only the unspoken end of a finalized line', () => {
-    expect(finalRemainder('Today we will look at the water cycle.', 5)).toEqual({ remainder: 'the water cycle.', carry: 0 });
+    expect(finalRemainder('Today we will look at the water cycle.', 5)).toEqual({
+      remainder: 'the water cycle.',
+      carry: 0,
+    });
     // Chrome finalized only part of what had already been read
     expect(finalRemainder('Today we', 5)).toEqual({ remainder: '', carry: 3 });
   });

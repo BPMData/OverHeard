@@ -63,7 +63,7 @@ export async function downloadMmsModel(
   url: string,
   expectedBytes: number,
   onProgress: (pct: number) => void,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = fetch
 ): Promise<Uint8Array> {
   const response = await fetchImpl(url, { mode: 'cors' });
   if (!response.ok) throw new Error(`Voice download failed (HTTP ${response.status})`);
@@ -118,7 +118,7 @@ async function save(modelId: string, bytes: Uint8Array): Promise<void> {
 export async function loadMmsModel(
   voice: PiperVoiceOption,
   url: string,
-  onProgress: (pct: number) => void,
+  onProgress: (pct: number) => void
 ): Promise<{ bytes: ArrayBuffer; saved: boolean }> {
   const saved = await readSaved(voice.modelId);
   if (saved) return { bytes: await saved.arrayBuffer(), saved: true };
@@ -127,11 +127,7 @@ export async function loadMmsModel(
   return { bytes: bytes.buffer as ArrayBuffer, saved: false };
 }
 
-export async function createMmsSession(
-  ort: OrtLike,
-  voice: PiperVoiceOption,
-  model: ArrayBuffer,
-): Promise<MmsSession> {
+export async function createMmsSession(ort: OrtLike, voice: PiperVoiceOption, model: ArrayBuffer): Promise<MmsSession> {
   if (!voice.mmsIso3 || !MMS_VOCABS[voice.mmsIso3]) throw new Error(`No vocabulary for ${voice.modelId}`);
   const session = await ort.InferenceSession.create(new Uint8Array(model), { executionProviders: ['wasm'] });
   return { modelId: voice.modelId, iso3: voice.mmsIso3, session };
@@ -146,7 +142,11 @@ export async function predictMms(ort: OrtLike, mms: MmsSession, text: string): P
     if (ids.length <= 1) continue;
     const n = ids.length;
     const outputs = await mms.session.run({
-      input_ids: new ort.Tensor('int64', BigInt64Array.from(ids, (id) => BigInt(id)), [1, n]),
+      input_ids: new ort.Tensor(
+        'int64',
+        BigInt64Array.from(ids, (id) => BigInt(id)),
+        [1, n]
+      ),
       attention_mask: new ort.Tensor('int64', new BigInt64Array(n).fill(BigInt(1)), [1, n]),
     });
     const waveform = outputs.waveform?.data;
@@ -157,7 +157,9 @@ export async function predictMms(ort: OrtLike, mms: MmsSession, text: string): P
 }
 
 /** Bytes per saved MMS model. Anything else in the folder is grouped under '' (leftovers). */
-export async function mmsStoredSizes(knownModelIds: ReadonlySet<string>): Promise<Array<{ modelId: string; bytes: number }>> {
+export async function mmsStoredSizes(
+  knownModelIds: ReadonlySet<string>
+): Promise<Array<{ modelId: string; bytes: number }>> {
   const dir = await mmsDirectory(false);
   if (!dir) return [];
   const result: Array<{ modelId: string; bytes: number }> = [];
