@@ -107,12 +107,22 @@ export function stripEcho(text: string, echo: string): string {
   if (!sent.length) return words.join(' ');
   if (starts(sent, words)) return '';
   if (starts(words, sent)) return words.slice(sent.length).join(' ');
-  // A revised copy: most of the sent words at the start, the last of them possibly changed
   const head = words.slice(0, sent.length);
+  // A word shared with a short reply ("thank you" → "you are welcome") is common.
+  // Only strip a short revision if the leading words match in order and the last
+  // word looks like the recognizer finished a partial word ("still talkin" → "still talking").
+  if (sent.length <= 3) {
+    if (head.length === sent.length && sent.length >= 2 && starts(head, sent.slice(0, -1))) {
+      const partial = norm(sent[sent.length - 1]);
+      const finalWord = norm(head[head.length - 1]);
+      if (partial.length >= 3 && finalWord.startsWith(partial)) return words.slice(sent.length).join(' ');
+    }
+    return words.join(' ');
+  }
   const sentWords = new Set(sent.map(norm));
   const shared = head.filter((w) => sentWords.has(norm(w))).length;
   const needed = Math.min(sent.length - 1, Math.ceil(sent.length * 0.7));
-  if (head.length === sent.length && sent.length >= 2 && shared >= needed)
+  if (head.length === sent.length && shared >= needed)
     return words.slice(sent.length).join(' ');
   return words.join(' ');
 }
