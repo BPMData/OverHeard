@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express';
+import type { MtErrorResponse, MtRequestBody, MtSuccessResponse, ServerConfigResponse } from '../../src/translation/protocol.ts';
 import { createDailyBudget } from '../budget.ts';
 import { SESSION_HEADER, sessionKey } from '../clientKeys.ts';
 import {
@@ -114,7 +115,7 @@ export function registerMtRoutes(app: Express, {
     if (!isRateLimited(req, ipLimiter, sessionLimiter)) return false;
     usage.rateLimited();
     res.set('Retry-After', '5');
-    res.status(429).json({ error: message });
+    res.status(429).json({ error: message } satisfies MtErrorResponse);
     return true;
   }
 
@@ -136,7 +137,7 @@ export function registerMtRoutes(app: Express, {
       mtProvider: MT_PROVIDER,
       providers: MT_CHAIN,
       shortLinkBase: SHORT_LINK_BASE,
-    });
+    } satisfies ServerConfigResponse);
   });
 
   // Fast path: one language per request so the client can fire them in parallel
@@ -144,22 +145,23 @@ export function registerMtRoutes(app: Express, {
   app.post('/api/mt', async (req: Request, res: Response) => {
     if (rejectIfLimited(req, res, mtIpLimiter, mtSessionLimiter, 'Rate limit exceeded.')) return;
 
-    const { text, lang, source = 'en', provider: requestedProvider, freeOnly } = req.body ?? {};
+    const body: Partial<Record<keyof MtRequestBody, unknown>> = req.body ?? {};
+    const { text, lang, source = 'en', provider: requestedProvider, freeOnly } = body;
     if (typeof text !== 'string' || text.trim().length === 0) {
-      res.status(400).json({ error: 'Text must be a non-empty string.' });
+      res.status(400).json({ error: 'Text must be a non-empty string.' } satisfies MtErrorResponse);
       return;
     }
     if (typeof lang !== 'string' || (lang !== 'en' && !Object.hasOwn(SUPPORTED_LANGUAGES, lang))) {
-      res.status(400).json({ error: `Unsupported language code: ${String(lang)}` });
+      res.status(400).json({ error: `Unsupported language code: ${String(lang)}` } satisfies MtErrorResponse);
       return;
     }
 
     if (typeof source !== 'string' || (source !== 'en' && !Object.hasOwn(SUPPORTED_LANGUAGES, source))) {
-      res.status(400).json({ error: `Unsupported source language code: ${String(source)}` });
+      res.status(400).json({ error: `Unsupported source language code: ${String(source)}` } satisfies MtErrorResponse);
       return;
     }
     if (source === lang) {
-      res.status(400).json({ error: 'Source and target languages must differ.' });
+      res.status(400).json({ error: 'Source and target languages must differ.' } satisfies MtErrorResponse);
       return;
     }
 
@@ -173,12 +175,12 @@ export function registerMtRoutes(app: Express, {
         freeOnly === true
       );
       usage.mtOk(provider, text.trim().slice(0, 500).length);
-      res.json({ translation, provider, ms: Date.now() - started });
+      res.json({ translation, provider, ms: Date.now() - started } satisfies MtSuccessResponse);
     } catch (error: unknown) {
       usage.mtFailed();
       const errMessage = error instanceof Error ? error.message : 'MT request failed';
       console.error('[/api/mt] all providers failed:', errMessage);
-      res.status(502).json({ error: 'Translation unavailable', details: errMessage });
+      res.status(502).json({ error: 'Translation unavailable', details: errMessage } satisfies MtErrorResponse);
     }
   });
 

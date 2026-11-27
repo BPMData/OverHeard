@@ -1,7 +1,9 @@
 // Fast machine translation for live captions: providers, fallback chain, cooldowns and cache.
 // Kept free of Express setup so it can be unit-tested with a fake fetch and clock.
 
-export type MtProvider = 'google-cloud' | 'gtx';
+import type { ServerMtProvider } from '../src/translation/protocol.ts';
+
+export type MtProvider = ServerMtProvider;
 
 /** Providers that cost nothing to call. A free-only request never falls back to the others. */
 export const FREE_MT_PROVIDERS: readonly MtProvider[] = ['gtx'];

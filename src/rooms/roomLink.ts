@@ -1,4 +1,5 @@
 import { isReservedRoomCode, normalizeRoomCode, validRoomCode } from './protocol';
+import type { ServerConfigResponse } from '../translation/protocol';
 
 /**
  * Room code for a student page: `?room=code` (original links) or the short form `/code`.
@@ -32,7 +33,7 @@ let shortLinkBase: Promise<string | null> | null = null;
 export function loadShortLinkBase(): Promise<string | null> {
   shortLinkBase ??= fetch('/api/config', { cache: 'no-store' })
     .then(response => (response.ok ? response.json() : null))
-    .then((data: { shortLinkBase?: unknown } | null) =>
+    .then((data: Partial<ServerConfigResponse> | null) =>
       typeof data?.shortLinkBase === 'string' && /^https?:\/\//.test(data.shortLinkBase) ? data.shortLinkBase : null)
     .catch(() => null);
   return shortLinkBase;

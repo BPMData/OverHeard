@@ -1,5 +1,6 @@
 import { DEFAULT_LANGUAGES, MAX_LANGUAGES, VALID_LANGUAGE_CODES } from '../constants';
 import type { LanguageCode } from '../types';
+import type { ServerMtProvider } from '../translation/protocol';
 
 export function parseInitialLanguages(): LanguageCode[] {
   if (typeof window === 'undefined') return DEFAULT_LANGUAGES;
@@ -47,7 +48,7 @@ export const mtCacheKey = (preference: string, source: string, lang: string, tex
 export const overBy = (ms: number) =>
   ms > SLOW_TRANSLATION_MS ? ` (+${ms - SLOW_TRANSLATION_MS} ms over 2.5 s)` : '';
 
-export type MtProviderId = 'google-cloud' | 'gtx';
+export type MtProviderId = ServerMtProvider;
 export type TranslatorId = MtProviderId | 'on-device';
 export type MtPreference = 'auto' | TranslatorId;
 export const MT_PREFERENCE_STORAGE_KEY = 'overheard.mtProvider';
