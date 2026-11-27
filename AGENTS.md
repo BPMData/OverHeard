@@ -15,7 +15,7 @@ a reference but must not be edited.
   - `"dev": "tsx server.ts"`
   - `"build": "vite build"`
   - `"start": "node server.ts"`
-  - `"lint": "tsc --noEmit"`
+  - `"lint": "tsc --noEmit && oxlint --react-plugin -A all -D react/rules-of-hooks -W react/exhaustive-deps src"`
 - Keep the server listening on **`0.0.0.0:3000`**.
 - Production runs **Node 22 with native TypeScript type stripping**, directly via
   `node server.ts`. Use strictly erasable TypeScript in `server.ts`, server modules, and
