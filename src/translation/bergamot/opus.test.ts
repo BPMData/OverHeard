@@ -12,7 +12,10 @@ class FakeOpusWorker implements WorkerLike {
   listeners: Record<string, Array<(event: never) => void>> = { message: [], error: [] };
   calls: Message[] = [];
   terminated = false;
-  constructor(public respond: (message: Message) => unknown) {}
+  respond: (message: Message) => unknown;
+  constructor(respond: (message: Message) => unknown) {
+    this.respond = respond;
+  }
   postMessage(message: Message) {
     this.calls.push(message);
     queueMicrotask(() => {

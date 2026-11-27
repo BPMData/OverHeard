@@ -21,11 +21,14 @@ class Recognition {
   }
 }
 class Utterance {
+  text: string;
   lang = '';
   voice: { lang: string } | null = null;
   onend: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  constructor(public text: string) {}
+  constructor(text: string) {
+    this.text = text;
+  }
 }
 let queue: Utterance[];
 let speak: ReturnType<typeof vi.fn>;

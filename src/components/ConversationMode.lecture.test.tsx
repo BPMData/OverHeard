@@ -260,11 +260,14 @@ it('does not pair a late interim translation with newer English speech', async (
 
 it('suspends teacher lecture speech recognition while reading a cell aloud and resumes when done', async () => {
   class FakeUtterance {
+    text: string;
     lang = '';
     voice: { lang: string } | null = null;
     onend: (() => void) | null = null;
     onerror: (() => void) | null = null;
-    constructor(public text: string) {}
+    constructor(text: string) {
+      this.text = text;
+    }
   }
   const spokenQueue: FakeUtterance[] = [];
   vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
