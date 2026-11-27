@@ -17,6 +17,7 @@ beforeEach(async () => {
       mtChain: ['gtx'],
       shortLinkBase: 'https://example.com',
     },
+    report: { githubRepo: 'BPMData/overheard', appVersion: 'test' },
   });
   await new Promise<void>((resolve, reject) => {
     server = service.app.listen(0, '127.0.0.1', resolve);

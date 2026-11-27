@@ -21,6 +21,7 @@ import { VoiceSettingsModal } from './VoiceSettingsModal';
 import { LectureControlsSetting } from './LectureControlsSetting';
 import { useConversationSettings } from './useConversationSettings';
 import './ConversationMode.css';
+import { setReportContext } from '../report/diagnostics';
 
 export interface ConversationModeProps {
   active: boolean;
@@ -125,6 +126,11 @@ export function ConversationMode({
   const { messages, onCorrectMessage, sender, setSender, text, setText, newMessage,
     setNewMessage, thread, nextButton, following, send, speech, twoWayPlayback,
     startFrom, stopTwoWayWorkspace } = twoWayWorkspace;
+  // Feature status for "Something not working?" reports
+  const reportListening = isLecture ? lectureWorkspace.lecture.speech.isListening : speech.isListening;
+  useEffect(() => {
+    if (active) setReportContext({ view: isLecture ? 'Lecture' : 'Two-way', listening: reportListening });
+  }, [active, isLecture, reportListening]);
   useWakeLock(active);
   useEffect(() => {
     if (!active || isLecture) {

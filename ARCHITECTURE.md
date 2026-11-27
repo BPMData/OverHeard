@@ -54,6 +54,7 @@ server.ts               Reads env, exports startServer(), runs when invoked as m
 server/
   app.ts                Express middleware (COOP header), room router, static dist/ headers & SPA fallback
   routes/mt.ts          /api/config, /api/mt, per-session & per-IP rate limits, [usage] logger
+  report.ts             /api/report and /api/report/status: problem reports to a GitHub issue and the email relay (docs/REPORTS.md)
   development.ts        Vite middleware and dev-only /ort/ & /piper/ WASM routes (lazy-imported only in dev)
   mt.ts                 Provider chain (gtx / google-cloud), 10-min benching, pending-request coalescing
   rooms.ts              In-memory live rooms, salted PIN hash + bearer token rotation, SSE delta/snapshot stream
@@ -77,6 +78,7 @@ src/
     DriveLectureActions.tsx, DriveSaveModal.tsx, VoiceSettingsModal.tsx, LanguageModal.tsx,
     AboutModal.tsx, StorageManager.tsx, PackProgressPanel.tsx
   conversation/         useTwoWayWorkspace, useLectureWorkspace, state/reducers, speech hooks, locales, translateMessage
+  report/               "Something not working?" form, diagnostics, and the report format shared with the server (protocol.ts)
   rooms/                TeacherRoomControls, StudentRoom, protocol.ts (shared with server), translateStudent, LecturePip/Files
   tts/                  voiceCatalog.ts (static catalog), voices.ts (selection and prefs), piperClient, piperWorker, mmsEngine, mmsTokenizer,
                         useLecturePlayback, useTwoWayPlayback, liveSegments, VoiceSelect, voiceStorage

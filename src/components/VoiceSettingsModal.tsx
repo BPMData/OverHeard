@@ -5,6 +5,7 @@ import { piperClient, type PlaybackHandle, type SpeechClient } from '../tts/pipe
 import { VoiceSelect } from '../tts/VoiceSelect';
 import { OFFLINE_TITLE, useOnline } from '../app/useOnline';
 import { StorageManager } from './StorageManager';
+import { openProblemReport } from '../report/ProblemReportModal';
 import { notifyStorageChanged, type StorageCategory } from '../storage/registry';
 import {
   BROWSER_VOICE_ID,
@@ -547,10 +548,25 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
         </div>
 
         <div
-          className={`px-6 py-3 border-t flex justify-end shrink-0 ${
+          className={`px-6 py-3 border-t flex items-center justify-between gap-3 shrink-0 ${
             darkMode ? 'border-[#243044] bg-[#0B1120]' : 'border-[#CBD5E1] bg-[#F1F5F9]'
           }`}
         >
+          <button
+            type="button"
+            onClick={() => {
+              stopPreview();
+              onClose();
+              openProblemReport({ afterModalClose: true });
+            }}
+            className={`oh-btn px-3 py-2 text-xs font-semibold rounded-[2px] border transition-colors ${
+              darkMode
+                ? 'border-[#2B3952] bg-[#162033] text-[#DDD6FE]'
+                : 'border-[#CBD5E1] bg-white text-[#443180]'
+            }`}
+          >
+            Something not working?
+          </button>
           <button
             type="button"
             onClick={() => {

@@ -1,6 +1,7 @@
 import { type ComponentProps, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 import type { DisplayMode, CaptionSegment, LanguageCode } from '../types';
-import { FlaskConical, Globe, HelpCircle, History, Moon, PictureInPicture2, Settings, Sun } from 'lucide-react';
+import { FlaskConical, Globe, HelpCircle, History, MessageSquareWarning, Moon, PictureInPicture2, Settings, Sun } from 'lucide-react';
+import { openProblemReport } from '../report/ProblemReportModal';
 import { PackProgressPanel } from '../components/PackProgressPanel';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
 import { JoinRoomForm } from '../rooms/StudentRoom';
@@ -181,6 +182,16 @@ export function AppHeader({
               title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => openProblemReport()}
+              className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#475569] dark:text-[#CBD5E1] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] transition-colors whitespace-nowrap"
+              aria-label="Something not working? Report a problem"
+              title="Something not working? Tell us in a few short steps"
+            >
+              <MessageSquareWarning className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden 2xl:inline">Report a problem</span>
             </button>
             <button
               type="button"
