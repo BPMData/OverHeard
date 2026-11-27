@@ -77,10 +77,10 @@ student. Decide after using it with a small group.
 
 `src/App.tsx` (now ~299 lines), `server/app.ts`, and `server/routes/mt.ts` are extracted. Planned next cleanups (specs in `docs/plans/`):
 
-- [ ] Split `src/components/ConversationMode.tsx` (820 lines) into isolated Two-Way and Lecture workspace hooks/toolbars without changing DOM classes or sub-mode state preservation (`docs/plans/CONVERSATION_MODE_SPLIT.md`).
+- [x] Split `src/components/ConversationMode.tsx` into Two-Way and Lecture workspace hooks and toolbars while preserving state across sub-modes (`docs/plans/CONVERSATION_MODE_SPLIT.md`).
 - [x] Split `src/tts/voices.ts` into static catalog data (`voiceCatalog.ts`) and runtime selection/preference helpers (`docs/plans/CONVERSATION_MODE_SPLIT.md`).
 - [x] Add shared `/api/mt` & `/api/config` contract types (`docs/plans/TYPED_MT_CONTRACT.md`).
-- [ ] Expand the Playwright browser suite with live-room SSE, picture-in-picture, and preference persistence coverage (`docs/plans/PLAYWRIGHT_E2E.md`).
+- [ ] Expand the Playwright browser suite with picture-in-picture and preference persistence coverage (`docs/plans/PLAYWRIGHT_E2E.md`). Live-room SSE has browser coverage.
 
 ### More international languages and reader voices
 

@@ -71,11 +71,12 @@ src/
   pip/                  usePipWindow, copyStyles (Document Picture-in-Picture lifecycle & theme sync)
   header/               AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch, TranslatorPicker, ClearTranscriptButton
   components/
-    ConversationMode.tsx  Shared Two-way & Lecture toolbar/workspace coordinator (820 lines — next refactor target)
+    ConversationMode.tsx  Shared Two-way & Lecture workspace coordinator (~275 lines)
+    ConversationToolbar.tsx, LectureToolbar.tsx  Shared toolbar and lecture room controls
     TwoWayView.tsx, FaceToFaceView.tsx, LectureView.tsx, LectureTranscript.tsx, PipSubtitlePortal.tsx
     DriveLectureActions.tsx, DriveSaveModal.tsx, VoiceSettingsModal.tsx, LanguageModal.tsx,
     AboutModal.tsx, StorageManager.tsx, PackProgressPanel.tsx
-  conversation/         Two-way & Lecture state/reducers, useConversationSpeech, useLectureMode, locales, translateMessage
+  conversation/         useTwoWayWorkspace, useLectureWorkspace, state/reducers, speech hooks, locales, translateMessage
   rooms/                TeacherRoomControls, StudentRoom, protocol.ts (shared with server), translateStudent, LecturePip/Files
   tts/                  voiceCatalog.ts (static catalog), voices.ts (selection and prefs), piperClient, piperWorker, mmsEngine, mmsTokenizer,
                         useLecturePlayback, useTwoWayPlayback, liveSegments, VoiceSelect, voiceStorage
