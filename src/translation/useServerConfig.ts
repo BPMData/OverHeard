@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { MtProviderId } from '../app/settings';
+import type { ServerConfigResponse } from './protocol';
 
 /** The online translators this server offers, in the order it tries them. */
 export function useServerConfig() {
@@ -11,7 +12,7 @@ export function useServerConfig() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((cfg: { providers?: MtProviderId[] }) => {
+      .then((cfg: ServerConfigResponse) => {
         setAvailableProviders(Array.isArray(cfg.providers) ? cfg.providers : []);
       })
       .catch(() => {

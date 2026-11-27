@@ -13,35 +13,14 @@
 
 ## Open
 
-### Google Drive lecture saves (pinned — after shared rooms)
+### Google Drive lecture saves — Cloud Console verification
 
-Deferred intentionally. First ship and try the shared lecture rooms and local JSON
-import/export documented in [`ROOMS.md`](ROOMS.md). Revisit the Google Cloud setup in the
-earlier AllAboard Drive chat, where the configuration history and school-account hurdles
-are already documented. Use AllAboard as a reference; make changes only in OverHeard.
+Browser-side **Save to Drive** and **Open from Drive** are implemented (`src/lib/googleDrive.ts`, `src/components/DriveLectureActions.tsx`, `src/components/DriveSaveModal.tsx`, guarded by `src/lib/googleScopes.test.ts` for `drive.file`-only scope). Remaining checklist before relying on it in classrooms:
 
-- [ ] Add teacher-only **Save to Google Drive** and **Open from Google Drive** using the
-      same versioned lecture JSON format as local import/export.
-- [ ] Let the teacher choose an existing folder or create one, with **OverHeard_Saves**
-      as the suggested name (editable, e.g. `saved_translations`). Remember the selected
-      folder and saved file per Google account; offer updating the existing file or
-      saving a separate copy.
-- [ ] Review AllAboard's `src/lib/googleDrive.ts` and its save/open/folder dialogs as the
-      implementation reference. Preserve its `drive.file` scope approach; do not request
-      broad Drive access. Teacher credentials and live room ownership must never be
-      included in saved files. Import restores lesson content into the current/new room.
-- [ ] Walk through the Google Cloud Console prerequisites before implementation: project
-      and enabled APIs, consent/branding and audience, OAuth web client, authorized
-      OverHeard origins, Picker/API key configuration and restrictions, development and
-      deployed URLs, and school-domain access. Verify what can be reused from AllAboard
-      versus what needs OverHeard-specific configuration; do not copy secrets into Git.
-- [ ] Test sign-in, cancellation/expired authorization, folder creation, save/update/save
-      as, selecting and importing a saved lecture, and switching accounts. Keep local JSON
-      import/export usable without Google sign-in.
+- [ ] Walk through the Google Cloud Console prerequisites: verify authorized OverHeard origins on the shared OAuth client / Picker API key (or set OverHeard's own `VITE_GOOGLE_*` config), branding/consent screen, and school-domain access without copying secrets into Git.
+- [ ] Smoke-test real Chrome sign-in, cancellation/expired authorization, `OverHeard Saves` folder creation, save/update/`Save as`, selecting and importing a saved lecture, and switching accounts. (Local JSON export/import remains usable without Google sign-in.)
 
-Durable saves to OverHeard's own server are a separate future item. Live room state is
-currently temporary and is discarded on a server restart; Google Drive saves would not
-by themselves provide multi-instance room synchronization.
+Durable saves to OverHeard's own server remain a separate future item. Live room state is temporary and discarded on server restart; Google Drive saves do not provide multi-instance room synchronization.
 
 ### Test a dedicated Android tablet for Grandpa (Fully Kiosk Browser)
 
@@ -94,10 +73,14 @@ Not specified yet. Starting points: readable from across a desk at a slight angl
 chrome around the captions, and possibly a one-language-at-a-time layout for a single
 student. Decide after using it with a small group.
 
-### Split up `src/App.tsx` (about 2,400 lines)
+### Remaining modular cleanups (`ConversationMode.tsx`, `voices.ts`, Playwright E2E)
 
-See `ARCHITECTURE.md` for the current layout, the target structure and an ordered list of
-refactor steps that don't change behavior, plus the larger consolidations to do afterward.
+`src/App.tsx` (now ~299 lines), `server/app.ts`, and `server/routes/mt.ts` are extracted. Planned next cleanups (specs in `docs/plans/`):
+
+- [x] Split `src/components/ConversationMode.tsx` into Two-Way and Lecture workspace hooks and toolbars while preserving state across sub-modes (`docs/plans/CONVERSATION_MODE_SPLIT.md`).
+- [x] Split `src/tts/voices.ts` into static catalog data (`voiceCatalog.ts`) and runtime selection/preference helpers (`docs/plans/CONVERSATION_MODE_SPLIT.md`).
+- [x] Add shared `/api/mt` & `/api/config` contract types (`docs/plans/TYPED_MT_CONTRACT.md`).
+- [ ] Expand the Playwright browser suite with picture-in-picture and preference persistence coverage (`docs/plans/PLAYWRIGHT_E2E.md`). Live-room SSE has browser coverage.
 
 ### More international languages and reader voices
 

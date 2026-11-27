@@ -21,11 +21,14 @@ class Recognition {
   }
 }
 class Utterance {
+  text: string;
   lang = '';
   voice: { lang: string } | null = null;
   onend: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  constructor(public text: string) {}
+  constructor(text: string) {
+    this.text = text;
+  }
 }
 let queue: Utterance[];
 let speak: ReturnType<typeof vi.fn>;
@@ -87,6 +90,22 @@ function mount(readAloud = true) {
   fireEvent.click(screen.getByRole('button', { name: 'Start conversation' }));
   return { translate };
 }
+
+it('keeps the two-way thread across lecture and hidden workspace switches', async () => {
+  const props = { fontSize: 32, isDark: true, translate: vi.fn(async (text: string) => `translated ${text}`),
+    mtPreference: 'auto', onExit: vi.fn(), onPermissionDenied: vi.fn() };
+  const view = render(<ConversationMode {...props} active />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message text' }), { target: { value: 'Keep this message' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await act(async () => {});
+  expect(screen.getByText('translated Keep this message')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+  view.rerender(<ConversationMode {...props} active={false} />);
+  view.rerender(<ConversationMode {...props} active />);
+  fireEvent.click(screen.getByRole('button', { name: 'Two-way' }));
+  expect(screen.getByText('translated Keep this message')).toBeTruthy();
+  expect(props.translate).toHaveBeenCalledTimes(1);
+});
 
 describe('conversation read aloud', () => {
   it('suspends speech for the whole voice queue and resumes the intended hands-free turn', async () => {

@@ -4,6 +4,8 @@ import {
   ON_DEVICE_TIMEOUT_MS, mtCacheKey, overBy,
   type MtPreference, type MtProviderId, type TranslatorId,
 } from '../app/settings';
+import { createTranslationCache } from './translationCache';
+import type { MtRequestBody, MtSuccessResponse } from './protocol';
 import { useDeviceFirstTranslator } from './useDeviceFirstTranslator';
 import { RateLimitedError } from '../http';
 import { isOnDeviceTranslationSupported, translateOnDevice } from '../onDevice';
@@ -11,9 +13,7 @@ import { getSessionId, SESSION_HEADER } from '../session';
 import type { ConversationLanguage, LanguageCode } from '../types';
 
 export function useTranslator(availableProviders: MtProviderId[]) {
-  // Fast MT: in-flight + resolved translations keyed by `${lang}\u0000${text}`.
-  // Sharing promises means the final sentence reuses an interim request that's still running.
-  const mtCacheRef = useRef<Map<string, Promise<string>>>(new Map());
+  const [cache] = useState(() => createTranslationCache(MT_CLIENT_CACHE_MAX));
 
   // 'auto' is the on-device-first default; retain the browser’s explicit choice.
   const [mtPreference, setMtPreference] = useState<MtPreference>(() => {
@@ -61,7 +61,6 @@ export function useTranslator(availableProviders: MtProviderId[]) {
       const finishedKey = mtCacheKey(preference, source, lang, text);
       const liveKey = 'live\u0000' + finishedKey;
       const key = live ? liveKey : finishedKey;
-      const cache = mtCacheRef.current;
       const existing = cache.get(key);
       if (existing) return existing;
       const reusableLive = live ? undefined : cache.get(liveKey);
@@ -86,14 +85,11 @@ export function useTranslator(availableProviders: MtProviderId[]) {
               ? {}
               : { provider: preference }),
             ...(live ? { freeOnly: true } : {}),
-          }),
+          } satisfies MtRequestBody),
         });
         if (res.status === 429) throw new RateLimitedError();
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as {
-          translation?: string;
-          provider?: MtProviderId | 'cache';
-        };
+        const data = (await res.json()) as Partial<MtSuccessResponse>;
         if (!data.translation) throw new Error('Missing translation');
         if (data.provider && data.provider !== 'cache') {
           setLastUsedProvider(data.provider);
@@ -140,16 +136,9 @@ export function useTranslator(availableProviders: MtProviderId[]) {
           await new Promise((resolve) => setTimeout(resolve, 250));
           return attempt();
         });
-      const promise = reusableLive ? reusableLive.catch(run) : run();
-      cache.set(key, promise);
-      promise.catch(() => cache.delete(key));
-      if (cache.size > MT_CLIENT_CACHE_MAX) {
-        const oldest = cache.keys().next().value;
-        if (oldest !== undefined) cache.delete(oldest);
-      }
-      return promise;
+      return cache.store(key, reusableLive ? reusableLive.catch(run) : run());
     },
-    [tryDeviceFirst]
+    [cache, tryDeviceFirst]
   );
 
   // A saved choice for a translator the server no longer offers behaves like Auto

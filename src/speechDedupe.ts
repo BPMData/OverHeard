@@ -94,3 +94,35 @@ export function dropLastWords(text: string, count: number): string {
   if (count <= 0) return text;
   return split(text).slice(0, -count).join(' ');
 }
+
+/**
+ * `text` without the words of `echo` at its start: unfinished words that were already sent
+ * with the previous turn and now arrive again as the shared recognizer's final (sometimes
+ * slightly revised, "still talkin" → "still talking"). Text that is only part of the echo
+ * yields ''. Text that doesn't start with the echo passes through whole.
+ */
+export function stripEcho(text: string, echo: string): string {
+  const words = split(text);
+  const sent = split(echo);
+  if (!sent.length) return words.join(' ');
+  if (starts(sent, words)) return '';
+  if (starts(words, sent)) return words.slice(sent.length).join(' ');
+  const head = words.slice(0, sent.length);
+  // A word shared with a short reply ("thank you" → "you are welcome") is common.
+  // Only strip a short revision if the leading words match in order and the last
+  // word looks like the recognizer finished a partial word ("still talkin" → "still talking").
+  if (sent.length <= 3) {
+    if (head.length === sent.length && sent.length >= 2 && starts(head, sent.slice(0, -1))) {
+      const partial = norm(sent[sent.length - 1]);
+      const finalWord = norm(head[head.length - 1]);
+      if (partial.length >= 3 && finalWord.startsWith(partial)) return words.slice(sent.length).join(' ');
+    }
+    return words.join(' ');
+  }
+  const sentWords = new Set(sent.map(norm));
+  const shared = head.filter((w) => sentWords.has(norm(w))).length;
+  const needed = Math.min(sent.length - 1, Math.ceil(sent.length * 0.7));
+  if (head.length === sent.length && shared >= needed)
+    return words.slice(sent.length).join(' ');
+  return words.join(' ');
+}

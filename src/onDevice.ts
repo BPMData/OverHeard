@@ -498,6 +498,14 @@ async function prepareSpeechUncached(
 // Preparations still running, so a second caller (e.g. the first conversation turn, started
 // while the Start click is still downloading the pack) shares them instead of installing twice.
 const speechPreparations = new Map<string, Promise<boolean>>();
+// Locales whose pack has been found ready. Recognition restarts often (Android ends a session
+// after every pause), and re-asking Chrome each time delays the next words or, when its check
+// hangs, stops them altogether. A pack doesn't disappear mid-conversation.
+const readySpeech = new Set<string>();
+/** Forget which speech packs were found ready, so the next start checks again. */
+export function forgetReadySpeech(): void {
+  readySpeech.clear();
+}
 
 /**
  * Make sure on-device speech recognition for `lang` is ready, downloading it if needed.
@@ -508,11 +516,15 @@ export function prepareOnDeviceSpeech(
   /** Called when a download actually starts (Chrome gives no progress for speech packs) */
   onDownloadStart?: () => void
 ): Promise<boolean> {
+  if (readySpeech.has(lang)) return Promise.resolve(true);
   const running = speechPreparations.get(lang);
   if (running) return running;
   const promise = prepareSpeechUncached(lang, onDownloadStart);
   speechPreparations.set(lang, promise);
-  // Only in-flight work is shared; a finished result is re-checked next time
+  // Only in-flight work is shared; a missing pack is re-checked next time
+  promise.then((ready) => {
+    if (ready) readySpeech.add(lang);
+  }, () => {});
   const done = () => speechPreparations.delete(lang);
   promise.then(done, done);
   return promise;

@@ -1,5 +1,7 @@
 import type { DisplayMode } from '../types';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { isAppleMobile } from './appleDevice';
+import { AppleSpeechSteps } from './AppleSpeechHelp';
 
 interface PermissionBannerProps {
   displayMode: DisplayMode;
@@ -20,6 +22,12 @@ export function PermissionBanner({
               <strong>Microphone unavailable on this address:</strong> browsers only allow the
               microphone on <strong>https://</strong> pages (or localhost). Open OverHeard from its
               https link instead of {window.location.origin}.
+            </>
+          ) : isAppleMobile() ? (
+            <>
+              <strong>Speech is blocked on this iPad or iPhone.</strong> <AppleSpeechSteps /> Then
+              press{' '}
+              <strong>{displayMode === 'conversation' ? 'Start conversation' : 'Start Listening'}</strong> again.
             </>
           ) : (
             <>

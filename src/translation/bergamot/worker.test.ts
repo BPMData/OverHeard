@@ -9,7 +9,10 @@ class FakeWorker implements WorkerLike {
   calls: Message[] = [];
   transfers: Transferable[][] = [];
   terminated = false;
-  constructor(private respond: (message: Message) => unknown = () => undefined) {}
+  private respond: (message: Message) => unknown;
+  constructor(respond: (message: Message) => unknown = () => undefined) {
+    this.respond = respond;
+  }
   postMessage(message: Message, transfer: Transferable[] = []) {
     this.calls.push(message);
     this.transfers.push(transfer);

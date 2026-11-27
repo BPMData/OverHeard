@@ -27,9 +27,14 @@ vi.mock('../translation/bergamot/engine', async (importOriginal) => ({
 }));
 class FakeEvents extends EventTarget {
   static instances: FakeEvents[] = [];
+  url: string;
   onerror: (() => void) | null = null;
   close = vi.fn();
-  constructor(public url: string) { super(); FakeEvents.instances.push(this); }
+  constructor(url: string) {
+    super();
+    this.url = url;
+    FakeEvents.instances.push(this);
+  }
   emit(name: string, data: unknown) { this.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) })); }
 }
 const entry: LectureEntry = { id: 'one', timestamp: 100, english: 'Welcome to science', translations: { es: 'Bienvenidos a ciencias' }, failedLangs: {} };
@@ -168,11 +173,14 @@ describe('student lecture view', () => {
 
   it('reads sequentially from a clicked cell, stops at backlog end, supports pause/resume/stop, and handles live Read aloud', async () => {
     class FakeUtterance {
+      text: string;
       lang = '';
       voice: { lang: string } | null = null;
       onend: (() => void) | null = null;
       onerror: (() => void) | null = null;
-      constructor(public text: string) {}
+      constructor(text: string) {
+        this.text = text;
+      }
     }
     const spokenQueue: FakeUtterance[] = [];
     const speak = vi.fn((u: FakeUtterance) => spokenQueue.push(u));

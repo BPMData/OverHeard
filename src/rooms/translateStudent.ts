@@ -2,6 +2,8 @@ import type { createDeviceFirstTranslator } from '../translation/deviceFirst';
 import { ON_DEVICE_TIMEOUT_MS } from '../app/settings';
 import { translateOnDevice } from '../onDevice';
 import { getSessionId, SESSION_HEADER } from '../session';
+import { createTranslationCache } from '../translation/translationCache';
+import type { MtRequestBody, MtSuccessResponse } from '../translation/protocol';
 import type { LanguageCode } from '../types';
 
 // Each browser shares its own pending/completed local work. Server requests are also
@@ -15,7 +17,7 @@ export function createStudentTranslator(
   onTranslated?: (by: 'on-device' | 'gtx') => void,
   { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
 ) {
-  const cache = new Map<string, Promise<string>>();
+  const cache = createTranslationCache(2500);
   return (text: string, lang: LanguageCode): Promise<string> => {
     const key = `${lang}\0${text}`;
     const existing = cache.get(key);
@@ -35,16 +37,13 @@ export function createStudentTranslator(
       const response = await fetch('/api/mt', { method: 'POST',
         headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },
         // Students never use the paid translator: on-device first, then the free endpoint only
-        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx', freeOnly: true }), signal: AbortSignal.timeout(30_000) });
+        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx', freeOnly: true } satisfies MtRequestBody), signal: AbortSignal.timeout(30_000) });
       if (!response.ok) throw new Error('Translation unavailable.');
-      const data = await response.json();
+      const data: Partial<MtSuccessResponse> = await response.json();
       if (typeof data.translation !== 'string' || !data.translation) throw new Error('Missing translation.');
       onTranslated?.('gtx');
       return data.translation;
     })();
-    cache.set(key, pending);
-    void pending.catch(() => { if (cache.get(key) === pending) cache.delete(key); });
-    if (cache.size > 2500) cache.delete(cache.keys().next().value!);
-    return pending;
+    return cache.store(key, pending);
   };
 }

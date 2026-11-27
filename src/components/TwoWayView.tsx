@@ -1,7 +1,8 @@
-import type { ChangeEvent, Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
+import { memo, type ChangeEvent, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from 'react';
 import { Square, Volume2 } from 'lucide-react';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import { captionTextStyle, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
+import { speechLocale } from '../conversation/locales';
 import { correctMessage, otherSide, type Message, type Side } from '../conversation/state';
 import type { useConversationSpeech } from '../conversation/useConversationSpeech';
 import { piperClient } from '../tts/piperClient';
@@ -33,6 +34,7 @@ export function TwoWaySettings({
   settings, setSettings, speech, voicePrefs, updateVoicePref, translatorPicker,
   start, onClear, exportJson, importJson, fileInput,
 }: TwoWaySettingsProps) {
+  const sameLanguage = settings.a.lang === settings.b.lang;
   return (
     <>
       {(['a', 'b'] as const).map((side) => (
@@ -66,12 +68,14 @@ export function TwoWaySettings({
               ))}
             </select>
           </span>
-          <VoiceSelect
-            lang={settings[side].lang}
-            ariaLabel={`Side ${side.toUpperCase()} voice`}
-            value={resolveVoiceId(settings[side].lang, voicePrefs)}
-            onChange={(voiceId) => updateVoicePref(settings[side].lang, voiceId)}
-          />
+          {(!sameLanguage || settings.readAloud) && (
+            <VoiceSelect
+              lang={settings[side].lang}
+              ariaLabel={`Side ${side.toUpperCase()} voice`}
+              value={resolveVoiceId(settings[side].lang, voicePrefs)}
+              onChange={(voiceId) => updateVoicePref(settings[side].lang, voiceId)}
+            />
+          )}
           <button onClick={() => speech.setTurn(side)}>
             {settings[side].name === 'Me'
               ? 'My turn'
@@ -88,7 +92,7 @@ export function TwoWaySettings({
           }
         >
           <option value="auto">Hands-free</option>
-          <option value="manual">Manual · Spacebar</option>
+          <option value="manual">Tap to switch (or Space)</option>
         </select>
       </label>
       {!settings.manualTurns && (
@@ -109,18 +113,35 @@ export function TwoWaySettings({
         </label>
       )}
       <label>
-        Bubbles on{' '}
+        Layout{' '}
         <select
-          value={settings.placement}
+          value={settings.layout}
           onChange={(e) =>
-            setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
+            setSettings((s) => ({
+              ...s,
+              layout: e.target.value as ConversationSettings['layout'],
+            }))
           }
         >
-          <option value="speaker">Speaker's side</option>
-          <option value="reader">Reader's side</option>
+          <option value="side-by-side">Side by side</option>
+          <option value="face-to-face">Face to face (tablet between you)</option>
         </select>
       </label>
-      {translatorPicker}
+      {settings.layout === 'side-by-side' && (
+        <label>
+          Bubbles on{' '}
+          <select
+            value={settings.placement}
+            onChange={(e) =>
+              setSettings((s) => ({ ...s, placement: e.target.value as 'speaker' | 'reader' }))
+            }
+          >
+            <option value="speaker">Speaker's side</option>
+            <option value="reader">Reader's side</option>
+          </select>
+        </label>
+      )}
+      {!sameLanguage && translatorPicker}
       <button
         className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
         onClick={speech.isListening ? speech.stop : start}
@@ -213,18 +234,18 @@ interface TwoWayViewProps {
   setText: (value: string) => void;
 }
 
-export function TwoWayView({
-  settings, speech, twoWayPlayback, fontSize, isDark, packPanel, uiError, thread, following,
-  messages, onCorrectMessage, newMessage, setNewMessage, nextButton, send, sender, setSender,
-  text, setText,
-}: TwoWayViewProps) {
-  const renderMessage = (message: Message) => {
-    const placedSide = settings.placement === 'speaker' ? message.side : otherSide(message.side);
+const MessageHistory = memo(function MessageHistory({
+  messages, placement, fontSize, isDark, onCorrectMessage, playingMessageId, downloadingMessageId, togglePlayMessage,
+}: Pick<TwoWayViewProps, 'messages' | 'fontSize' | 'isDark' | 'onCorrectMessage'> &
+  Pick<Playback, 'playingMessageId' | 'downloadingMessageId' | 'togglePlayMessage'> &
+  { placement: ConversationSettings['placement'] }) {
+  return messages.map((message) => {
+    const placedSide = placement === 'speaker' ? message.side : otherSide(message.side);
     const done = message.status === 'done';
     const canPlay = message.status !== 'translating';
-    const isSpeakingThisBubble = twoWayPlayback.playingMessageId === message.id;
+    const isSpeakingThisBubble = playingMessageId === message.id;
     const isDownloadingThisBubble =
-      isSpeakingThisBubble && twoWayPlayback.downloadingMessageId === message.id;
+      isSpeakingThisBubble && downloadingMessageId === message.id;
     const spokenText = (done && message.translated) || message.original;
     const spokenLang = done && message.translated ? message.reader.lang : message.sender.lang;
     return (
@@ -250,7 +271,7 @@ export function TwoWayView({
                 }
                 title={isSpeakingThisBubble ? 'Stop reading' : 'Play translated speech'}
                 onClick={() =>
-                  twoWayPlayback.togglePlayMessage({
+                  togglePlayMessage({
                     id: message.id,
                     text: spokenText,
                     lang: spokenLang,
@@ -306,15 +327,24 @@ export function TwoWayView({
         )}
       </article>
     );
-  };
+  });
+});
+
+export function TwoWayView({
+  settings, speech, twoWayPlayback, fontSize, isDark, packPanel, uiError, thread, following,
+  messages, onCorrectMessage, newMessage, setNewMessage, nextButton, send, sender, setSender,
+  text, setText,
+}: TwoWayViewProps) {
+  const sameSpeechLang = speechLocale(settings.a.lang) === speechLocale(settings.b.lang);
+  const livePlacedSide = settings.placement === 'speaker' ? speech.turn : otherSide(speech.turn);
   return (
     <>
       <p className="conversation-help">
         Each message uses the current speaker’s name.{' '}
         {settings.manualTurns
-          ? 'Press Space or click Next speaker to pass the turn.'
-          : 'Pause to send and pass the turn.'}{' '}
-        Use ⇄ to correct a speaker. Left Shift: {settings.a.name}; Right Shift: {settings.b.name}.
+          ? 'Tap Next speaker (or press Space) to pass the turn.'
+          : 'Pause or tap Next speaker to pass the turn.'}{' '}
+        Use ⇄ to move a message to the other speaker.
       </p>
       {packPanel}
       {(uiError || speech.error || !speech.supported) && (
@@ -340,10 +370,26 @@ export function TwoWayView({
             Start a conversation or type a message. Messages stay here until you clear them.
           </p>
         )}
-        {messages.map(renderMessage)}
+        <MessageHistory
+          messages={messages} placement={settings.placement} fontSize={fontSize} isDark={isDark}
+          onCorrectMessage={onCorrectMessage} playingMessageId={twoWayPlayback.playingMessageId}
+          downloadingMessageId={twoWayPlayback.downloadingMessageId} togglePlayMessage={twoWayPlayback.togglePlayMessage}
+        />
         {(speech.draft || speech.interim) && (
-          <article className={`conversation-bubble side-${speech.turn}`}>
-            <small>{settings[speech.turn].name} · speaking…</small>
+          <article className={`conversation-bubble side-${livePlacedSide}`}>
+            <div className="conversation-meta">
+              <small>{settings[speech.turn].name} · speaking…</small>
+              {sameSpeechLang && (
+                <button
+                  type="button"
+                  aria-label={`Switch live speech to ${settings[otherSide(speech.turn)].name}`}
+                  title={`Switch to ${settings[otherSide(speech.turn)].name}`}
+                  onClick={() => speech.reassignTurn(otherSide(speech.turn))}
+                >
+                  ⇄
+                </button>
+              )}
+            </div>
             <div
               dir={direction(settings[speech.turn].lang)}
               lang={settings[speech.turn].lang}
@@ -384,15 +430,16 @@ export function TwoWayView({
             : 'Conversation stopped'}{' '}
           {speech.isListening && <small>🎙 {speech.speechLocal ? 'local' : 'cloud'}</small>}
         </div>
-        {settings.manualTurns && speech.isListening && (
+        {speech.isListening && (
           <button
             type="button"
             ref={nextButton}
             className="conversation-next-speaker conversation-start"
-            aria-keyshortcuts="Space"
+            aria-keyshortcuts={settings.manualTurns ? 'Space' : undefined}
             onClick={() => speech.setTurn(otherSide(speech.turn))}
           >
-            Next speaker · {settings[otherSide(speech.turn)].name} <kbd>Space</kbd>
+            Next speaker · {settings[otherSide(speech.turn)].name}
+            {settings.manualTurns && <kbd>Space</kbd>}
           </button>
         )}
         <details>

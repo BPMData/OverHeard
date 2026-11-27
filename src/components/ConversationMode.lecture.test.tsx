@@ -1,37 +1,16 @@
 // @vitest-environment jsdom
 import React from 'react';
+import { createSpeechHarness, speechAcrossRestart } from '../speech/__fixtures__/speechHarness';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConversationMode } from './ConversationMode';
 
-type ResultEvent = {
-  resultIndex: number;
-  results: Array<{ isFinal: boolean; 0: { transcript: string } }>;
-};
-
-class FakeRecognition {
-  static instances: FakeRecognition[] = [];
-  lang = '';
-  continuous = false;
-  interimResults = false;
-  processLocally?: boolean;
-  onstart: (() => void) | null = null;
-  onresult: ((event: ResultEvent) => void) | null = null;
-  onerror: ((event: { error: string }) => void) | null = null;
-  onend: (() => void) | null = null;
-  start = vi.fn(() => this.onstart?.());
-  stop = vi.fn();
-  abort = vi.fn();
-  constructor() {
-    FakeRecognition.instances.push(this);
-  }
-}
+const speech = createSpeechHarness();
 
 beforeEach(() => {
   vi.useFakeTimers();
   localStorage.clear();
-  FakeRecognition.instances = [];
-  vi.stubGlobal('SpeechRecognition', FakeRecognition);
+  speech.install();
 });
 
 afterEach(() => {
@@ -51,7 +30,7 @@ it('opens and focuses room setup before starting a lecture with simple controls'
   fireEvent.click(share);
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Create room' }));
-  expect(FakeRecognition.instances).toHaveLength(0);
+  expect(speech.instances).toHaveLength(0);
 });
 
 it('shows Clear lecture in simple controls only after the room is ended', async () => {
@@ -74,8 +53,8 @@ it('shows Clear lecture in simple controls only after the room is ended', async 
   await waitFor(() => expect(screen.queryByRole('button', { name: 'Share room code with students' })).toBeNull());
 
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  await waitFor(() => expect(FakeRecognition.instances.length).toBeGreaterThan(0));
-  act(() => FakeRecognition.instances[0].onresult?.({ resultIndex: 0,
+  await waitFor(() => expect(speech.instances.length).toBeGreaterThan(0));
+  act(() => speech.instances[0].onresult?.({ resultIndex: 0,
     results: [{ isFinal: true, 0: { transcript: 'Cells divide by mitosis' } }] }));
   await waitFor(() => expect(screen.getByText('Cells divide by mitosis')).toBeTruthy());
   fireEvent.click(screen.getByRole('button', { name: 'Pause lecture' }));
@@ -90,6 +69,18 @@ it('shows Clear lecture in simple controls only after the room is ended', async 
 });
 
 describe('ConversationMode Lecture mode', () => {
+  it('keeps the unfinished clause when the browser ends a healthy session', async () => {
+    render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async text => text)}
+      selectedLangs={[]} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
+    await speech.replay(speechAcrossRestart);
+    expect(screen.getByText('Turn the page')).toBeTruthy();
+    expect(screen.getByText('Read the heading')).toBeTruthy();
+    expect(speech.instances).toHaveLength(2);
+  });
+
   it('switches into Lecture mode, streams live English -> multi-language columns, keeps full history, and persists locally', async () => {
     const translate = vi.fn(async (text: string, target: string, source: string) => {
       return `${source}>${target}:${text}`;
@@ -122,8 +113,8 @@ describe('ConversationMode Lecture mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
     // Start continuous English lecture
     fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-    expect(FakeRecognition.instances).toHaveLength(1);
-    const rec = FakeRecognition.instances[0];
+    expect(speech.instances).toHaveLength(1);
+    const rec = speech.instances[0];
     expect(rec.lang).toBe('en-US');
     expect(rec.continuous).toBe(true);
     expect(rec.interimResults).toBe(true);
@@ -229,7 +220,7 @@ describe('ConversationMode Lecture mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
     fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-    const rec = FakeRecognition.instances[0];
+    const rec = speech.instances[0];
 
     fireEvent.change(screen.getByLabelText('Lecture line text'), {
       target: { value: 'Quiz starts at noon' },
@@ -256,7 +247,7 @@ it('does not pair a late interim translation with newer English speech', async (
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  const rec = FakeRecognition.instances[0];
+  const rec = speech.instances[0];
   await act(async () => rec.onresult?.({ resultIndex: 0,
     results: [{ isFinal: false, 0: { transcript: 'The old sentence has six words' } }] }));
   expect(translate).toHaveBeenCalledTimes(1);
@@ -269,11 +260,14 @@ it('does not pair a late interim translation with newer English speech', async (
 
 it('suspends teacher lecture speech recognition while reading a cell aloud and resumes when done', async () => {
   class FakeUtterance {
+    text: string;
     lang = '';
     voice: { lang: string } | null = null;
     onend: (() => void) | null = null;
     onerror: (() => void) | null = null;
-    constructor(public text: string) {}
+    constructor(text: string) {
+      this.text = text;
+    }
   }
   const spokenQueue: FakeUtterance[] = [];
   vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
@@ -314,8 +308,8 @@ it('suspends teacher lecture speech recognition while reading a cell aloud and r
   expect(JSON.parse(localStorage.getItem('overheard.voices')!).pt).toBe('pt_BR-cadu-medium');
 
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  expect(FakeRecognition.instances).toHaveLength(1);
-  const firstRec = FakeRecognition.instances[0];
+  expect(speech.instances).toHaveLength(1);
+  const firstRec = speech.instances[0];
 
   fireEvent.change(screen.getByLabelText('Lecture line text'), {
     target: { value: 'Open your books' },
@@ -333,7 +327,7 @@ it('suspends teacher lecture speech recognition while reading a cell aloud and r
   await act(async () => {
     spokenQueue.shift()?.onend?.();
   });
-  expect(FakeRecognition.instances).toHaveLength(2);
+  expect(speech.instances).toHaveLength(2);
 });
 
 it('clicking the top-left OverHeard brand stops active lecture capture and calls onHome (or falls back to onExit)', () => {
@@ -357,7 +351,7 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  const rec = FakeRecognition.instances[0];
+  const rec = speech.instances[0];
   expect(rec).toBeTruthy();
 
   fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
@@ -388,7 +382,7 @@ it('streams live translations through a long run-on sentence without a pause', a
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
-  const rec = FakeRecognition.instances[0];
+  const rec = speech.instances[0];
   const words = Array.from({ length: 120 }, (_, i) => `word${i}`);
   for (let n = 10; n <= words.length; n += 10) {
     const transcript = words.slice(0, n).join(' ');

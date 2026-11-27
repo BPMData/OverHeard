@@ -53,4 +53,16 @@ describe('corrections to an earlier word', () => {
     next('hello there my friend');
     expect(next('how are you')).toBe('how are you');
   });
+
+});
+
+describe('stripEcho', () => {
+  it('drops sent words, a revised copy of them, or a piece of them', async () => {
+    const { stripEcho } = await import('./speechDedupe');
+    expect(stripEcho('still talking now', 'still talking')).toBe('now');
+    expect(stripEcho('still talking', 'still talkin')).toBe('');
+    expect(stripEcho('still', 'still talking')).toBe('');
+    expect(stripEcho('fine thanks', 'still talking')).toBe('fine thanks');
+    expect(stripEcho('yes', '')).toBe('yes');
+  });
 });
