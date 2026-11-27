@@ -58,3 +58,8 @@ Read `ROOMS.md` before changing room transport or deployment. Live rooms and tra
 request coalescing currently live in one process, so keep Cloud Run's maximum instances at
 **1** until shared state/pub-sub is implemented. JSON exports are the durable local copy;
 server and Google Drive persistence remain future work in `TODO.md`.
+
+## Formatting
+
+Run `npx prettier --write` on changed files before committing. CI runs
+`npx prettier --check .`; markdown and `docs/` are excluded (see `.prettierignore`).

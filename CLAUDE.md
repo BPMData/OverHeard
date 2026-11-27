@@ -10,3 +10,6 @@ overrides anything else here.
   Run service (see `ROOMS.md` and `deploy/github-pages-404.html`).
 - **Background reading:** `ARCHITECTURE.md` (how the code fits together), `ROOMS.md` (live
   lecture rooms), `TODO.md` (open work).
+
+- **Formatting:** run `npx prettier --write` on changed files before committing; CI runs
+  `npx prettier --check .`. Markdown and `docs/` are excluded (see `.prettierignore`).
