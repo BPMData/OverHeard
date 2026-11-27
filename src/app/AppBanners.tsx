@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { DisplayMode } from '../types';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { isAppleMobile, isAppleMobileNotSafari } from './appleDevice';
+import { AppleSpeechSteps } from './AppleSpeechHelp';
 
 interface AppBannersProps {
   displayMode: DisplayMode;
@@ -18,10 +20,29 @@ export function AppBanners({
   displayMode, isEmbeddedIframe, hasSpeechApi, isSupportedBrowser, importError, pipNotice,
   permissionBanner, setImportError, setPipNotice,
 }: AppBannersProps) {
+  const apple = isAppleMobile();
   return (
     <>
+      {/* iPhone / iPad: only Safari can hear speech. Shown on every page, Lecture and Two-way too. */}
+      {apple && (isAppleMobileNotSafari() || !hasSpeechApi) && (
+        <div role="note" className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-start gap-2.5 text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <span>
+            {isAppleMobileNotSafari() ? (
+              <>
+                <strong>On iPad or iPhone, open OverHeard in Safari.</strong> Other browsers there
+                (Chrome included) can&apos;t hear speech.{' '}
+              </>
+            ) : (
+              <strong>Speech recognition is off on this device. </strong>
+            )}
+            <AppleSpeechSteps />
+          </span>
+        </div>
+      )}
+
       {/* Browser Compatibility Banner */}
-      {displayMode !== 'conversation' && (!isSupportedBrowser || !hasSpeechApi) && (
+      {!apple && displayMode !== 'conversation' && (!isSupportedBrowser || !hasSpeechApi) && (
         <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2.5 text-xs sm:text-sm flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 text-amber-800 dark:text-amber-200">
             <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
