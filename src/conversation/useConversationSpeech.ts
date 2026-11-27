@@ -77,6 +77,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
      * a fresh one. Results until it ends belong to words already sent and are ignored.
      */
     boundary: false,
+    // Chrome already ended the session containing the speaker’s finalized words.
+    freshAfterFinal: false,
   });
   const recognizer = useRef<Recognizer | null>(null);
   const silence = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,6 +115,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   function invalidate() {
     session.current.generation++;
     session.current.boundary = false;
+    session.current.freshAfterFinal = false;
     clearTimers();
     detach();
   }
@@ -148,7 +151,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     silence.current = null;
     const echo = current.interim;
     const sent = send();
-    handoff(otherSide(current.side), echo, sent);
+    handoff(otherSide(current.side), echo, sent, 'pause');
   }
 
   /**
@@ -229,6 +232,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
 
     recognition.onresult = (event) => {
       if (!valid() || current.boundary) return;
+      current.freshAfterFinal = false;
       logSpeechEvent(event);
       if (isOffline()) setLocal(true); // heard while offline, so it runs on this device
       const prevDraft = current.draft;
@@ -241,10 +245,14 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
           if (!finals.has(index)) {
             finals.add(index);
             let { drop, add } = newWords.revise(text);
-            if (current.echo && add) {
-              add = withoutEcho(add);
-              current.echo = current.echoSent = '';
+            if (current.echo) {
+              // Chrome can finalize the same old words more than once, first as a
+              // fragment and then as a revision. Compare the whole browser result
+              // until we see the next speaker's words. Keep the deduper's raw history
+              // so a later cumulative extension contributes only its new tail.
+              add = withoutEcho(text);
               drop = 0;
+              if (add) current.echo = current.echoSent = '';
             }
             current.draft = appendDistinct(dropLastWords(current.draft, drop), add);
           }
@@ -252,8 +260,8 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
           parts.push(text);
         }
       }
-      const interim = newWords.peek(mergeInterim(parts));
-      current.interim = withoutEcho(interim);
+      const interim = mergeInterim(parts);
+      current.interim = current.echo ? withoutEcho(interim) : newWords.peek(interim);
       updateDraft(current.draft);
       updateInterim(current.interim);
       current.failures = 0;
@@ -289,6 +297,9 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     function scheduleRestart() {
       if (!valid()) return;
       logSpeechNote(`end (${lastError ?? 'ok'})`);
+      const endedAfterFinal = !current.boundary && lastError === null && !current.interim
+        && (current.freshAfterFinal || finals.size > 0);
+      current.freshAfterFinal = false;
       if (current.boundary) {
         // Ended on purpose at a turn change: start the next person's session right away
         current.boundary = false;
@@ -312,6 +323,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
           void begin();
           return;
         }
+        current.freshAfterFinal = endedAfterFinal && Boolean(current.draft);
         newSession();
         listen();
       };
@@ -321,6 +333,7 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
     }
     function listen() {
       try {
+        logSpeechNote('request start');
         recognition.start();
       } catch {
         lastError = 'network';
@@ -333,14 +346,11 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
   }
 
   /**
-   * Passes the turn. When both people speak the same language the same recognizer is kept
-   * (building a new one leaves an Android tablet deaf for seconds), but its session is ended
-   * and started again: a running session keeps delivering, revising and re-sending words the
-   * previous person already said, which then opened the next person's message. A fresh
-   * session starts with no history. Unfinished words that were sent (`echo`) can still come
-   * back at the start of it; that copy is stripped.
+   * Same-language turns reuse the recognizer. Each speaker gets fresh result indexes
+   * because Chrome can revise and resend words from a running session. If Chrome has
+   * already restarted since the final words, Auto can use that fresh session directly.
    */
-  function handoff(side: Side, echo = '', sent = '') {
+  function handoff(side: Side, echo = '', sent = '', trigger: 'tap' | 'pause' = 'tap') {
     const current = session.current;
     const { participants } = opts.current;
     const recognition = recognizer.current;
@@ -358,6 +368,14 @@ export function useConversationSpeech(options: ConversationSpeechOptions) {
       current.side = side;
       current.failures = 0;
       updateTurn(side);
+      // If Chrome already restarted after the last final, Auto can hand this empty
+      // session to the next speaker. Aborting it again loses the start of their reply.
+      const reuseFreshSession = trigger === 'pause' && current.freshAfterFinal;
+      current.freshAfterFinal = false;
+      if (reuseFreshSession) {
+        logSpeechNote(`turn ${side} (browser already restarted after final)`);
+        return;
+      }
       if (restart.current !== null || current.boundary) {
         logSpeechNote(`turn ${side} (session already restarting)`);
         return;

@@ -334,6 +334,67 @@ describe('conversation turn recognition', () => {
     },
   );
 
+  it('hears an immediate same-language reply when Android already restarted after the final words', () => {
+    const { result, onSend } = setup('en');
+    const mic = latest();
+    // Abort can take time to report end on a tablet. Speech during that gap is lost.
+    mic.abort.mockImplementation(() => {});
+    act(() => mic.result('Are you ready?'));
+    act(() => {
+      vi.advanceTimersByTime(1200);
+      mic.onend?.();
+    });
+    expect(mic.start).toHaveBeenCalledTimes(2);
+    act(() => vi.advanceTimersByTime(1300));
+    expect(result.current.turn).toBe('b');
+    act(() => mic.result('Yes I am', false));
+    expect(result.current.interim).toBe('Yes I am');
+    act(() => mic.result('Yes I am'));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend.mock.calls).toEqual([['a', 'Are you ready?'], ['b', 'Yes I am']]);
+    // B's session contained words, so it still needs a clean boundary before A speaks.
+    expect(mic.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it('still resets at Auto handoff if the last session ended with unfinished speech', () => {
+    const { onSend } = setup('en');
+    const mic = latest();
+    act(() => mic.result('I can', true, 0));
+    act(() => mic.result('hear it', false, 1));
+    act(() => {
+      vi.advanceTimersByTime(1200);
+      mic.onend?.();
+      vi.advanceTimersByTime(1300);
+    });
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'I can hear it');
+    expect(mic.abort).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores several revisions of the previous turn before accepting the reply', () => {
+    const { result, onSend } = setup('en');
+    act(() => latest().result('still talkin', false));
+    act(() => vi.advanceTimersByTime(2500));
+    act(() => latest().result('still', true, 0));
+    act(() => latest().result('still talking', false, 1));
+    expect(result.current.interim).toBe('');
+    act(() => latest().result('still talking', true, 1));
+    expect(result.current.draft).toBe('');
+    act(() => latest().result('still talking I can see it', true, 2));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend.mock.calls).toEqual([['a', 'still talkin'], ['b', 'I can see it']]);
+  });
+
+  it('keeps a new reply that shares one word with the previous unfinished phrase', () => {
+    const { result, onSend } = setup('en');
+    act(() => latest().result('thank you', false));
+    act(() => vi.advanceTimersByTime(2500));
+    act(() => latest().result('you are welcome', false));
+    expect(result.current.interim).toBe('you are welcome');
+    act(() => latest().result('you are welcome'));
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend.mock.calls).toEqual([['a', 'thank you'], ['b', 'you are welcome']]);
+  });
+
   it('keeps one recognizer but starts a fresh session when both people speak the same language', () => {
     const { result, onSend } = setup('en');
     const first = latest();
