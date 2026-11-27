@@ -46,7 +46,7 @@ const MT_CHAIN = buildProviderChain({
 const MT_PROVIDER = MT_CHAIN[0];
 
 
-async function startServer() {
+export async function startServer() {
   const distPath = path.join(__dirname, 'dist');
   const isProd =
     process.env.NODE_ENV === 'production' ||
@@ -88,6 +88,12 @@ async function startServer() {
     }
   });
   server.once('close', close);
+  return server;
 }
 
-startServer();
+const isMainModule =
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === path.resolve(__filename);
+if (isMainModule) {
+  void startServer();
+}

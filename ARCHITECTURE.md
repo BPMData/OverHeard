@@ -1,35 +1,105 @@
-# OverHeard architecture and refactor plan
+# OverHeard — System Architecture
 
-This is a plan for whoever does the refactor, whether a person or a coding agent. It describes
-the code as it is now, the layout to move toward, and an order of small steps that **don't
-change behavior**. Read `AGENTS.md` first: its deployment rules and checks override anything here.
+> **Audience:** any developer or coding agent arriving "blind." Read [`AGENTS.md`](AGENTS.md) first:
+> its Cloud Run deployment contract and Node 22 rules override anything else here.
+> For live lecture room behavior and limits, read [`ROOMS.md`](ROOMS.md). For planned work, see [`TODO.md`](TODO.md).
+> If the code disagrees with this file, trust the code and update this file.
 
-## If you change this behavior
+---
+
+## 1. What it is
+
+**OverHeard** is a real-time classroom speech transcription, multi-language translation, neural read-aloud, two-way conference, and shared student lecture-room web app — built for teachers and schools with **zero required logins or accounts** and zero required server secrets.
+
+**Design values to preserve:**
+- **No accounts, no required API keys:** runs out of the box using Chrome's Web Speech API, on-device translation/voices where available, and free `gtx` fallback on `/api/mt`.
+- **Single-page-app simplicity on a cheap Chromebook or tablet:** offline-capable translation/TTS models stay cached on the device in Cache Storage / OPFS; no heavy backend database.
+- **Privacy & school-network compatibility:** non-sensitive Google OAuth scope only (`drive.file`, enforced by `src/lib/googleScopes.test.ts`), `freeOnly` guard on live interim speech and student rooms, and static WASM assets hosted without COEP restrictions so school Wi-Fi and Google popups work.
+
+---
+
+## 2. If you change this behavior
 
 | Behavior | Where it is decided | What to verify |
 |---|---|---|
 | Starting or retiring a microphone | [Recognizer setup and teardown](src/speech/recognition.ts), [restart backoff](src/speechRestart.ts) | A retired mic cannot restart itself. On a clean end mid-clause, [captions](src/App.captions.test.tsx) keep finalized lines, [lecture](src/components/ConversationMode.lecture.test.tsx) saves the trailing words as a line, and [two-way mode](src/conversation/useConversationSpeech.test.ts) carries them into the current turn. |
 | Passing a two-way turn | [Two-way speech hook](src/conversation/useConversationSpeech.ts) | The pause runs from the last new words, even across a mic restart. A same-language handoff starts a fresh session on the existing mic. [Turn tests](src/conversation/useConversationSpeech.test.ts) |
 | Showing live two-way captions | [Face-to-face readers](src/components/FaceToFaceView.tsx) and [side-by-side history](src/components/TwoWayView.tsx) | Interim words update the live line. Completed messages update when their speaker, translation or display settings change. [Two-reader regression](src/components/ConversationMode.faceToFace.test.tsx) |
-| Saving or opening lecture files | [Lecture JSON and live room protocol](src/rooms/protocol.ts) | A saved lecture with 2,001 lines reopens within the 8 MB file limit. A live room caps its transcript at 2,000 lines. [Round-trip and limit tests](src/rooms/protocol.test.ts) |
+| Saving or opening lecture files | [Lecture JSON and live room protocol](src/rooms/protocol.ts), [Google Drive client](src/lib/googleDrive.ts) | A saved lecture with 2,001 lines reopens within the 8 MB file limit. A live room caps its transcript at 2,000 lines. Only `drive.file` scope is used. [Round-trip and limit tests](src/rooms/protocol.test.ts) · [OAuth scope test](src/lib/googleScopes.test.ts) |
 | Reusing a translation request | [Browser cache](src/translation/translationCache.ts), [teacher client](src/translation/useTranslator.ts), [student client](src/rooms/translateStudent.ts) | Concurrent calls share a promise. A late failure after eviction preserves the replacement. Finalized captions can reuse live work, and student fallback uses free translation. [Eviction race](src/translation/useTranslator.test.ts) · [Caption requests](src/App.captions.test.tsx) · [Student requests](src/rooms/translateStudent.test.ts) |
+| Server startup or production imports | [Server entry](server.ts), [Express app](server/app.ts), [Node boot test](server/nodeBoot.test.ts), [smoke script](scripts/smoke.sh) | Plain Node 22 loads `server.ts` and `server/app.ts` with native type stripping, serves `/api/config`, and passes live room SSE smoke checks. |
 
-To reproduce device-specific speech behavior, open the app with `?debugSpeech=1` and use
-substitute classroom phrases. In a fake-timer test, pass the observed sequence to
-`speech.replay`. Each step can specify the delay since the previous event in `afterMs`.
-For results, preserve the browser’s `resultIndex`, transcript revisions and final flags.
-The [speech harness and example trace](src/speech/__fixtures__/speechHarness.ts) show the format.
+To reproduce device-specific speech behavior, open the app with `?debugSpeech=1` and use substitute classroom phrases. In a fake-timer test, pass the observed sequence to `speech.replay`. Each step can specify the delay since the previous event in `afterMs`. For results, preserve the browser's `resultIndex`, transcript revisions and final flags. The [speech harness and example trace](src/speech/__fixtures__/speechHarness.ts) show the format.
 
-## How to use this document
+---
 
-**Setup from a fresh clone:** use Node 22 (`node --version`). Install with
-`npm install --legacy-peer-deps --no-audit --no-fund`, the same command CI uses. Don't commit
-a `package-lock.json`: the repository has none (there is a `bun.lock`), and CI installs
-without one. `scripts/smoke.sh` needs `curl` and a free port 3000. No API keys are needed:
-the app and the tests fall back gracefully without them.
+## 3. Design choices and rationale (why it is built this way)
 
-Do **one step per pull request** (or per commit, if the owner prefers). A step is finished
-only when all of these pass under Node 22:
+| Decision | Choice made | Why (and what alternatives were avoided) |
+|---|---|---|
+| **Student room transport** | **Server-Sent Events (`EventSource`)** on `/api/rooms/:code/events` (`server/rooms.ts`) | Students are strictly read-only listeners of teacher transcripts. SSE uses plain HTTP, reconnects automatically on flaky school Wi-Fi, requires no WebSocket client bundle, and avoids Socket.IO overhead. Requires `--concurrency 1000` and `--timeout 3600` on Cloud Run (`ROOMS.md`). |
+| **Live room storage** | **In-memory per process** (max 100 rooms, 200 readers/room, 8 h idle TTL) | Temporary live rooms avoid database/bucket ops and keep student sync fast. Trade-off: Cloud Run must stay at **max instances = 1** and deploys clear active live rooms; durable copies use portable JSON export/import and Google Drive. |
+| **Translation chain** | **Device-first** (Chrome Translator API → Bergamot / Opus-MT WASM) → `/api/mt` (`gtx` → optional `google-cloud`) | Minimizes latency and API spend in classrooms. Live interim speech and student pages send `freeOnly: true` so speculative typing/speaking never spends paid Google Cloud quota. Pending identical `/api/mt` requests coalesce in memory (`server/mt.ts`). |
+| **Single-threaded WASM + OAuth headers** | `Cross-Origin-Opener-Policy: same-origin-allow-popups`, **no `COEP`** (`server/app.ts`) | Setting `COEP: require-corp` would unlock multi-threaded WASM (`SharedArrayBuffer`), but breaks Google OAuth sign-in popups and cross-origin Google Picker iframes (`cross-origin-resource-policy: same-site`). Piper, Meta MMS, Bergamot, and Opus-MT all run cleanly single-threaded in Web Workers. |
+| **Dual neural TTS engines** | **Piper TTS** (`@mintplex-labs/piper-tts-web`) + **Meta MMS** (`src/tts/mmsEngine.ts`) in one worker (`src/tts/piperWorker.ts`) | Piper covers major languages well with eSpeak/pinyin phonemes, while low-resource languages (Swahili, Haitian Creole, Somali, Indonesian, Turkish) use character-tokenized Meta MMS VITS models (`int8` ONNX). Both cache in OPFS and fall back to `window.speechSynthesis`. |
+| **Keep `ConversationMode` mounted** | Rendered conditionally with `hidden={!active}` once visited (`src/App.tsx`) | Preserves the in-memory two-way conversation thread and lecture transcript when switching back and forth between Columns / Subtitle and Conversation mode during a class session. |
+| **TypeScript server execution** | **Node 22 native type stripping** (`node server.ts`) | Eliminates a server transpile step in Cloud Run Buildpacks. Requires strictly erasable TS (`import type`, `.ts` extensions on relative server imports, no `enum`/`namespace`/parameter properties), enforced by `server/nodeBoot.test.ts` and `scripts/smoke.sh`. |
+
+---
+
+## 4. Current layout
+
+```text
+server.ts               Reads env, exports startServer(), runs when invoked as main (0.0.0.0:3000)
+server/
+  app.ts                Express middleware (COOP header), room router, static dist/ headers & SPA fallback
+  routes/mt.ts          /api/config, /api/mt, per-session & per-IP rate limits, [usage] logger
+  development.ts        Vite middleware and dev-only /ort/ & /piper/ WASM routes (lazy-imported only in dev)
+  mt.ts                 Provider chain (gtx / google-cloud), 10-min benching, pending-request coalescing
+  rooms.ts              In-memory live rooms, salted PIN hash + bearer token rotation, SSE delta/snapshot stream
+  budget.ts, rateLimit.ts, usage.ts, clientKeys.ts, shortLink.ts, config.ts
+  nodeBoot.test.ts      Plain Node 22 import check over server.ts & server/app.ts
+
+src/
+  main.tsx              Routes ?room= or /<code> to StudentRoom; otherwise mounts App
+  App.tsx               Thin shell (~299 lines): picks Columns / Subtitle / Conversation and wires hooks to views
+  app/                  useAppSettings (theme, font, ?langs=, mode), useBrowserSupport, usePackProgress, banners
+  speech/               Shared recognizer setup/teardown (recognition.ts), useCaptionSpeech, Space hotkey, types
+  captions/             useCaptionTranscript, useColumnPlayback, ColumnsView, SubtitleBar, TestInputBar
+  translation/          useServerConfig, useTranslator, useDeviceFirstTranslator, translationCache,
+                        useLanguagesNeedingOnline, bergamot/ (Bergamot + Opus-MT workers & Cache Storage store)
+  pip/                  usePipWindow, copyStyles (Document Picture-in-Picture lifecycle & theme sync)
+  header/               AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch, TranslatorPicker, ClearTranscriptButton
+  components/
+    ConversationMode.tsx  Shared Two-way & Lecture toolbar/workspace coordinator (820 lines — next refactor target)
+    TwoWayView.tsx, FaceToFaceView.tsx, LectureView.tsx, LectureTranscript.tsx, PipSubtitlePortal.tsx
+    DriveLectureActions.tsx, DriveSaveModal.tsx, VoiceSettingsModal.tsx, LanguageModal.tsx,
+    AboutModal.tsx, StorageManager.tsx, PackProgressPanel.tsx
+  conversation/         Two-way & Lecture state/reducers, useConversationSpeech, useLectureMode, locales, translateMessage
+  rooms/                TeacherRoomControls, StudentRoom, protocol.ts (shared with server), translateStudent, LecturePip/Files
+  tts/                  voices.ts (845 lines — catalog + prefs), piperClient, piperWorker, mmsEngine, mmsTokenizer,
+                        useLecturePlayback, useTwoWayPlayback, liveSegments, VoiceSelect, voiceStorage
+  lib/                  googleConfig.ts, googleDrive.ts (GIS OAuth + Picker + Drive v3, drive.file scope only)
+  storage/              Settings → "Space used on this device" registry joining voices and translation packs
+  *.ts                  Shared helpers: onDevice, speechRestart, speechDedupe, liveTranslation,
+                        useLiveTranslations, packProgress, pipLines, wakeLock, captionColors, offline
+```
+
+### Ownership & state rules
+
+- **Each feature hook owns its state and internal "latest value" refs:** `App.tsx` keeps only cross-cutting state (`selectedLangs`, `displayMode`, `fontSize`, `isDark`, modal flags).
+- **Explicit props over React context:** Component trees are shallow (`App` → views/header/ConversationMode), so passing explicit props keeps data dependencies visible and easy to unit-test.
+- **`src/rooms/protocol.ts` is shared across server and browser:** keep it strictly erasable TypeScript with zero React, CSS, or DOM imports.
+
+---
+
+## 5. Development, setup, and verification
+
+- **Node version:** Node 22 (`node --version`).
+- **Dependencies:** `bun.lock` is the committed lockfile; npm (used in CI and `.github/workflows/deploy.yml`) installs with `npm install --legacy-peer-deps --no-audit --no-fund`. `package-lock.json` is intentionally gitignored (`.gitignore`), so never commit one.
+- **Zero-secret local dev:** No API keys are needed; `/api/mt` falls back to `gtx`, and Google Drive buttons use the public browser client config in `src/lib/googleConfig.ts` (or hide cleanly if unconfigured).
+
+Run all checks before merging:
 
 ```sh
 npm test -- --run
@@ -39,263 +109,19 @@ NODE_ENV=production node --check server.ts
 bash scripts/smoke.sh
 ```
 
-Rules for every step:
+Note on `scripts/smoke.sh`: it starts the production server on port 3000 (requires `curl` and an unused port 3000) and verifies `/api/config`, `/api/mt` input validation, SPA loading, and room create/rejoin/SSE streaming.
 
-- **Move, don't rewrite.** Cut and paste the code, keep names and comments, and change only
-  imports and parameters. If a step seems to need a behavior change, stop and list it under
-  "Later: changes that alter behavior" instead.
-- **Add tests first** where the step says so, and confirm they pass on the old code before
-  moving anything.
-- Don't change user-visible text, CSS class names, `aria-label`s, `localStorage` keys or
-  API routes. Tests and saved browser state depend on them.
-- Keep the old export names (e.g. `default export App`, `JoinRoomForm`) working.
-- When a step is done, update the "Current layout" section below.
+---
 
-## Current layout (November 2026)
+## 6. Known traps (read before editing)
 
-```
-server.ts               Reads the environment, calls createApp(), and listens on 0.0.0.0:3000
-server/app.ts           Express middleware, room routes, static files and SPA fallback
-server/routes/mt.ts     /api/config, /api/mt, rate limits and usage
-server/development.ts   Vite middleware and development-only WASM file routes
-server/                 mt.ts (provider chain + request coalescing), rooms.ts (live rooms, SSE),
-                        rateLimit, usage, clientKeys, shortLink
-src/main.tsx            Picks StudentRoom (?room= or /<code>) or App
-src/App.tsx             Wires caption hooks and views, mode changes, lecture import, modals and
-                        the Conversation host (288 lines)
-src/app/                Settings and URL sync, browser support, pack progress, main-window theme,
-                        browser and microphone permission banners
-src/speech/             Shared recognizer setup and teardown, caption lifecycle, Space shortcut, types
-src/captions/           Transcript state and export, column playback, ColumnsView, SubtitleBar,
-                        TestInputBar
-src/translation/        Server config, device-first translation, shared browser cache and teacher retries
-src/pip/usePipWindow.ts Pop-out lifecycle, line/layout/size preferences and pop-out theme sync
-src/header/             AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch,
-                        TranslatorPicker and ClearTranscriptButton
-src/components/         ConversationMode (mode switching, shared settings and lifecycle),
-                        TwoWayView, LectureView, LectureTranscript, PipSubtitlePortal, modals
-src/conversation/       Two-way and Lecture state, speech hooks, lecture translation
-src/rooms/              Shared lecture rooms: teacher publishing, student view, protocol
-src/tts/                Piper and Meta MMS voices (mmsEngine, mmsTokenizer), useLecturePlayback (finished lines and live read-aloud),
-                        useTwoWayPlayback, liveSegments and useSpeechPlayback re-exports
-src/lib/                Google Drive
-src/storage/            Settings → "Space used on this device": a registry each kind of download
-                        (Piper and MMS voices in tts/voiceStorage.ts, Chrome packs in
-                        translation/packStorage.ts) joins with its size and delete handlers
-src/*.ts                Small shared helpers: onDevice, speechRestart, speechDedupe,
-                        liveTranslation, useLiveTranslations, packProgress, pipLines, wakeLock
-```
-
-### What is inside `App.tsx`
-
-App selects the caption or conversation surface and connects their shared settings and
-actions. Caption recognition passes final and interim results to the transcript hook.
-Both the projector views and the pop-out read the same transcript and listening state.
-Conversation mode stays mounted after its first visit, with its activity controlled by
-the display mode.
-
-### Shared code and mode-specific behavior
-
-- The three speech hooks share recognizer setup and teardown, restart backoff and word
-  deduplication. Each hook owns its session lifetime and decides what an end event does
-  with unfinished speech.
-- The teacher and student translation clients share device-first recovery and bounded
-  promise caching. Each sets its own cache keys and limits. The teacher also handles
-  live-to-final reuse and retries. Students can request local-only translation or use
-  the free online fallback.
-- Finished-line lecture playback and live read-aloud share one player and queue in
-  `useLecturePlayback`. Its effects run in declaration order (see Traps).
-
-## Target layout
-
-```
-src/
-  main.tsx
-  App.tsx                     ≤ 300 lines: picks the mode and wires hooks to views
-  app/
-    useAppSettings.ts         theme, font size, languages (?langs=), display mode
-    useBrowserSupport.ts      capability detection (speech, PiP, iframe, secure context)
-    usePackProgress.ts        on-device download progress
-  translation/
-    useTranslator.ts          fetchMT + retry + cache + provider tracking + preference
-    useServerConfig.ts        /api/config, refine availability, provider list
-    refine.ts                 Gemini clean-up of finalized lines
-  speech/
-    types.ts                  Web Speech API types
-    useCaptionSpeech.ts       caption-mode recognizer (start/stop/keep-alive)
-  captions/
-    useCaptionTranscript.ts   segments, handleFinalizedPhrase, clear, export, test lines
-    useColumnPlayback.ts      read-aloud for a column
-    ColumnsView.tsx
-    SubtitleBar.tsx
-    TestInputBar.tsx
-  pip/
-    usePipWindow.ts           open/close, dark-mode sync, lines and layout prefs
-  header/
-    AppHeader.tsx             composes the controls below
-    ListenButton.tsx
-    FontSizeControls.tsx
-    DisplayModeSwitch.tsx
-    TranslatorPicker.tsx
-    ClearTranscriptButton.tsx
-  components/  conversation/  rooms/  lib/   (unchanged)
-  tts/
-    useLecturePlayback.ts     finished lines + live read-aloud (one player, one queue)
-    useTwoWayPlayback.ts
-    liveSegments.ts           pure rules for which words are settled enough to speak
-server.ts                     thin: createApp() + listen on 0.0.0.0:3000
-server/
-  app.ts                      createApp(): middleware, routes, static/SPA fallback
-  routes/mt.ts                /api/mt, /api/translate, /api/config
-  (existing modules unchanged)
-```
-
-Ownership rule: **each hook owns its state and refs.** `App.tsx` keeps only what several
-features share: selected languages, display mode, theme, font size. Replace the
-`somethingRef.current = something` mirrors (`selectedLangsRef`, `mtPreferenceRef`,
-`geminiRefineEnabledRef`) with a hook parameter plus one internal "latest value" ref.
-
-## Steps
-
-Steps 0–9 don't change behavior. Do them in order: each one makes the next one smaller.
-
-### 0. Safety net (tests only)
-
-Caption mode has the thinnest coverage. Add `src/App.captions.test.tsx` (jsdom, fake
-`SpeechRecognition` like `ConversationMode.lecture.test.tsx` uses, fake `fetch`) covering:
-
-- a final result adds a row and fills each language column from `/api/mt`;
-- an interim result shows a live translation before the final arrives;
-- `fetchMT` reuses one request for the same text and language, and does not retry after a 429;
-- with translator preference "On this device", no `/api/mt` call is made (mock `../onDevice`);
-- Clear transcript empties the columns; Export JSON downloads the lecture format;
-- the space bar toggles listening but not while typing in an input.
-
-### 1. Pure helpers out of `App.tsx`
-
-Move the Web Speech interfaces to `src/speech/types.ts`. Move `parseInitialLanguages`,
-`formatTimestamp`, `rejectAfter`, timeouts and storage keys to `src/app/settings.ts` (or next
-to their only user). No hooks yet. This is low risk and makes the next diffs readable.
-
-### 2. `useServerConfig` and `useTranslator`
-
-Move `refreshServerConfig`, provider/preference state, `fetchTranslationWithRetry`, `fetchMT`,
-the cache and the provider map into `src/translation/`. Return `{ fetchMT, mtPreference,
-setMtPreference, availableProviders, lastUsedProvider, lastTranslateMs, … }`. Keep the cache
-behavior exactly: a shared promise per key, failures evicted, size-capped.
-
-### 3. `usePackProgress`, `useBrowserSupport`, theme sync
-
-Small, independent effects with their state.
-
-### 4. `useCaptionSpeech`
-
-Move `startListening`, `stopListening`, `toggleListening`, the restart timer and failure refs,
-and the unmount cleanup. It takes callbacks (`onFinal`, `onInterim`, `onPermissionDenied`) and
-returns `{ isListening, interim, speechIsLocal, notice, start, stop, toggle }`. Keep the space
-bar shortcut in `App.tsx` or in a tiny `useHotkey`. **Don't merge it with the other two speech
-hooks in this step.**
-
-### 5. `useCaptionTranscript` and `refine.ts`
-
-Move `segments`, `handleFinalizedPhrase` (including the Gemini refine and its history
-context), clear, manual test lines, the burst test and JSON export. `refine.ts` holds the
-request/merge logic with no React.
-
-### 6. `usePipWindow`
-
-The pop-out: open/close, notices, `pipLines`/`pipLayout` and their storage, and the
-dark-class sync for the second window. `PipSubtitlePortal` stays as is.
-
-### 7. Views
-
-Cut the JSX into `ColumnsView`, `SubtitleBar`, `TestInputBar`, banners and `AppHeader` (with
-its controls as listed in the target layout). Pass props, not context. Explicit props make
-the dependencies visible, and the tree is shallow. When this is done, `App.tsx` should be
-under ~300 lines.
-
-### 8. `ConversationMode.tsx`
-
-Split into `TwoWayView` and `LectureView` with a thin `ConversationMode` that switches
-between them and keeps the shared settings bar.
-
-### 8b. `useSpeechPlayback.ts`
-
-Move `useTwoWayPlayback` and its types into `src/tts/useTwoWayPlayback.ts`, and rename the
-rest to `src/tts/useLecturePlayback.ts`. Re-export both from `useSpeechPlayback.ts` until all
-imports are updated. **Don't split live read-aloud out of the lecture hook,** and don't
-reorder its `useEffect` calls. `src/tts/liveReadAloud.test.ts` must keep passing unchanged.
-
-### 9. Server
-
-Move the Express setup from `server.ts` into `server/app.ts` as `createApp(options)`, and the
-MT routes into `server/routes/mt.ts`. `server.ts` keeps reading the environment and calling
-`listen(3000, '0.0.0.0')`. Then test the routes with the loopback pattern in
-`server/rooms.test.ts`. **Server code rules:** erasable TypeScript only (no `enum`,
-`namespace`, or constructor parameter properties), `import type` for types, explicit `.ts`
-extensions on relative imports, and no React, CSS or devDependencies in the import graph.
-Check with `node server.ts` as well as `node --check`.
-
-### Later: changes that alter behavior
-
-Do these only after steps 0–9 (including 8b), each as its own PR, with a note on what users will notice:
-
-- **Further speech consolidation.** Any shared restart or on-device preparation logic must
-  account for the two-way mode’s recognizer reuse and lecture mode’s handling of trailing
-  words. Exercise all three modes with the replay cases above.
-- **One translation client.** A common client would still need the teacher’s provider
-  preferences, live-to-final reuse and retries, plus the student’s local-only or free-only
-  choices. The shared cache already handles eviction for both.
-
-- **Reuse Piper's phonemizer.** `@mintplex-labs/piper-tts-web` builds a new phonemizer
-  (635 KB of WebAssembly plus 18 MB of eSpeak data) on every `predict`. That costs about
-  0.1 s per piece on a fast laptop and several times that on a phone. It's most noticeable
-  at the start of each pause-separated line during live read-aloud. Fixing it means
-  patching or forking the library (e.g. with `patch-package`); measure on a school laptop
-  first.
-- **Live translation for the finalized line.** The final sentence is translated from
-  scratch, while its interim chunks were already translated. Reusing them is possible but
-  would lower quality; measure before changing it.
-
-## Traps
-
-- `src/rooms/protocol.ts` is imported by **both** the server and the browser. Keep it
-  erasable TypeScript with no React or DOM.
-- Cache headers (`no-cache, no-store, must-revalidate` for `index.html`, `sw.js` and the
-  SPA fallback), `DISABLE_HMR` in `vite.config.ts`, and `metadata.json` must stay as they
-  are (see `AGENTS.md`).
-- Chrome speech recognition ends by itself every so often; the restart loop and the
-  duplicate filter are reset per session on purpose. Move them as they are.
-- The pop-out window is a second `document`: theme classes and styles are copied into it.
-  Test pop-out changes in real Chrome; jsdom can't open one.
-- The UI tests choose jsdom with a `// @vitest-environment jsdom` first line; the default
-  environment is Node.
-- `ConversationMode.lecture.test.tsx` uses fake timers. New tests in that file must advance
-  timers instead of waiting.
-- **Live read-aloud** (`useLecturePlayback`) depends on effect order. The effect that handles
-  a newly finalized line must run **before** the effect that tracks interim words, and both
-  **before** the effect that auto-reads finalized lines. Otherwise a line already read live
-  is read again. Pieces play strictly in order through the same player as finished lines.
-- With live read-aloud on (the teacher's **While I talk (headphones)** option, saved as
-  `lectureLiveReadAloud` in conversation settings), automatic reading doesn't call
-  `onBeforePlay` (which pauses the teacher's microphone) unless `live.suspendSpeech` is true. Clicking a line to replay it
-  still pauses the mic. Don't "simplify" this.
-- The timing constants at the top of `src/tts/liveSegments.ts` and `LIVE_CHUNK_WORDS` /
-  `LIVE_THROTTLE_MS` for live translation were tuned with the owner. Don't change them in a
-  refactor.
-- The Piper worker (`src/tts/piperWorker.ts`) runs one job at a time and warms each voice
-  with a throwaway synthesis on preload. Test voice changes in real Chrome, because the
-  voice models download from Hugging Face.
-- Voices have two engines (`engine` in `src/tts/voices.ts`). Piper voices go through
-  `@mintplex-labs/piper-tts-web`. Meta MMS voices (`mms-tts-<iso3>`: Swahili, Haitian Creole,
-  Somali, Indonesian, Turkish) are VITS models with a character tokenizer, run directly with
-  ONNX Runtime in the same worker (`src/tts/mmsEngine.ts`), saved in OPFS under `mms/`, and
-  listed as their own storage category. They download from `MMS_VOICE_BASE_URL`
-  (`https://bpmdata.github.io/overheard-voices`, repo `BPMData/overheard-voices`), int8
-  conversions of `facebook/mms-tts-<iso3>` (CC BY-NC 4.0: keep the attribution in Settings).
-- On-device translation falls back from Chrome's Translator API to OverHeard's own models in
-  `src/translation/bergamot/`: Bergamot for 15 languages and Opus-MT (Transformers.js) for
-  Swahili. See `docs/offline-translation.md`.
-  To convert another language, see `docs/mms-voices.md`.
-- Live rooms keep state in one process. Don't add anything that assumes more than one
-  Cloud Run instance (see `ROOMS.md`).
+- **Cache headers & template leftovers:** Preserve `Cache-Control: no-cache, no-store, must-revalidate` for `index.html`, `sw.js`, and the SPA fallback (`server/app.ts`), `DISABLE_HMR` in `vite.config.ts`, and `metadata.json` (`AGENTS.md`).
+- **Web Speech restart behavior:** Chrome speech recognition ends on silence; `src/speechRestart.ts` and `src/speechDedupe.ts` reset per session intentionally across all three speech hooks (`useCaptionSpeech`, `useLectureSpeech`, `useConversationSpeech`). Any shared consolidation must preserve two-way recognizer reuse and lecture trailing-word capture.
+- **Document Picture-in-Picture (`usePipWindow` / `PipSubtitlePortal`):** Opens a second `document` whose theme classes and styles are copied over. Test PiP visual changes in real Chrome; jsdom cannot open a PiP window.
+- **Vitest environment:** Default test environment is `node` (`vitest.config.ts`); UI tests opt into jsdom via `// @vitest-environment jsdom` on line 1. `ConversationMode.lecture.test.tsx` uses fake timers — advance timers explicitly rather than waiting.
+- **Live read-aloud effect order (`src/tts/useLecturePlayback.ts`):** The effect handling newly finalized lines must run **before** the interim-tracking effect, and both **before** auto-reading finalized lines. Otherwise a line already read live is spoken twice. Do not reorder its `useEffect` calls or split live read-aloud into a separate queue.
+- **Live read-aloud mic suspension:** When **While I talk (headphones)** (`lectureLiveReadAloud`) is enabled, auto-reading passes `suspendSpeech: false` so the teacher's mic stays live; clicking a line to replay still calls `onBeforePlay` to pause the mic. Do not "simplify" this away.
+- **Tuned timing constants:** Do not alter the constants at the top of `src/tts/liveSegments.ts` or `LIVE_CHUNK_WORDS` / `LIVE_THROTTLE_MS` during refactors without owner approval.
+- **Piper & Meta MMS worker (`src/tts/piperWorker.ts`):** Runs one synthesis job at a time and warms each Piper voice with a throwaway synthesis on preload. Meta MMS voices (`mms-tts-<iso3>`) are CC BY-NC 4.0 models served from `https://bpmdata.github.io/overheard-voices` and cached in OPFS under `mms/` (see [`docs/mms-voices.md`](docs/mms-voices.md)).
+- **On-device translation models (`src/translation/bergamot/`):** Bergamot (15 languages) + Opus-MT Transformers.js (Swahili) run in Web Workers reading strictly from Cache Storage `overheard-bergamot-v1` (see [`docs/offline-translation.md`](docs/offline-translation.md)).
+- **One Cloud Run instance:** Keep `--max-instances 1` (`ROOMS.md`) until shared room state and pub/sub exist.
