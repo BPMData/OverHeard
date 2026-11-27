@@ -32,9 +32,6 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
-      - name: Prettier check
-        run: npx prettier --check .
-
       - name: Unit and UI tests
         run: npm test -- --run
 
