@@ -45,14 +45,50 @@ export const OPUS_BASE_URL: string =
  * See the README in BPMData/overheard-translation-models and docs/offline-translation-spike/.
  */
 export const OPUS_MODELS: readonly BergamotModel[] = [
-  { lang: 'sw', pair: 'opus-mt-en-sw', engine: 'opus', baseUrl: OPUS_BASE_URL, files: [
-    { part: 'file', path: 'opus-mt-en-sw/config.json', bytes: 1365, sha256: '8523ef0c192068ea73f806d0f02a882b4ad868e66c285013391e7fa70f1db2e3' },
-    { part: 'file', path: 'opus-mt-en-sw/generation_config.json', bytes: 288, sha256: 'a21d5f0c9d4ec8ee559c770696aeb31f730ad4aca7557b9b8687fa6c765689dd' },
-    { part: 'file', path: 'opus-mt-en-sw/tokenizer.json', bytes: 1783587, sha256: '07ac46e1425c90316386d89cf7b64a821374c91f360379de4ec630afe1f04e7b' },
-    { part: 'file', path: 'opus-mt-en-sw/tokenizer_config.json', bytes: 817, sha256: '032be71480f779ffc3d55e563be61c89bed31fd91017025b1099434454fd75bb' },
-    { part: 'file', path: 'opus-mt-en-sw/onnx/encoder_model_quantized.onnx', bytes: 49688667, sha256: 'dc2dd1db0c59ee07026b1db5b5b7236ef5f44b8852eb18ef8eb00f972d18ec6a' },
-    { part: 'file', path: 'opus-mt-en-sw/onnx/decoder_model_merged_quantized.onnx', bytes: 86947433, sha256: '24c57989d3dcf3fe62af2aea89f764d936bb8cb26b8835bfafd78e30a7f50def' },
-  ] },
+  {
+    lang: 'sw',
+    pair: 'opus-mt-en-sw',
+    engine: 'opus',
+    baseUrl: OPUS_BASE_URL,
+    files: [
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/config.json',
+        bytes: 1365,
+        sha256: '8523ef0c192068ea73f806d0f02a882b4ad868e66c285013391e7fa70f1db2e3',
+      },
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/generation_config.json',
+        bytes: 288,
+        sha256: 'a21d5f0c9d4ec8ee559c770696aeb31f730ad4aca7557b9b8687fa6c765689dd',
+      },
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/tokenizer.json',
+        bytes: 1783587,
+        sha256: '07ac46e1425c90316386d89cf7b64a821374c91f360379de4ec630afe1f04e7b',
+      },
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/tokenizer_config.json',
+        bytes: 817,
+        sha256: '032be71480f779ffc3d55e563be61c89bed31fd91017025b1099434454fd75bb',
+      },
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/onnx/encoder_model_quantized.onnx',
+        bytes: 49688667,
+        sha256: 'dc2dd1db0c59ee07026b1db5b5b7236ef5f44b8852eb18ef8eb00f972d18ec6a',
+      },
+      {
+        part: 'file',
+        path: 'opus-mt-en-sw/onnx/decoder_model_merged_quantized.onnx',
+        bytes: 86947433,
+        sha256: '24c57989d3dcf3fe62af2aea89f764d936bb8cb26b8835bfafd78e30a7f50def',
+      },
+    ],
+  },
 ];
 
 /** Every on-device model, both engines */
@@ -98,8 +134,7 @@ export function bergamotModelFor(lang: string, source = 'en'): BergamotModel | n
   return byLang.get(lang) ?? null;
 }
 
-export const modelBytes = (model: BergamotModel): number =>
-  model.files.reduce((sum, file) => sum + file.bytes, 0);
+export const modelBytes = (model: BergamotModel): number => model.files.reduce((sum, file) => sum + file.bytes, 0);
 
 /** "35 MB" for the download button and Settings. */
 export function bergamotDownloadLabel(lang: string): string {

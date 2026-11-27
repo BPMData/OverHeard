@@ -29,9 +29,15 @@ class FakeOpusWorker implements WorkerLike {
       for (const listener of this.listeners.message) listener({ data: reply } as never);
     });
   }
-  addEventListener(type: 'message' | 'error', listener: (event: never) => void) { this.listeners[type].push(listener); }
-  terminate() { this.terminated = true; }
-  fail(message: string) { for (const listener of this.listeners.error) listener({ message } as never); }
+  addEventListener(type: 'message' | 'error', listener: (event: never) => void) {
+    this.listeners[type].push(listener);
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  fail(message: string) {
+    for (const listener of this.listeners.error) listener({ message } as never);
+  }
 }
 
 function setup(respond: (message: Message) => unknown = (m) => (m.type === 'translate' ? `sw:${m.text}` : true)) {
@@ -73,7 +79,10 @@ describe('Opus-MT workers', () => {
     workers[0].fail('out of memory');
     await expect(pending).rejects.toThrow('out of memory');
 
-    const broken = setup((m) => { if (m.type === 'load') throw new Error('model missing'); return ''; });
+    const broken = setup((m) => {
+      if (m.type === 'load') throw new Error('model missing');
+      return '';
+    });
     await expect(broken.opus.load('sw')).rejects.toThrow('model missing');
     expect(broken.opus.isLoaded('sw')).toBe(false);
   });
@@ -98,7 +107,7 @@ describe('Swahili in the saved-model store', () => {
     const storage = new FakeCacheStorage();
     await downloadAndSaveModel(model, () => {}, { storage, fetchImpl });
     expect(vi.mocked(fetchImpl).mock.calls[0][0]).toBe(
-      'https://bpmdata.github.io/overheard-translation-models/opus-mt-en-sw/config.json',
+      'https://bpmdata.github.io/overheard-translation-models/opus-mt-en-sw/config.json'
     );
     expect(await isModelSaved(model, storage)).toBe(true);
     await removeSavedModel('sw', storage);
@@ -110,7 +119,10 @@ describe('Swahili in the saved-model store', () => {
     const cache = await storage.open('overheard-bergamot-v1');
     // The real file list with real sizes in the headers
     for (const file of real.files) {
-      await cache.put(modelFileUrl(real, file), new Response('x', { headers: { 'content-length': String(file.bytes) } }));
+      await cache.put(
+        modelFileUrl(real, file),
+        new Response('x', { headers: { 'content-length': String(file.bytes) } })
+      );
     }
     expect(await savedModelSizes(storage)).toEqual([{ lang: 'sw', bytes: 138422157 }]);
   });

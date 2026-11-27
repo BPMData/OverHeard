@@ -18,9 +18,7 @@ describe('conversation messages', () => {
   });
 
   it('ignores empty sends and completes same-language captions immediately', () => {
-    expect(messagesReducer([], { type: 'add', message: createMessage('a', ' ', people) })).toEqual(
-      [],
-    );
+    expect(messagesReducer([], { type: 'add', message: createMessage('a', ' ', people) })).toEqual([]);
     const message = createMessage('a', 'Hello', { ...people, b: { name: 'Grandpa', lang: 'en' } });
     expect(message).toMatchObject({ translated: 'Hello', status: 'done' });
   });
@@ -42,9 +40,9 @@ describe('conversation messages', () => {
       translated: 'stale',
     };
     expect(messagesReducer(messages, reply)).toEqual(messages);
-    expect(
-      messagesReducer(messages, { ...reply, revision: corrected.revision, translated: 'Hello' })[0],
-    ).toMatchObject({ status: 'done', translated: 'Hello' });
+    expect(messagesReducer(messages, { ...reply, revision: corrected.revision, translated: 'Hello' })[0]).toMatchObject(
+      { status: 'done', translated: 'Hello' }
+    );
     expect(messagesReducer(messagesReducer(messages, { type: 'clear' }), reply)).toEqual([]);
   });
 });

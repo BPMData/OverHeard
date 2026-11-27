@@ -12,7 +12,18 @@ describe('room links', () => {
   });
 
   it('ignores the home page, files, nested paths and reserved names', () => {
-    for (const path of ['/', '/sw.js', '/favicon.ico', '/ab', '/api', '/assets', '/ort/x', '/a/b/c', '/overheard', '/AllAboard']) {
+    for (const path of [
+      '/',
+      '/sw.js',
+      '/favicon.ico',
+      '/ab',
+      '/api',
+      '/assets',
+      '/ort/x',
+      '/a/b/c',
+      '/overheard',
+      '/AllAboard',
+    ]) {
       expect(at(path)).toBeNull();
     }
   });

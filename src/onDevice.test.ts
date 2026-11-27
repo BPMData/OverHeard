@@ -16,9 +16,7 @@ describe('on-device translation', () => {
   it('reports unsupported when the browser has no Translator API', async () => {
     const m = await load();
     expect(m.isOnDeviceTranslationSupported()).toBe(false);
-    await expect(m.translateOnDevice('Hello', 'es')).rejects.toBeInstanceOf(
-      m.OnDeviceUnavailableError
-    );
+    await expect(m.translateOnDevice('Hello', 'es')).rejects.toBeInstanceOf(m.OnDeviceUnavailableError);
   });
 
   it('translates with the built-in translator and reuses it', async () => {
@@ -34,9 +32,7 @@ describe('on-device translation', () => {
     const availability = vi.fn(async () => 'unavailable');
     g.Translator = { availability, create: vi.fn() };
     const m = await load();
-    await expect(m.translateOnDevice('Hello', 'prs')).rejects.toBeInstanceOf(
-      m.OnDeviceUnavailableError
-    );
+    await expect(m.translateOnDevice('Hello', 'prs')).rejects.toBeInstanceOf(m.OnDeviceUnavailableError);
     expect(availability).toHaveBeenCalledWith({ sourceLanguage: 'en', targetLanguage: 'fa-AF' });
   });
 
@@ -58,7 +54,12 @@ describe('translators that finish setting up too late', () => {
     try {
       const destroy = vi.fn();
       let finishCreate!: (t: { translate: () => Promise<string>; destroy: () => void }) => void;
-      const create = vi.fn(() => new Promise((resolve) => { finishCreate = resolve; }));
+      const create = vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finishCreate = resolve;
+          })
+      );
       g.Translator = { availability: async () => 'available', create };
       const m = await load();
       const pending = m.getOnDeviceTranslator('es');
@@ -76,8 +77,9 @@ describe('translators that finish setting up too late', () => {
   it('allows the strict mode its full ten seconds to create a translator', async () => {
     vi.useFakeTimers();
     try {
-      const create = vi.fn(() => new Promise((resolve) =>
-        setTimeout(() => resolve({ translate: async (t: string) => `es:${t}` }), 7000)));
+      const create = vi.fn(
+        () => new Promise((resolve) => setTimeout(() => resolve({ translate: async (t: string) => `es:${t}` }), 7000))
+      );
       g.Translator = { availability: async () => 'available', create };
       const m = await load();
       const result = m.translateOnDevice('Hello', 'es', 'en', 10_000);
@@ -94,8 +96,14 @@ describe('translators that finish setting up too late', () => {
       const destroy = vi.fn();
       let finishOriginal!: (t: { translate: () => Promise<string>; destroy: () => void }) => void;
       let status = 'downloadable';
-      const create = vi.fn()
-        .mockImplementationOnce(() => new Promise((resolve) => { finishOriginal = resolve; }))
+      const create = vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOriginal = resolve;
+            })
+        )
         .mockResolvedValue({ translate: async () => 'from poll' });
       g.Translator = { availability: async () => status, create };
       const m = await load();
@@ -115,7 +123,12 @@ describe('translators that finish setting up too late', () => {
 describe('recovering from a translator that stops working', () => {
   it('discards a translator whose translate() fails and creates a fresh one next time', async () => {
     const destroy = vi.fn();
-    const dead = { translate: vi.fn(async () => { throw new Error('InvalidStateError'); }), destroy };
+    const dead = {
+      translate: vi.fn(async () => {
+        throw new Error('InvalidStateError');
+      }),
+      destroy,
+    };
     const fresh = { translate: async (t: string) => `es:${t}` };
     const create = vi.fn().mockResolvedValueOnce(dead).mockResolvedValue(fresh);
     g.Translator = { availability: async () => 'available', create };
@@ -349,10 +362,7 @@ describe('sharing speech preparation', () => {
   });
 
   it('checks again once an attempt has finished instead of remembering its result', async () => {
-    const available = vi
-      .fn()
-      .mockResolvedValueOnce('unavailable')
-      .mockResolvedValueOnce('available');
+    const available = vi.fn().mockResolvedValueOnce('unavailable').mockResolvedValueOnce('available');
     g.SpeechRecognition = { available, install: vi.fn() };
     const m = await load();
     await expect(m.prepareOnDeviceSpeech('es-US')).resolves.toBe(false);

@@ -59,7 +59,7 @@ export function correctMessage(message: Message): Message {
 }
 
 export function createImportedMessage(
-  message: Omit<Message, 'id' | 'revision' | 'status'> & { status?: TranslationStatus },
+  message: Omit<Message, 'id' | 'revision' | 'status'> & { status?: TranslationStatus }
 ): Message {
   const original = message.original.trim();
   const fallbackState = translationState(original, message.sender, message.reader);
@@ -99,7 +99,7 @@ export function messagesReducer(messages: Message[], action: MessageAction): Mes
               translated: action.translated ?? '',
               status: action.translated === null ? 'error' : 'done',
             }
-          : m,
+          : m
       );
   }
 }

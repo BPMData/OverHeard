@@ -1,12 +1,6 @@
 import { SUPPORTED_LANGUAGES } from '../constants';
 import type { ConversationLanguage } from '../types';
-import {
-  createImportedMessage,
-  otherSide,
-  type Message,
-  type Participants,
-  type Side,
-} from '../conversation/state';
+import { createImportedMessage, otherSide, type Message, type Participants, type Side } from '../conversation/state';
 export type ConversationSubMode = 'two-way' | 'lecture';
 export interface ConversationSettings extends Participants {
   mode: ConversationSubMode;
@@ -32,9 +26,7 @@ export interface ConversationSettings extends Participants {
 const validLanguage = (value: unknown): value is ConversationLanguage =>
   value === 'en' || SUPPORTED_LANGUAGES.some((l) => l.code === value);
 export const CONVERSATION_SETTINGS_KEY = 'overheard.conversation';
-export function loadConversationSettings(
-  initialLanguage: ConversationLanguage = 'es',
-): ConversationSettings {
+export function loadConversationSettings(initialLanguage: ConversationLanguage = 'es'): ConversationSettings {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(CONVERSATION_SETTINGS_KEY);
@@ -46,7 +38,7 @@ export function loadConversationSettings(
 /** Settings from their saved JSON (or null), with anything missing or invalid set to the default. */
 export function parseConversationSettings(
   raw: string | null,
-  initialLanguage: ConversationLanguage = 'es',
+  initialLanguage: ConversationLanguage = 'es'
 ): ConversationSettings {
   const defaults: ConversationSettings = {
     mode: 'two-way',
@@ -71,8 +63,7 @@ export function parseConversationSettings(
       if (typeof saved[side]?.name === 'string') defaults[side].name = saved[side].name;
       if (validLanguage(saved[side]?.lang)) defaults[side].lang = saved[side].lang;
     }
-    if ([1000, 1500, 2500, 3500, 5000].includes(saved.switchAfterMs))
-      defaults.switchAfterMs = saved.switchAfterMs;
+    if ([1000, 1500, 2500, 3500, 5000].includes(saved.switchAfterMs)) defaults.switchAfterMs = saved.switchAfterMs;
     defaults.manualTurns = saved.manualTurns === true;
     defaults.readAloud = saved.readAloud === true;
     defaults.placement = saved.placement === 'reader' ? 'reader' : 'speaker';
@@ -108,7 +99,7 @@ export function conversationJson(messages: Message[], participants?: Participant
       })),
     },
     null,
-    2,
+    2
   );
 }
 
@@ -124,11 +115,7 @@ export function parseConversationJson(text: string, participants: Participants):
     throw new Error('Choose an OverHeard conversation JSON file (version 1).');
   }
   const input = parsed as Record<string, unknown>;
-  if (
-    input.format !== 'overheard-conversation' ||
-    input.version !== 1 ||
-    !Array.isArray(input.messages)
-  ) {
+  if (input.format !== 'overheard-conversation' || input.version !== 1 || !Array.isArray(input.messages)) {
     throw new Error('Choose an OverHeard conversation JSON file (version 1).');
   }
 
@@ -149,12 +136,8 @@ export function parseConversationJson(text: string, participants: Participants):
         : {};
 
     const senderName = typeof rawSender.name === 'string' ? rawSender.name.trim() : '';
-    const senderLang = validLanguage(rawSender.lang)
-      ? rawSender.lang
-      : participants.a.lang;
-    const readerLang = validLanguage(rawReader.lang)
-      ? rawReader.lang
-      : participants.b.lang;
+    const senderLang = validLanguage(rawSender.lang) ? rawSender.lang : participants.a.lang;
+    const readerLang = validLanguage(rawReader.lang) ? rawReader.lang : participants.b.lang;
 
     const explicitSide: Side | null = item.side === 'a' || item.side === 'b' ? item.side : null;
     const side: Side =
@@ -179,14 +162,11 @@ export function parseConversationJson(text: string, participants: Participants):
         : typeof rawTimestamp === 'string'
           ? Date.parse(rawTimestamp)
           : NaN;
-    const timestamp =
-      Number.isFinite(parsedTime) && Math.abs(parsedTime) <= 8.64e15 ? parsedTime : Date.now();
+    const timestamp = Number.isFinite(parsedTime) && Math.abs(parsedTime) <= 8.64e15 ? parsedTime : Date.now();
 
     const translated = typeof item.translated === 'string' ? item.translated.trim() : '';
     const status =
-      item.status === 'done' || item.status === 'translating' || item.status === 'error'
-        ? item.status
-        : undefined;
+      item.status === 'done' || item.status === 'translating' || item.status === 'error' ? item.status : undefined;
 
     messages.push(
       createImportedMessage({
@@ -197,7 +177,7 @@ export function parseConversationJson(text: string, participants: Participants):
         translated,
         status,
         timestamp,
-      }),
+      })
     );
   }
   return messages;

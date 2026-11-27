@@ -95,7 +95,11 @@ export class BergamotWorker {
       if (!buffers.model || !buffers.lex || vocabs.some((v) => !v)) throw new Error(`Incomplete model ${pair}`);
       const transfer = [buffers.model, buffers.lex, ...(vocabs as ArrayBuffer[])];
       const key = { from: pair.slice(0, 2), to: pair.slice(2) };
-      await this.call('loadTranslationModel', [key, { model: buffers.model, shortlist: buffers.lex, vocabs, config: {} }], transfer);
+      await this.call(
+        'loadTranslationModel',
+        [key, { model: buffers.model, shortlist: buffers.lex, vocabs, config: {} }],
+        transfer
+      );
       this.loaded.push(pair);
       while (this.loaded.length > MAX_LOADED) {
         const oldest = this.loaded.shift()!;

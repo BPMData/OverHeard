@@ -29,9 +29,7 @@ function readRaw(): string | null {
 }
 
 /** The current settings. Returns the same object until they change, as React requires. */
-export function getConversationSettings(
-  initialLanguage: ConversationLanguage = 'es',
-): ConversationSettings {
+export function getConversationSettings(initialLanguage: ConversationLanguage = 'es'): ConversationSettings {
   const raw = readRaw();
   if (raw === null) {
     let value = unsaved.get(initialLanguage);
@@ -48,7 +46,7 @@ export function getConversationSettings(
 /** Change the settings, save them, and update every screen that shows them. */
 export function updateConversationSettings(
   action: SetStateAction<ConversationSettings>,
-  initialLanguage: ConversationLanguage = 'es',
+  initialLanguage: ConversationLanguage = 'es'
 ): void {
   const current = getConversationSettings(initialLanguage);
   const next = typeof action === 'function' ? action(current) : action;
@@ -84,7 +82,7 @@ export function useConversationSettings(initialLanguage: ConversationLanguage = 
   const settings = useSyncExternalStore(subscribe, () => getConversationSettings(initialLanguage));
   const setSettings = useCallback(
     (action: SetStateAction<ConversationSettings>) => updateConversationSettings(action, initialLanguage),
-    [initialLanguage],
+    [initialLanguage]
   );
   return [settings, setSettings] as const;
 }

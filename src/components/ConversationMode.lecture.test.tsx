@@ -20,8 +20,18 @@ afterEach(() => {
 });
 
 it('opens and focuses room setup before starting a lecture with simple controls', () => {
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={vi.fn(async () => '')}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
   expect(screen.queryByRole('textbox', { name: /Room code/ })).toBeNull();
   const share = screen.getByRole('button', { name: 'Share room code with students' });
@@ -35,15 +45,31 @@ it('opens and focuses room setup before starting a lecture with simple controls'
 
 it('shows Clear lecture in simple controls only after the room is ended', async () => {
   vi.useRealTimers();
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-    if (url === '/api/rooms' && init?.method === 'POST') {
-      return new Response(JSON.stringify({ code: 'bio-p2', token: 'tok' }), { status: 201 });
-    }
-    return new Response(JSON.stringify({ revision: 1, ok: true }), { status: 200 });
-  }));
-  vi.stubGlobal('confirm', vi.fn(() => true));
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async (text: string) => `es:${text}`)}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/rooms' && init?.method === 'POST') {
+        return new Response(JSON.stringify({ code: 'bio-p2', token: 'tok' }), { status: 201 });
+      }
+      return new Response(JSON.stringify({ revision: 1, ok: true }), { status: 200 });
+    })
+  );
+  vi.stubGlobal(
+    'confirm',
+    vi.fn(() => true)
+  );
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={vi.fn(async (text: string) => `es:${text}`)}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
   fireEvent.click(screen.getByRole('button', { name: 'Share room code with students' }));
   fireEvent.click(screen.getByRole('button', { name: 'Create room' }));
@@ -54,8 +80,12 @@ it('shows Clear lecture in simple controls only after the room is ended', async 
 
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   await waitFor(() => expect(speech.instances.length).toBeGreaterThan(0));
-  act(() => speech.instances[0].onresult?.({ resultIndex: 0,
-    results: [{ isFinal: true, 0: { transcript: 'Cells divide by mitosis' } }] }));
+  act(() =>
+    speech.instances[0].onresult?.({
+      resultIndex: 0,
+      results: [{ isFinal: true, 0: { transcript: 'Cells divide by mitosis' } }],
+    })
+  );
   await waitFor(() => expect(screen.getByText('Cells divide by mitosis')).toBeTruthy());
   fireEvent.click(screen.getByRole('button', { name: 'Pause lecture' }));
   // While the room is live, simple controls keep Clear lecture hidden
@@ -70,8 +100,18 @@ it('shows Clear lecture in simple controls only after the room is ended', async 
 
 describe('ConversationMode Lecture mode', () => {
   it('keeps the unfinished clause when the browser ends a healthy session', async () => {
-    render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async text => text)}
-      selectedLangs={[]} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+    render(
+      <ConversationMode
+        active
+        fontSize={32}
+        isDark
+        translate={vi.fn(async (text) => text)}
+        selectedLangs={[]}
+        mtPreference="auto"
+        onExit={vi.fn()}
+        onPermissionDenied={vi.fn()}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
     fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
@@ -99,7 +139,7 @@ describe('ConversationMode Lecture mode', () => {
         mtPreference="auto"
         onExit={onExit}
         onPermissionDenied={vi.fn()}
-      />,
+      />
     );
 
     // Switch to Lecture sub-mode
@@ -168,7 +208,7 @@ describe('ConversationMode Lecture mode', () => {
         mtPreference="auto"
         onExit={onExit}
         onPermissionDenied={vi.fn()}
-      />,
+      />
     );
     await act(async () => {});
     expect(screen.getByText('en>fr:First lecture sentence')).toBeTruthy();
@@ -186,7 +226,7 @@ describe('ConversationMode Lecture mode', () => {
         mtPreference="auto"
         onExit={onExit}
         onPermissionDenied={vi.fn()}
-      />,
+      />
     );
     expect(screen.getByText('First lecture sentence')).toBeTruthy();
     expect(screen.getByText('Second lecture sentence')).toBeTruthy();
@@ -196,7 +236,10 @@ describe('ConversationMode Lecture mode', () => {
     expect(onExit).toHaveBeenCalledTimes(1);
 
     // Confirm Clear lecture removes rows
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true)
+    );
     fireEvent.click(screen.getByRole('button', { name: 'File' }));
     fireEvent.click(screen.getByRole('button', { name: 'Clear lecture' }));
     expect(screen.queryByText('First lecture sentence')).toBeNull();
@@ -214,7 +257,7 @@ describe('ConversationMode Lecture mode', () => {
         mtPreference="auto"
         onExit={vi.fn()}
         onPermissionDenied={vi.fn()}
-      />,
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Lecture' }));
@@ -241,18 +284,38 @@ describe('ConversationMode Lecture mode', () => {
 
 it('does not pair a late interim translation with newer English speech', async () => {
   let finishOld!: (value: string) => void;
-  const translate = vi.fn(() => new Promise<string>(resolve => { finishOld = resolve; }));
-  render(<ConversationMode active fontSize={32} isDark translate={translate}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  const translate = vi.fn(
+    () =>
+      new Promise<string>((resolve) => {
+        finishOld = resolve;
+      })
+  );
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={translate}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
   const rec = speech.instances[0];
-  await act(async () => rec.onresult?.({ resultIndex: 0,
-    results: [{ isFinal: false, 0: { transcript: 'The old sentence has six words' } }] }));
+  await act(async () =>
+    rec.onresult?.({
+      resultIndex: 0,
+      results: [{ isFinal: false, 0: { transcript: 'The old sentence has six words' } }],
+    })
+  );
   expect(translate).toHaveBeenCalledTimes(1);
-  await act(async () => rec.onresult?.({ resultIndex: 0,
-    results: [{ isFinal: false, 0: { transcript: 'A new sentence' } }] }));
+  await act(async () =>
+    rec.onresult?.({ resultIndex: 0, results: [{ isFinal: false, 0: { transcript: 'A new sentence' } }] })
+  );
   await act(async () => finishOld('Late translation of old English'));
   expect(screen.getByText('A new sentence')).toBeTruthy();
   expect(screen.queryByText('Late translation of old English')).toBeNull();
@@ -298,7 +361,7 @@ it('suspends teacher lecture speech recognition while reading a cell aloud and r
       mtPreference="auto"
       onExit={vi.fn()}
       onPermissionDenied={vi.fn()}
-    />,
+    />
   );
 
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
@@ -345,7 +408,7 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
       onExit={onExit}
       onHome={onHome}
       onPermissionDenied={vi.fn()}
-    />,
+    />
   );
 
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
@@ -369,7 +432,7 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
       mtPreference="auto"
       onExit={onExit}
       onPermissionDenied={vi.fn()}
-    />,
+    />
   );
   fireEvent.click(screen.getByRole('button', { name: 'OverHeard — Go to Columns view' }));
   expect(onExit).toHaveBeenCalledTimes(1);
@@ -377,8 +440,18 @@ it('clicking the top-left OverHeard brand stops active lecture capture and calls
 
 it('streams live translations through a long run-on sentence without a pause', async () => {
   const translate = vi.fn(async (text: string) => `es:${text}`);
-  render(<ConversationMode active fontSize={32} isDark translate={translate}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={translate}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start lecture' }));
@@ -387,10 +460,16 @@ it('streams live translations through a long run-on sentence without a pause', a
   for (let n = 10; n <= words.length; n += 10) {
     const transcript = words.slice(0, n).join(' ');
     await act(async () => rec.onresult?.({ resultIndex: 0, results: [{ isFinal: false, 0: { transcript } }] }));
-    await act(async () => { vi.advanceTimersByTime(100); });
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
   }
-  await act(async () => { vi.advanceTimersByTime(400); });
-  await act(async () => { vi.advanceTimersByTime(400); });
+  await act(async () => {
+    vi.advanceTimersByTime(400);
+  });
+  await act(async () => {
+    vi.advanceTimersByTime(400);
+  });
   // No pause and no final result, yet the live row is translated up to the latest words
   expect(screen.getByText(/es:word0 .*es:.*word119/)).toBeTruthy();
   // Requests stay small instead of growing with the sentence
@@ -399,8 +478,18 @@ it('streams live translations through a long run-on sentence without a pause', a
 });
 
 it('chooses when to read aloud from the Read menu, which closes after each choice', () => {
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => '')}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={vi.fn(async () => '')}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   const saved = () => JSON.parse(localStorage.getItem('overheard.conversation')!);
@@ -430,18 +519,32 @@ it('pops the teacher lecture out into a floating window from the full toolbar', 
   const win = { document: pipDocument, addEventListener: vi.fn(), close: vi.fn(), closed: false };
   const requestWindow = vi.fn(async () => win);
   vi.stubGlobal('documentPictureInPicture', { requestWindow });
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn(async () => 'Hola clase')}
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={vi.fn(async () => 'Hola clase')}
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Show all controls' }));
   const pop = screen.getByRole('button', { name: 'Pop out lecture' });
 
   fireEvent.change(screen.getByLabelText('Lecture line text'), { target: { value: 'Hello class' } });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-  await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(50);
+  });
 
   fireEvent.click(pop);
-  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
   expect(requestWindow).toHaveBeenCalledTimes(1);
   expect(within(pipDocument.body).getByText('Hello class')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Close pop-out' }).className).toContain('is-open');
@@ -452,8 +555,19 @@ it('pops the teacher lecture out into a floating window from the full toolbar', 
 });
 
 it('keeps Settings and an exit to the previous view in the simple lecture toolbar', () => {
-  render(<ConversationMode active fontSize={32} isDark translate={vi.fn()} returnView="subtitle"
-    selectedLangs={['es']} mtPreference="auto" onExit={vi.fn()} onPermissionDenied={vi.fn()} />);
+  render(
+    <ConversationMode
+      active
+      fontSize={32}
+      isDark
+      translate={vi.fn()}
+      returnView="subtitle"
+      selectedLangs={['es']}
+      mtPreference="auto"
+      onExit={vi.fn()}
+      onPermissionDenied={vi.fn()}
+    />
+  );
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   expect(screen.getByRole('button', { name: 'Show all controls' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Settings' }).className).toContain('conversation-settings-btn');
@@ -461,8 +575,16 @@ it('keeps Settings and an exit to the previous view in the simple lecture toolba
 });
 
 it('can always show all lecture controls from Settings, and remembers it', () => {
-  const props = { active: true, fontSize: 32, isDark: true, translate: vi.fn(), selectedLangs: ['es' as const],
-    mtPreference: 'auto', onExit: vi.fn(), onPermissionDenied: vi.fn() };
+  const props = {
+    active: true,
+    fontSize: 32,
+    isDark: true,
+    translate: vi.fn(),
+    selectedLangs: ['es' as const],
+    mtPreference: 'auto',
+    onExit: vi.fn(),
+    onPermissionDenied: vi.fn(),
+  };
   const { unmount } = render(<ConversationMode {...props} />);
   fireEvent.click(screen.getByRole('button', { name: /^Lecture$/ }));
   expect(screen.getByRole('button', { name: 'Show all controls' }).getAttribute('aria-expanded')).toBe('false');

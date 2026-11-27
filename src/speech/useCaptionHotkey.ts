@@ -8,12 +8,7 @@ export function useCaptionHotkey(displayMode: DisplayMode, toggleListening: () =
       if (displayMode === 'conversation' || e.code !== 'Space') return;
       const target = e.target as HTMLElement | null;
       const tagName = target?.tagName?.toLowerCase();
-      if (
-        tagName === 'input' ||
-        tagName === 'textarea' ||
-        tagName === 'select' ||
-        target?.isContentEditable
-      ) {
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable) {
         return;
       }
       e.preventDefault();

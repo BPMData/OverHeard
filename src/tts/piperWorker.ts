@@ -1,4 +1,11 @@
-import { INFERENCE_PROGRESS_URL, PATH_MAP, TtsSession, remove, stored, type Progress } from '@mintplex-labs/piper-tts-web';
+import {
+  INFERENCE_PROGRESS_URL,
+  PATH_MAP,
+  TtsSession,
+  remove,
+  stored,
+  type Progress,
+} from '@mintplex-labs/piper-tts-web';
 import { boostQuietWav } from './loudness';
 import {
   createMmsSession,
@@ -28,7 +35,7 @@ const PIPER_WASM_PATHS = {
 const MAX_CACHED_SESSIONS = 2;
 
 const MMS_VOICES = new Map<string, PiperVoiceOption>(
-  PIPER_VOICES.filter((voice) => voiceEngine(voice) === 'mms').map((voice) => [voice.modelId, voice]),
+  PIPER_VOICES.filter((voice) => voiceEngine(voice) === 'mms').map((voice) => [voice.modelId, voice])
 );
 const MMS_MODEL_IDS: ReadonlySet<string> = new Set(MMS_VOICES.keys());
 
@@ -54,10 +61,7 @@ type IncomingMessage =
 
 const workerScope = self as unknown as {
   postMessage: (message: unknown, transfer?: Transferable[]) => void;
-  addEventListener: (
-    type: 'message',
-    listener: (event: MessageEvent<IncomingMessage>) => void,
-  ) => void;
+  addEventListener: (type: 'message', listener: (event: MessageEvent<IncomingMessage>) => void) => void;
 };
 
 const sessionCache = new Map<string, TtsSession>();
@@ -187,7 +191,10 @@ async function ensureMmsSession(modelId: string): Promise<MmsSession> {
   if (mmsSessions.size >= MAX_CACHED_SESSIONS) {
     const oldest = mmsSessions.keys().next().value;
     if (oldest) {
-      void mmsSessions.get(oldest)?.session.release?.().catch(() => undefined);
+      void mmsSessions
+        .get(oldest)
+        ?.session.release?.()
+        .catch(() => undefined);
       mmsSessions.delete(oldest);
     }
   }
@@ -195,7 +202,7 @@ async function ensureMmsSession(modelId: string): Promise<MmsSession> {
   workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress: alreadySaved ? undefined : 0 });
   try {
     const { bytes } = await loadMmsModel(voice, mmsVoiceUrl(voice), (progress) =>
-      workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress }),
+      workerScope.postMessage({ type: 'status', modelId, status: 'downloading', progress })
     );
     const mms = await createMmsSession(ort, voice, bytes);
     savedLoadFailures.delete(modelId);
@@ -260,7 +267,10 @@ async function ensureSession(modelId: string): Promise<TtsSession> {
   captureModelId = pinyinModels.has(modelId) ? modelId : null;
   // A voice saved on this device only loads from storage, so report no download percentage
   // (the UI then says "Loading voice" instead of "Downloading voice").
-  const alreadySaved = await stored().then((ids) => ids.includes(modelId), () => false);
+  const alreadySaved = await stored().then(
+    (ids) => ids.includes(modelId),
+    () => false
+  );
   workerScope.postMessage({
     type: 'status',
     modelId,
@@ -420,7 +430,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
   if (data.type === 'listStored') {
     void storedModelIds().then(
       (modelIds) => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds }),
-      () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] }),
+      () => workerScope.postMessage({ type: 'stored', requestId: data.requestId, modelIds: [] })
     );
     return;
   }
@@ -429,7 +439,7 @@ workerScope.addEventListener('message', (event: MessageEvent<IncomingMessage>) =
     const sizes = data.engine === 'mms' ? mmsStoredSizes(MMS_MODEL_IDS) : storedSizes();
     void sizes.then(
       (sizes) => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes }),
-      () => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes: [] }),
+      () => workerScope.postMessage({ type: 'storedSizes', requestId: data.requestId, sizes: [] })
     );
     return;
   }

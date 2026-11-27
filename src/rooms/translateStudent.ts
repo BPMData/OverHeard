@@ -15,7 +15,7 @@ import type { LanguageCode } from '../types';
 export function createStudentTranslator(
   tryDeviceFirst: ReturnType<typeof createDeviceFirstTranslator>['translate'],
   onTranslated?: (by: 'on-device' | 'gtx') => void,
-  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
+  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {}
 ) {
   const cache = createTranslationCache(2500);
   return (text: string, lang: LanguageCode): Promise<string> => {
@@ -34,10 +34,13 @@ export function createStudentTranslator(
         onTranslated?.('on-device');
         return local;
       }
-      const response = await fetch('/api/mt', { method: 'POST',
+      const response = await fetch('/api/mt', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', [SESSION_HEADER]: getSessionId() },
         // Students never use the paid translator: on-device first, then the free endpoint only
-        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx', freeOnly: true } satisfies MtRequestBody), signal: AbortSignal.timeout(30_000) });
+        body: JSON.stringify({ text, lang, source: 'en', provider: 'gtx', freeOnly: true } satisfies MtRequestBody),
+        signal: AbortSignal.timeout(30_000),
+      });
       if (!response.ok) throw new Error('Translation unavailable.');
       const data: Partial<MtSuccessResponse> = await response.json();
       if (typeof data.translation !== 'string' || !data.translation) throw new Error('Missing translation.');

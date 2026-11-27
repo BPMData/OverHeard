@@ -58,7 +58,9 @@ describe('StorageManager', () => {
     const onChanged = vi.fn();
     render(<StorageManager isDark categories={[category]} onChanged={onChanged} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Free up space: delete all downloaded voices \(100 MB\)/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Free up space: delete all downloaded voices \(100 MB\)/ })
+    );
     const dialog = screen.getByRole('alertdialog', { name: 'Delete all downloaded voices?' });
     expect(dialog.textContent).toContain('This frees 100 MB on this device');
     expect(dialog.textContent).toContain('They will be gone from this device.');
@@ -86,7 +88,9 @@ describe('StorageManager', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Spanish · Claude' }));
     const dialog = screen.getByRole('alertdialog', { name: 'Delete Spanish · Claude?' });
     expect(dialog.textContent).toContain('This frees 60 MB');
-    expect(dialog.textContent).toContain('It will be gone from this device. Read-aloud will need to download it again.');
+    expect(dialog.textContent).toContain(
+      'It will be gone from this device. Read-aloud will need to download it again.'
+    );
     fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, delete and free 60 MB' }));
     expect(await screen.findByText('Deleted Spanish · Claude. Freed 60 MB.')).toBeTruthy();
     expect(removeItem).toHaveBeenCalledWith('es_MX-claude-high');

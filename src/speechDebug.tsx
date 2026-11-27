@@ -45,7 +45,14 @@ export function SpeechDebugPanel() {
       <div className="flex gap-2 p-1 border-b border-amber-400/40">
         <strong className="flex-1">Speech debug ({log.length})</strong>
         <button onClick={() => void navigator.clipboard?.writeText(text)}>Copy</button>
-        <button onClick={() => { lines = []; listeners.forEach((l) => l()); }}>Clear</button>
+        <button
+          onClick={() => {
+            lines = [];
+            listeners.forEach((l) => l());
+          }}
+        >
+          Clear
+        </button>
       </div>
       <pre className="overflow-auto p-1 whitespace-pre-wrap">{text || 'Waiting for speech…'}</pre>
     </div>

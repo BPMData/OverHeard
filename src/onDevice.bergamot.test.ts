@@ -4,8 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const engine = vi.hoisted(() => ({
   status: new Map<string, 'unavailable' | 'downloadable' | 'downloading' | 'available'>(),
   runnable: true,
-  download: vi.fn(async (_lang: string, onProgress?: (f: number) => void) => { onProgress?.(0.5); }),
-  create: vi.fn(async (lang: string) => ({ engine: 'bergamot', translate: async (t: string) => `${lang}(bergamot):${t}`, destroy() {} })),
+  download: vi.fn(async (_lang: string, onProgress?: (f: number) => void) => {
+    onProgress?.(0.5);
+  }),
+  create: vi.fn(async (lang: string) => ({
+    engine: 'bergamot',
+    translate: async (t: string) => `${lang}(bergamot):${t}`,
+    destroy() {},
+  })),
 }));
 
 vi.mock('./translation/bergamot/engine', () => ({
@@ -13,7 +19,9 @@ vi.mock('./translation/bergamot/engine', () => ({
   hasBergamotModel: (lang: string, source = 'en') => engine.runnable && source === 'en' && engine.status.has(lang),
   bergamotAvailability: async (lang: string) => engine.status.get(lang) ?? 'unavailable',
   downloadBergamotModel: (lang: string, onProgress?: (f: number) => void) =>
-    engine.download(lang, onProgress).then(() => { engine.status.set(lang, 'available'); }),
+    engine.download(lang, onProgress).then(() => {
+      engine.status.set(lang, 'available');
+    }),
   createBergamotTranslator: engine.create,
   isBergamotTranslator: (v: unknown) => (v as { engine?: string })?.engine === 'bergamot',
 }));
@@ -23,7 +31,11 @@ const g = globalThis as Global;
 const load = () => import('./onDevice');
 
 beforeEach(() => {
-  engine.status = new Map([['ur', 'available'], ['es', 'downloadable'], ['prs', 'downloadable']]);
+  engine.status = new Map([
+    ['ur', 'available'],
+    ['es', 'downloadable'],
+    ['prs', 'downloadable'],
+  ]);
   engine.runnable = true;
   engine.download.mockClear();
   engine.create.mockClear();
@@ -41,7 +53,10 @@ describe('on-device translation with Bergamot as the fallback', () => {
   });
 
   it('uses Chrome when it can, and never touches Bergamot then', async () => {
-    g.Translator = { availability: async () => 'available', create: async () => ({ translate: async (t: string) => `chrome:${t}` }) };
+    g.Translator = {
+      availability: async () => 'available',
+      create: async () => ({ translate: async (t: string) => `chrome:${t}` }),
+    };
     const m = await load();
     await expect(m.translateOnDevice('Hello', 'es')).resolves.toBe('chrome:Hello');
     expect(await m.getOnDeviceAvailability('es')).toBe('available');
@@ -94,7 +109,12 @@ describe('on-device translation with Bergamot as the fallback', () => {
   });
 
   it('falls back to Bergamot when Chrome errors for a language Bergamot has', async () => {
-    g.Translator = { availability: async () => { throw new Error('service crashed'); }, create: vi.fn() };
+    g.Translator = {
+      availability: async () => {
+        throw new Error('service crashed');
+      },
+      create: vi.fn(),
+    };
     const m = await load();
     await expect(m.translateOnDevice('Hello', 'ur')).resolves.toBe('ur(bergamot):Hello');
   });

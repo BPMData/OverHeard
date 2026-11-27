@@ -55,7 +55,7 @@ interface IssueResult {
 async function createIssue(
   report: ProblemReport,
   { githubToken, githubRepo }: ReportRouteOptions,
-  fetchImpl: typeof fetch,
+  fetchImpl: typeof fetch
 ): Promise<IssueResult> {
   const response = await fetchImpl(`https://api.github.com/repos/${githubRepo}/issues`, {
     method: 'POST',
@@ -85,7 +85,7 @@ async function emailReport(
   report: ProblemReport,
   issue: IssueResult | null,
   { relayUrl, relaySecret }: ReportRouteOptions,
-  fetchImpl: typeof fetch,
+  fetchImpl: typeof fetch
 ): Promise<void> {
   const subject = issue ? `${privateEmailSubject(report)} (#${issue.number})` : privateEmailSubject(report);
   const response = await fetchImpl(relayUrl!, {

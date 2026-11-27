@@ -32,7 +32,7 @@ beforeEach(() => {
       layout: 'face-to-face',
       a: { name: 'Bryan', lang: 'en' },
       b: { name: 'Grandpa', lang: 'en' },
-    }),
+    })
   );
   Recognition.instances = [];
   vi.stubGlobal('SpeechRecognition', Recognition);
@@ -55,7 +55,7 @@ function mount() {
       onExit={vi.fn()}
       onPermissionDenied={vi.fn()}
       onAdjustFont={vi.fn()}
-    />,
+    />
   );
   return { translate };
 }
@@ -123,9 +123,12 @@ describe('face to face two-way', () => {
     act(() => Recognition.instances[0].onend?.());
     const styles = vi.spyOn(colors, 'captionTextStyle');
     try {
-      act(() => Recognition.instances.at(-1)?.onresult?.({
-        resultIndex: 0, results: [{ isFinal: false, 0: { transcript: 'Next sentence' } }],
-      }));
+      act(() =>
+        Recognition.instances.at(-1)?.onresult?.({
+          resultIndex: 0,
+          results: [{ isFinal: false, 0: { transcript: 'Next sentence' } }],
+        })
+      );
       expect(screen.getAllByText('Next sentence')).toHaveLength(2);
       expect(styles).not.toHaveBeenCalledWith(colors.languageCaptionColor(1), true);
     } finally {

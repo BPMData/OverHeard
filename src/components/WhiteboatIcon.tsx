@@ -17,11 +17,7 @@ const APP_LABEL: Record<WhiteboatApp, string> = {
 const WAVES_PATH =
   'M7.5 59 C11.5 58 13.5 52 17.5 52 C20.5 52 22 54.5 20 56.5 M24 60.5 C28 59.5 30 53.5 34 53.5 C37 53.5 38.5 56 36.5 58 M40.5 59 C44.5 58 46.5 52 50.5 52 C53.5 52 55 54.5 53 56.5';
 
-export const WhiteboatIcon: React.FC<WhiteboatIconProps> = ({
-  app = 'overheard',
-  size = 24,
-  className = '',
-}) => {
+export const WhiteboatIcon: React.FC<WhiteboatIconProps> = ({ app = 'overheard', size = 24, className = '' }) => {
   if (app === 'overboard') {
     return (
       <svg
@@ -110,12 +106,7 @@ export const WhiteboatIcon: React.FC<WhiteboatIconProps> = ({
             strokeLinejoin="round"
           />
         </g>
-        <path
-          d="M39 16.5H59"
-          stroke="#57a8a0"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-        />
+        <path d="M39 16.5H59" stroke="#57a8a0" strokeWidth="1.4" strokeLinecap="round" />
         <g transform="translate(35 33) scale(0.5) rotate(-3.5 20 18)">
           <rect x="6.6" y="-26.4" width="8.3" height="30.8" rx="4.15" fill="#087F73" />
           <path
@@ -236,12 +227,7 @@ export const WhiteboatIcon: React.FC<WhiteboatIconProps> = ({
             strokeOpacity="0.32"
             strokeWidth="1.3"
           />
-          <path
-            d="M8 7.5h24M8 12.5h14"
-            stroke="#5843A5"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
+          <path d="M8 7.5h24M8 12.5h14" stroke="#5843A5" strokeWidth="3" strokeLinecap="round" />
         </g>
       </g>
       <path

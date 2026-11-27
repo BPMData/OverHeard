@@ -1,5 +1,4 @@
-export const wordCount = (text: string): number =>
-  text.trim().split(/\s+/).filter(Boolean).length;
+export const wordCount = (text: string): number => text.trim().split(/\s+/).filter(Boolean).length;
 
 /** Words per frozen live-translation chunk. The open tail holds CHUNK..2*CHUNK-1 words. */
 export const LIVE_CHUNK_WORDS = 12;

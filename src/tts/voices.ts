@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConversationLanguage } from '../types';
 
-import { BROWSER_VOICE_ID, DEFAULT_PIPER_VOICE_ID, PIPER_DEFAULT_MODEL_BYTES, PIPER_MODEL_BYTES, PIPER_VOICES, VOICE_PREFS_EVENT, VOICE_PREFS_STORAGE_KEY } from './voiceCatalog';
+import {
+  BROWSER_VOICE_ID,
+  DEFAULT_PIPER_VOICE_ID,
+  PIPER_DEFAULT_MODEL_BYTES,
+  PIPER_MODEL_BYTES,
+  PIPER_VOICES,
+  VOICE_PREFS_EVENT,
+  VOICE_PREFS_STORAGE_KEY,
+} from './voiceCatalog';
 import type { PiperLanguage, PiperVoiceOption } from './voiceCatalog';
 export * from './voiceCatalog';
 
@@ -23,10 +31,7 @@ export function findPiperVoice(id: string | null | undefined): PiperVoiceOption 
   return VOICE_MAP.get(id);
 }
 
-export function voicePreviewText(
-  lang: PiperLanguage,
-  voiceId: string,
-): { spoken: string; englishHint: string } {
+export function voicePreviewText(lang: PiperLanguage, voiceId: string): { spoken: string; englishHint: string } {
   const voice = findPiperVoice(voiceId);
   const shortName = voice?.shortName ?? 'the browser voice';
   switch (lang) {
@@ -184,10 +189,7 @@ export function saveVoicePreferences(prefs: VoicePreferences): void {
   }
 }
 
-export function useVoicePreferences(): [
-  VoicePreferences,
-  (lang: ConversationLanguage, voiceId: string) => void,
-] {
+export function useVoicePreferences(): [VoicePreferences, (lang: ConversationLanguage, voiceId: string) => void] {
   const [voicePrefs, setVoicePrefs] = useState<VoicePreferences>(loadVoicePreferences);
   const prefsRef = useRef(voicePrefs);
   prefsRef.current = voicePrefs;

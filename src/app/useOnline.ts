@@ -14,7 +14,7 @@ export function useOnline(): boolean {
   return useSyncExternalStore(
     subscribe,
     () => navigator.onLine !== false,
-    () => true,
+    () => true
   );
 }
 

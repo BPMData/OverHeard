@@ -22,7 +22,7 @@ vi.mock('../onDevice', () => ({
   onOnDeviceWorkedChange: vi.fn(() => () => {}),
 }));
 vi.mock('../translation/bergamot/engine', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../translation/bergamot/engine')>(),
+  ...(await importOriginal<typeof import('../translation/bergamot/engine')>()),
   hasBergamotModel: (lang: string) => ['ur', 'es', 'prs'].includes(lang),
 }));
 class FakeEvents extends EventTarget {
@@ -35,19 +35,43 @@ class FakeEvents extends EventTarget {
     this.url = url;
     FakeEvents.instances.push(this);
   }
-  emit(name: string, data: unknown) { this.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) })); }
+  emit(name: string, data: unknown) {
+    this.dispatchEvent(new MessageEvent(name, { data: JSON.stringify(data) }));
+  }
 }
-const entry: LectureEntry = { id: 'one', timestamp: 100, english: 'Welcome to science', translations: { es: 'Bienvenidos a ciencias' }, failedLangs: {} };
-const snapshot = (): RoomSnapshot => ({ ...emptyLecture(), entries: [entry], selectedLangs: ['es'], revision: 1, teacherOnline: true, ended: false, isListening: true });
+const entry: LectureEntry = {
+  id: 'one',
+  timestamp: 100,
+  english: 'Welcome to science',
+  translations: { es: 'Bienvenidos a ciencias' },
+  failedLangs: {},
+};
+const snapshot = (): RoomSnapshot => ({
+  ...emptyLecture(),
+  entries: [entry],
+  selectedLangs: ['es'],
+  revision: 1,
+  teacherOnline: true,
+  ended: false,
+  isListening: true,
+});
 beforeEach(() => {
   localStorage.clear();
-  FakeEvents.instances = []; translate.mockReset(); prepare.mockReset();
+  FakeEvents.instances = [];
+  translate.mockReset();
+  prepare.mockReset();
   translate.mockImplementation(async (text: string, language: string) => `${language}:${text}`);
   vi.stubGlobal('EventSource', FakeEvents);
   vi.stubGlobal('SpeechRecognition', vi.fn());
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
-const emit = async (data = snapshot()) => { await act(async () => FakeEvents.instances[0].emit('snapshot', data)); };
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+const emit = async (data = snapshot()) => {
+  await act(async () => FakeEvents.instances[0].emit('snapshot', data));
+};
 
 describe('student lecture view', () => {
   it('defaults to Spanish with the Claude voice when no preferences are saved', async () => {
@@ -82,7 +106,8 @@ describe('student lecture view', () => {
   });
 
   it('is read-only and reuses teacher translations without starting a microphone', async () => {
-    render(<StudentRoom code="science-101" />); await emit();
+    render(<StudentRoom code="science-101" />);
+    await emit();
     fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });
     expect(screen.getByText('Bienvenidos a ciencias')).toBeTruthy();
     expect(translate).not.toHaveBeenCalled();
@@ -103,13 +128,22 @@ describe('student lecture view', () => {
     expect(translate).toHaveBeenCalledTimes(1);
     expect(prepare).toHaveBeenCalledWith(['fr']);
     // A later teacher-provided result takes precedence over the student's cached one.
-    await emit({ ...snapshot(), entries: [{ ...entry, translations: { ...entry.translations, fr: 'Bienvenue en sciences' } } as typeof entry] });
+    await emit({
+      ...snapshot(),
+      entries: [{ ...entry, translations: { ...entry.translations, fr: 'Bienvenue en sciences' } } as typeof entry],
+    });
     expect(screen.getByText('Bienvenue en sciences')).toBeTruthy();
   });
   it('does not resurrect removed rows when a local translation finishes after a clear', async () => {
     let finish!: (value: string) => void;
-    translate.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-    render(<StudentRoom code="science-101" />); await emit();
+    translate.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    render(<StudentRoom code="science-101" />);
+    await emit();
     fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'fr' } });
     await emit({ ...snapshot(), entries: [], revision: 2 });
     await act(async () => finish('Old translation'));
@@ -117,7 +151,8 @@ describe('student lecture view', () => {
     expect(screen.queryByText('Welcome to science')).toBeNull();
   });
   it('shows a browser fallback and renders shared captions in a read-only pop-out', async () => {
-    render(<StudentRoom code="science-101" />); await emit();
+    render(<StudentRoom code="science-101" />);
+    await emit();
     fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
     expect(screen.getByRole('alert').textContent).toContain('unavailable in this browser');
     const pipDocument = document.implementation.createHTMLDocument('PiP');
@@ -126,10 +161,13 @@ describe('student lecture view', () => {
     fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'es' } });
     fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
     await waitFor(() => expect(within(pipDocument.body).getByText('Bienvenidos a ciencias')).toBeTruthy());
-    expect([...pipDocument.querySelectorAll('button')].some(button => /mic|listening/i.test(button.textContent || ''))).toBe(false);
+    expect(
+      [...pipDocument.querySelectorAll('button')].some((button) => /mic|listening/i.test(button.textContent || ''))
+    ).toBe(false);
     await emit({ ...snapshot(), interim: 'A new sentence', liveTranslations: { es: 'Una nueva frase' } });
     expect(within(pipDocument.body).getByText('Una nueva frase')).toBeTruthy();
-    cleanup(); expect(win.close).toHaveBeenCalled();
+    cleanup();
+    expect(win.close).toHaveBeenCalled();
   });
 
   it('defaults to dark mode, toggles with Sun/Moon button, and restores saved student + pop-out preferences across rooms', async () => {
@@ -151,7 +189,7 @@ describe('student lecture view', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Larger text' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pop out lecture' }));
     await waitFor(() =>
-      expect(within(pipDocument.body).getByRole('button', { name: /Side by side columns/i })).toBeTruthy(),
+      expect(within(pipDocument.body).getByRole('button', { name: /Side by side columns/i })).toBeTruthy()
     );
     fireEvent.click(within(pipDocument.body).getByRole('button', { name: /Side by side columns/i }));
     expect(pipDocument.body.querySelector('[data-layout="columns"]')).toBeTruthy();
@@ -314,7 +352,9 @@ describe('student translator choice', () => {
     fireEvent.change(screen.getByLabelText('My language'), { target: { value: 'ps' } });
     expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.change(screen.getByLabelText('Translate'), { target: { value: 'on-device' } });
-    expect((await screen.findByRole('alert')).textContent).toContain('⚠ Pashto: “Only on this device” can’t translate this language here');
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      '⚠ Pashto: “Only on this device” can’t translate this language here'
+    );
     expect(JSON.parse(localStorage.getItem('overheard.studentPrefs')!).onDeviceOnly).toBe(true);
     expect(prepare).toHaveBeenCalledWith(['ps']);
   });
@@ -337,16 +377,22 @@ describe('student waiting for the teacher', () => {
       const fetchMock = vi.fn(async () => ({ ok: open, status: open ? 200 : 404, json: async () => ({}) }));
       vi.stubGlobal('fetch', fetchMock);
       render(<StudentRoom code="murphy-p3" />);
-      await act(async () => { FakeEvents.instances[0].onerror?.(); });
+      await act(async () => {
+        FakeEvents.instances[0].onerror?.();
+      });
       expect(screen.getByText(/Waiting for your teacher to start room murphy-p3/)).toBeTruthy();
       expect(FakeEvents.instances[0].close).toHaveBeenCalled();
 
       // Still closed on the next check: keeps waiting without opening another stream
-      await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
       expect(FakeEvents.instances).toHaveLength(1);
 
       open = true;
-      await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
       expect(FakeEvents.instances).toHaveLength(2);
       await act(async () => FakeEvents.instances[1].emit('snapshot', snapshot()));
       expect(screen.getByText('Bienvenidos a ciencias')).toBeTruthy();

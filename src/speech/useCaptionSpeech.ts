@@ -28,8 +28,15 @@ interface CaptionSpeechOptions {
 }
 
 export function useCaptionSpeech({
-  onFinal, onInterim, clearLiveTranslation, onPermissionChange, setMicInsecure,
-  setHasSpeechApi, mtPreferenceRef, selectedLangsRef, reportPack,
+  onFinal,
+  onInterim,
+  clearLiveTranslation,
+  onPermissionChange,
+  setMicInsecure,
+  setHasSpeechApi,
+  mtPreferenceRef,
+  selectedLangsRef,
+  reportPack,
 }: CaptionSpeechOptions) {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [speechStatusNotice, setSpeechStatusNotice] = useState<string | null>(null);
@@ -109,11 +116,7 @@ export function useCaptionSpeech({
         }
 
         // On 'no-speech', 'network', or 'aborted' errors, keep restarting via onend keep-alive
-        if (
-          errCode === 'no-speech' ||
-          errCode === 'network' ||
-          errCode === 'aborted'
-        ) {
+        if (errCode === 'no-speech' || errCode === 'network' || errCode === 'aborted') {
           if (errCode === 'network') {
             setSpeechStatusNotice('Reconnecting speech service…');
           }
@@ -156,9 +159,7 @@ export function useCaptionSpeech({
             void prepareOnDeviceSpeech('en-US').then((local) => {
               recognition.processLocally = local;
               setSpeechIsLocal(local);
-              setSpeechStatusNotice(
-                local ? null : 'Offline, and on-device speech isn’t installed on this device.'
-              );
+              setSpeechStatusNotice(local ? null : 'Offline, and on-device speech isn’t installed on this device.');
               startNow();
             });
           };
@@ -219,16 +220,23 @@ export function useCaptionSpeech({
           prepareOnDeviceTranslators(selectedLangsRef.current, reportPack);
         }
         prepareOfflineSpeechIfTranslatorsReady(
-          isOnDeviceTranslationSupported()
-            ? selectedLangsRef.current.map((code) => ({ code, source: 'en' }))
-            : [],
+          isOnDeviceTranslationSupported() ? selectedLangsRef.current.map((code) => ({ code, source: 'en' })) : [],
           [{ key: 'speech', locale: 'en-US' }],
           reportPack
         );
       }
       begin(false);
     }
-  }, [onFinal, clearLiveTranslation, reportPack, mtPreferenceRef, selectedLangsRef, setHasSpeechApi, onInterim, onPermissionChange]);
+  }, [
+    onFinal,
+    clearLiveTranslation,
+    reportPack,
+    mtPreferenceRef,
+    selectedLangsRef,
+    setHasSpeechApi,
+    onInterim,
+    onPermissionChange,
+  ]);
 
   const stopListening = useCallback(() => {
     userStoppedRef.current = true;

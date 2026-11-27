@@ -40,9 +40,18 @@ import { useCaptionHotkey } from './speech/useCaptionHotkey';
 
 export default function App() {
   const {
-    selectedLangs, setSelectedLangs, selectedLangsRef, subtitleLang, setSubtitleLang,
-    fontSize, handleAdjustFont, handleToggleLanguage, displayMode, setDisplayMode,
-    showPreviousLine, setShowPreviousLine,
+    selectedLangs,
+    setSelectedLangs,
+    selectedLangsRef,
+    subtitleLang,
+    setSubtitleLang,
+    fontSize,
+    handleAdjustFont,
+    handleToggleLanguage,
+    displayMode,
+    setDisplayMode,
+    showPreviousLine,
+    setShowPreviousLine,
   } = useAppSettings();
   const [conversationVisited, setConversationVisited] = useState(false);
   const previousMode = useRef<'columns' | 'subtitle'>('columns');
@@ -63,31 +72,68 @@ export default function App() {
 
   const { availableProviders } = useServerConfig();
   const {
-    effectiveMtPreference, setMtPreference, mtPreferenceRef, onDeviceSupported,
-    lastUsedProvider, lastTranslateMs, fetchMT, onDeviceFailing,
+    effectiveMtPreference,
+    setMtPreference,
+    mtPreferenceRef,
+    onDeviceSupported,
+    lastUsedProvider,
+    lastTranslateMs,
+    fetchMT,
+    onDeviceFailing,
   } = useTranslator(availableProviders);
 
   const { packProgress, packStartedAt, reportPack } = usePackProgress();
 
   const { isSupportedBrowser, hasSpeechApi, setHasSpeechApi, hasPipApi, isEmbeddedIframe } = useBrowserSupport();
   const {
-    pipWindow, pipNotice, setPipNotice, visiblePipLines, pipLayout, setPipLayout, isDark, setIsDark,
-    handleTogglePip, handleTogglePipLine, closePip, closePipForConversation,
+    pipWindow,
+    pipNotice,
+    setPipNotice,
+    visiblePipLines,
+    pipLayout,
+    setPipLayout,
+    isDark,
+    setIsDark,
+    handleTogglePip,
+    handleTogglePipLine,
+    closePip,
+    closePipForConversation,
   } = usePipWindow(selectedLangs, isEmbeddedIframe);
 
   const {
-    segments, currentSegment, previousSegment, handleFinalizedPhrase,
-    interimTranscript, setInterimTranscript, clearLiveTranslation, liveTranslations,
-    confirmClear, setConfirmClear, handleClearConfirm, handleExportJson,
-    manualInput, setManualInput, handleManualSubmit, handleBurstTest,
+    segments,
+    currentSegment,
+    previousSegment,
+    handleFinalizedPhrase,
+    interimTranscript,
+    setInterimTranscript,
+    clearLiveTranslation,
+    liveTranslations,
+    confirmClear,
+    setConfirmClear,
+    handleClearConfirm,
+    handleExportJson,
+    manualInput,
+    setManualInput,
+    handleManualSubmit,
+    handleBurstTest,
   } = useCaptionTranscript({
-    selectedLangs, selectedLangsRef, stopColumnPlayback, fetchMT,
+    selectedLangs,
+    selectedLangsRef,
+    stopColumnPlayback,
+    fetchMT,
   });
 
   const { isListening, speechIsLocal, speechStatusNotice, stopListening, toggleListening } = useCaptionSpeech({
-    onFinal: handleFinalizedPhrase, onInterim: setInterimTranscript, clearLiveTranslation,
-    onPermissionChange: setMicPermissionDenied, setMicInsecure, setHasSpeechApi,
-    mtPreferenceRef, selectedLangsRef, reportPack,
+    onFinal: handleFinalizedPhrase,
+    onInterim: setInterimTranscript,
+    clearLiveTranslation,
+    onPermissionChange: setMicPermissionDenied,
+    setMicInsecure,
+    setHasSpeechApi,
+    mtPreferenceRef,
+    selectedLangsRef,
+    reportPack,
   });
 
   useCaptionHotkey(displayMode, toggleListening);
@@ -122,7 +168,7 @@ export default function App() {
       saveLectureEntries(imported.entries);
       updateConversationSettings(
         (current) => (current.mode === 'lecture' ? current : { ...current, mode: 'lecture' }),
-        selectedLangs[0] ?? 'es',
+        selectedLangs[0] ?? 'es'
       );
       if (imported.selectedLangs.length > 0) {
         setSelectedLangs(imported.selectedLangs.slice(0, MAX_LANGUAGES));
@@ -137,7 +183,7 @@ export default function App() {
       setConversationVisited(true);
       setDisplayMode('conversation');
     },
-    [displayMode, closePipForConversation, selectedLangs, stopListening],
+    [displayMode, closePipForConversation, selectedLangs, stopListening]
   );
 
   const enterConversation = () => {
@@ -151,17 +197,20 @@ export default function App() {
   };
 
   const permissionBanner = micPermissionDenied && (
-    <PermissionBanner
-      displayMode={displayMode} isEmbeddedIframe={isEmbeddedIframe} micInsecure={micInsecure}
-    />
+    <PermissionBanner displayMode={displayMode} isEmbeddedIframe={isEmbeddedIframe} micInsecure={micInsecure} />
   );
   const translatorPicker = (
     <TranslatorPicker
-      displayMode={displayMode} selectedLangs={selectedLangs}
-      onDeviceSupported={onDeviceSupported} speechIsLocal={speechIsLocal}
-      lastTranslateMs={lastTranslateMs} lastUsedProvider={lastUsedProvider}
-      availableProviders={availableProviders} effectiveMtPreference={effectiveMtPreference}
-      setMtPreference={setMtPreference} reportPack={reportPack}
+      displayMode={displayMode}
+      selectedLangs={selectedLangs}
+      onDeviceSupported={onDeviceSupported}
+      speechIsLocal={speechIsLocal}
+      lastTranslateMs={lastTranslateMs}
+      lastUsedProvider={lastUsedProvider}
+      availableProviders={availableProviders}
+      effectiveMtPreference={effectiveMtPreference}
+      setMtPreference={setMtPreference}
+      reportPack={reportPack}
       onDeviceFailing={onDeviceFailing}
     />
   );
@@ -170,24 +219,40 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#EAEFF6] dark:bg-[#070B12] text-[#0F172A] dark:text-[#F8FAFC] transition-colors">
       <SpeechDebugPanel />
       <AppBanners
-        displayMode={displayMode} isEmbeddedIframe={isEmbeddedIframe} hasSpeechApi={hasSpeechApi}
-        isSupportedBrowser={isSupportedBrowser} importError={importError} pipNotice={pipNotice}
-        permissionBanner={permissionBanner} setImportError={setImportError}
+        displayMode={displayMode}
+        isEmbeddedIframe={isEmbeddedIframe}
+        hasSpeechApi={hasSpeechApi}
+        isSupportedBrowser={isSupportedBrowser}
+        importError={importError}
+        pipNotice={pipNotice}
+        permissionBanner={permissionBanner}
+        setImportError={setImportError}
         setPipNotice={setPipNotice}
       />
       {displayMode !== 'conversation' && (
         <>
           <AppHeader
-            selectedLangs={selectedLangs} isDark={isDark} hasPipApi={hasPipApi}
-            showPreviousLine={showPreviousLine} isTestBarOpen={isTestBarOpen}
-            packProgress={packProgress} packStartedAt={packStartedAt} segments={segments}
-            pipWindow={pipWindow} speechStatusNotice={speechStatusNotice}
-            translatorPicker={translatorPicker} applyImportedLecture={applyImportedLecture}
-            setIsDark={setIsDark} setIsTestBarOpen={setIsTestBarOpen}
-            setShowPreviousLine={setShowPreviousLine} setDisplayMode={setDisplayMode}
-            handleTogglePip={handleTogglePip} setImportError={setImportError}
+            selectedLangs={selectedLangs}
+            isDark={isDark}
+            hasPipApi={hasPipApi}
+            showPreviousLine={showPreviousLine}
+            isTestBarOpen={isTestBarOpen}
+            packProgress={packProgress}
+            packStartedAt={packStartedAt}
+            segments={segments}
+            pipWindow={pipWindow}
+            speechStatusNotice={speechStatusNotice}
+            translatorPicker={translatorPicker}
+            applyImportedLecture={applyImportedLecture}
+            setIsDark={setIsDark}
+            setIsTestBarOpen={setIsTestBarOpen}
+            setShowPreviousLine={setShowPreviousLine}
+            setDisplayMode={setDisplayMode}
+            handleTogglePip={handleTogglePip}
+            setImportError={setImportError}
             setIsVoiceSettingsOpen={setIsVoiceSettingsOpen}
-            setIsLangModalOpen={setIsLangModalOpen} setIsAboutModalOpen={setIsAboutModalOpen}
+            setIsLangModalOpen={setIsLangModalOpen}
+            setIsAboutModalOpen={setIsAboutModalOpen}
             handleExportJson={handleExportJson}
             listen={{ isListening, toggleListening }}
             sizing={{ fontSize, handleAdjustFont }}
@@ -197,21 +262,35 @@ export default function App() {
           />
           {displayMode === 'columns' ? (
             <ColumnsView
-              selectedLangs={selectedLangs} isListening={isListening} isDark={isDark}
-              showPreviousLine={showPreviousLine} fontSize={fontSize}
-              currentSegment={currentSegment} previousSegment={previousSegment}
-              liveTranslations={liveTranslations} interimTranscript={interimTranscript}
-              columnPlayback={columnPlayback} speakColumnTranslation={speakColumnTranslation}
+              selectedLangs={selectedLangs}
+              isListening={isListening}
+              isDark={isDark}
+              showPreviousLine={showPreviousLine}
+              fontSize={fontSize}
+              currentSegment={currentSegment}
+              previousSegment={previousSegment}
+              liveTranslations={liveTranslations}
+              interimTranscript={interimTranscript}
+              columnPlayback={columnPlayback}
+              speakColumnTranslation={speakColumnTranslation}
               stopColumnPlayback={stopColumnPlayback}
             />
           ) : (
             <SubtitleBar
-              selectedLangs={selectedLangs} subtitleLang={subtitleLang} isListening={isListening}
-              isDark={isDark} hasPipApi={hasPipApi} showPreviousLine={showPreviousLine}
-              fontSize={fontSize} currentSegment={currentSegment}
-              previousSegment={previousSegment} segments={segments}
-              liveTranslations={liveTranslations} pipWindow={pipWindow}
-              interimTranscript={interimTranscript} setSubtitleLang={setSubtitleLang}
+              selectedLangs={selectedLangs}
+              subtitleLang={subtitleLang}
+              isListening={isListening}
+              isDark={isDark}
+              hasPipApi={hasPipApi}
+              showPreviousLine={showPreviousLine}
+              fontSize={fontSize}
+              currentSegment={currentSegment}
+              previousSegment={previousSegment}
+              segments={segments}
+              liveTranslations={liveTranslations}
+              pipWindow={pipWindow}
+              interimTranscript={interimTranscript}
+              setSubtitleLang={setSubtitleLang}
               handleTogglePip={handleTogglePip}
             />
           )}
@@ -259,8 +338,7 @@ export default function App() {
         onClose={() => setIsLangModalOpen(false)}
         selectedLangs={selectedLangs}
         downloadsPacks={
-          onDeviceSupported &&
-          (effectiveMtPreference === 'auto' || effectiveMtPreference === 'on-device')
+          onDeviceSupported && (effectiveMtPreference === 'auto' || effectiveMtPreference === 'on-device')
         }
         onDeviceOnly={onDeviceSupported && effectiveMtPreference === 'on-device'}
         onToggleLang={(code) => {

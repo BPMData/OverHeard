@@ -8,7 +8,10 @@ class FakeCache {
   async put(request: RequestInfo | URL, response: Response) {
     // Read the body now, like a real cache does, so the stored copy can be cloned later
     const body = await response.arrayBuffer();
-    this.entries.set(String(request instanceof Request ? request.url : request), new Response(body, { headers: response.headers }));
+    this.entries.set(
+      String(request instanceof Request ? request.url : request),
+      new Response(body, { headers: response.headers })
+    );
   }
   async delete(request: RequestInfo | URL) {
     return this.entries.delete(String(request instanceof Request ? request.url : request));

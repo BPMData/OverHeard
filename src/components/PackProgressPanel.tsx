@@ -72,23 +72,19 @@ export const PackProgressPanel: React.FC<Props> = ({ progress, startedAt }) => {
             )}
           </div>
           <div className="text-[#64748B] dark:text-[#94A3B8]">
-            First time only — usually about a minute. They’re kept on this device for next time.
-            Tip: pick languages before class; choosing one starts its download.
+            First time only — usually about a minute. They’re kept on this device for next time. Tip: pick languages
+            before class; choosing one starts its download.
           </div>
           {downloading.map(([key, fraction]) => (
             <div key={key} className="flex items-center gap-2">
               <span className="w-36 truncate">{packLabel(key)}</span>
               <div className="flex-1 h-1.5 rounded-full bg-slate-300/50 dark:bg-slate-700 overflow-hidden">
                 <div
-                  className={`h-full bg-[#5843A5] dark:bg-[#A78BFA] ${
-                    fraction < 0 ? 'w-1/3 animate-pulse' : ''
-                  }`}
+                  className={`h-full bg-[#5843A5] dark:bg-[#A78BFA] ${fraction < 0 ? 'w-1/3 animate-pulse' : ''}`}
                   style={fraction < 0 ? undefined : { width: `${Math.round(fraction * 100)}%` }}
                 />
               </div>
-              <span className="w-10 text-right font-mono">
-                {fraction < 0 ? '…' : `${Math.round(fraction * 100)}%`}
-              </span>
+              <span className="w-10 text-right font-mono">{fraction < 0 ? '…' : `${Math.round(fraction * 100)}%`}</span>
             </div>
           ))}
         </>

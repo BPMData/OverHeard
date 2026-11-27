@@ -48,9 +48,7 @@ function post(route: string, body: unknown) {
 
 describe('translation routes', () => {
   it('accepts Hindi and Bengali as source and target languages', async () => {
-    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json([[['नमस्ते']]]),
-    );
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([[['नमस्ते']]]));
     const response = await post('/mt', { text: 'হ্যালো', source: 'bn', lang: 'hi', provider: 'gtx' });
     expect(response.status).toBe(200);
     const url = String((provider.mock.calls[0] as unknown[])[0]);
@@ -70,9 +68,7 @@ describe('translation routes', () => {
   });
 
   it('validates MT input and returns a cached result for the same source and target', async () => {
-    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json([[['Water freezes.']]]),
-    );
+    const provider = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([[['Water freezes.']]]));
     const bad = await post('/mt', { text: 'El agua se congela.', source: 'xx', lang: 'en' });
     expect(bad.status).toBe(400);
     expect(await bad.json()).toEqual({ error: 'Unsupported source language code: xx' });

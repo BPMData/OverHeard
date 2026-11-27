@@ -1,11 +1,5 @@
 import type { ConversationLanguage } from '../types';
-import {
-  BROWSER_VOICE_ID,
-  findPiperVoice,
-  hasPiperVoices,
-  resolveVoiceId,
-  type VoiceEngine,
-} from './voices';
+import { BROWSER_VOICE_ID, findPiperVoice, hasPiperVoices, resolveVoiceId, type VoiceEngine } from './voices';
 
 export interface PiperModelStatus {
   modelId: string | null;
@@ -71,11 +65,13 @@ type RequestResult = string[] | SavedModelSize[] | void;
 const CHUNK_EDGE_FADE_MS = 8;
 const MAX_PREFETCH_ENTRIES = 6;
 
-export function applyEdgeFadeToAudioBuffer(
-  buffer: AudioBuffer,
-  fadeMs = CHUNK_EDGE_FADE_MS,
-): AudioBuffer {
-  if (!buffer || typeof buffer.getChannelData !== 'function' || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate <= 0) {
+export function applyEdgeFadeToAudioBuffer(buffer: AudioBuffer, fadeMs = CHUNK_EDGE_FADE_MS): AudioBuffer {
+  if (
+    !buffer ||
+    typeof buffer.getChannelData !== 'function' ||
+    !Number.isFinite(buffer.sampleRate) ||
+    buffer.sampleRate <= 0
+  ) {
     return buffer;
   }
   const desiredFrames = Math.round((buffer.sampleRate * fadeMs) / 1000);
@@ -99,15 +95,13 @@ export function isPiperSupported(): boolean {
     return false;
   }
   const AudioCtx =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   return typeof AudioCtx === 'function';
 }
 
 function speakWithBrowserSynthesis(text: string, options: SpeakOptions): PlaybackHandle {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-  const UtteranceCtor =
-    typeof SpeechSynthesisUtterance !== 'undefined' ? SpeechSynthesisUtterance : undefined;
+  const UtteranceCtor = typeof SpeechSynthesisUtterance !== 'undefined' ? SpeechSynthesisUtterance : undefined;
 
   if (!synth || !UtteranceCtor) {
     queueMicrotask(() => options.onEnd?.());
@@ -119,8 +113,7 @@ function speakWithBrowserSynthesis(text: string, options: SpeakOptions): Playbac
   const utterance = new UtteranceCtor(text);
   utterance.lang = options.lang;
   const voices = synth.getVoices();
-  utterance.voice =
-    voices.find((v) => v.lang.toLowerCase().startsWith(options.lang.toLowerCase())) || null;
+  utterance.voice = voices.find((v) => v.lang.toLowerCase().startsWith(options.lang.toLowerCase())) || null;
 
   const finish = () => {
     if (cancelled || settled) return;
@@ -156,10 +149,7 @@ export class PiperPlaybackClient implements SpeechClient {
   private nextJobId = 1;
   private status: PiperModelStatus = { modelId: null, status: 'idle', progress: null };
   private statusListeners = new Set<(status: PiperModelStatus) => void>();
-  private pendingJobs = new Map<
-    number,
-    { resolve: (wav: ArrayBuffer) => void; reject: (err: Error) => void }
-  >();
+  private pendingJobs = new Map<number, { resolve: (wav: ArrayBuffer) => void; reject: (err: Error) => void }>();
   private prefetchCache = new Map<string, Promise<ArrayBuffer>>();
   private nextRequestId = 1;
   private pendingRequests = new Map<
@@ -195,8 +185,7 @@ export class PiperPlaybackClient implements SpeechClient {
     try {
       if (!this.audioCtx || this.audioCtx.state === 'closed') {
         const AudioCtx =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+          window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (!AudioCtx) return null;
         this.audioCtx = new AudioCtx();
       }
@@ -248,7 +237,10 @@ export class PiperPlaybackClient implements SpeechClient {
         if (msg.type === 'stored') pending.resolve(msg.modelIds);
         else if (msg.type === 'storedSizes') pending.resolve(msg.sizes);
         else if (msg.ok) pending.resolve();
-        else pending.reject(new Error(msg.error || (msg.type === 'saved' ? 'Could not save voice' : 'Could not delete voice')));
+        else
+          pending.reject(
+            new Error(msg.error || (msg.type === 'saved' ? 'Could not save voice' : 'Could not delete voice'))
+          );
         return;
       }
       if (msg.type === 'error') {
@@ -330,7 +322,7 @@ export class PiperPlaybackClient implements SpeechClient {
   private synthesize(
     text: string,
     modelId: string,
-    speakerId: number,
+    speakerId: number
   ): { jobId: number | null; promise: Promise<ArrayBuffer> } {
     const cacheKey = `${modelId}:${speakerId}:${text}`;
     const existing = this.prefetchCache.get(cacheKey);
@@ -480,7 +472,11 @@ export class PiperPlaybackClient implements SpeechClient {
         if (cancelled) return;
 
         // Fall back to system speechSynthesis if Piper fails (e.g., offline without cached voice).
-        if (typeof window !== 'undefined' && window.speechSynthesis && typeof SpeechSynthesisUtterance !== 'undefined') {
+        if (
+          typeof window !== 'undefined' &&
+          window.speechSynthesis &&
+          typeof SpeechSynthesisUtterance !== 'undefined'
+        ) {
           fallbackHandle = speakWithBrowserSynthesis(trimmed, options);
           if (paused) fallbackHandle.pause();
           return;

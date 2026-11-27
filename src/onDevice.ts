@@ -7,8 +7,12 @@ import { ON_DEVICE_TIMEOUT_MS, rejectAfter } from './app/settings';
 import { speechLocale } from './conversation/locales';
 import { isOffline } from './offline';
 import {
-  bergamotAvailability, createBergamotTranslator, downloadBergamotModel, hasBergamotModel,
-  isBergamotRunnable, isBergamotTranslator,
+  bergamotAvailability,
+  createBergamotTranslator,
+  downloadBergamotModel,
+  hasBergamotModel,
+  isBergamotRunnable,
+  isBergamotTranslator,
 } from './translation/bergamot/engine';
 import { BERGAMOT_APPROXIMATE, bergamotDownloadLabel } from './translation/bergamot/models';
 
@@ -141,8 +145,7 @@ const isNotAllowed = (error: unknown) =>
 
 /** Chrome reports `loaded` as a 0–1 fraction; older builds reported bytes with a `total`. */
 export function progressFraction(event: { loaded: number; total?: number }): number {
-  const fraction =
-    event.total && event.total > 1 ? event.loaded / event.total : event.loaded;
+  const fraction = event.total && event.total > 1 ? event.loaded / event.total : event.loaded;
   return Math.min(Math.max(fraction, 0), 1);
 }
 
@@ -193,9 +196,16 @@ export function getOnDeviceTranslator(
     // Chrome recently said no (or didn't answer): go straight to Bergamot
     const skipChrome = fallback && (unavailableUntil.get(key) ?? 0) > Date.now();
     try {
-      chrome = api && !skipChrome
-        ? await getChromeTranslator(api, code, source, onProgress, fallback ? CHROME_CHECK_WITH_FALLBACK_MS : ON_DEVICE_TIMEOUT_MS)
-        : null;
+      chrome =
+        api && !skipChrome
+          ? await getChromeTranslator(
+              api,
+              code,
+              source,
+              onProgress,
+              fallback ? CHROME_CHECK_WITH_FALLBACK_MS : ON_DEVICE_TIMEOUT_MS
+            )
+          : null;
     } catch (error) {
       if (!fallback) throw error;
       unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
@@ -220,7 +230,9 @@ export function getOnDeviceTranslator(
         unavailableUntil.set(key, Date.now() + UNAVAILABLE_RECHECK_MS);
       }
     },
-    () => { if (translators.get(key) === promise) translators.delete(key); }
+    () => {
+      if (translators.get(key) === promise) translators.delete(key);
+    }
   );
   return promise;
 }
@@ -233,7 +245,7 @@ export function getOnDeviceTranslator(
 async function getBergamotTranslator(
   code: string,
   source: string,
-  onProgress?: PackProgress,
+  onProgress?: PackProgress
 ): Promise<TranslatorInstance | null> {
   if (!hasBergamotModel(code, source)) return null;
   const status = await bergamotAvailability(code, source);
@@ -264,7 +276,7 @@ async function getChromeTranslator(
   code: string,
   source: string,
   onProgress: PackProgress | undefined,
-  checkMs: number,
+  checkMs: number
 ): Promise<TranslatorInstance | null> {
   const langs = { sourceLanguage: toTranslatorCode(source), targetLanguage: toTranslatorCode(code) };
   // These caps use the strict mode's budget. Auto callers apply their own shorter deadline.
@@ -278,16 +290,17 @@ async function getChromeTranslator(
   let waiting = false;
   let startedAt = Date.now();
 
-  const createWithMonitor = () => api.create({
-    ...langs,
-    monitor: (m) =>
-      m.addEventListener('downloadprogress', (e) => {
-        if (settled) return;
-        const fraction = progressFraction(e as unknown as { loaded: number; total?: number });
-        if (fraction > 0) sawProgress = true;
-        onProgress?.(code, fraction);
-      }),
-  });
+  const createWithMonitor = () =>
+    api.create({
+      ...langs,
+      monitor: (m) =>
+        m.addEventListener('downloadprogress', (e) => {
+          if (settled) return;
+          const fraction = progressFraction(e as unknown as { loaded: number; total?: number });
+          if (fraction > 0) sawProgress = true;
+          onProgress?.(code, fraction);
+        }),
+    });
 
   return await new Promise<TranslatorInstance | null>((resolve, reject) => {
     const finish = (fn: () => void) => {
@@ -438,15 +451,13 @@ export async function translateOnDevice(
   code: string,
   source = 'en',
   timeoutMs?: number,
-  { waitForSetup = true } = {},
+  { waitForSetup = true } = {}
 ): Promise<string> {
   // Explicit local-only mode can wait for a user-initiated download. The automatic
   // path already gave the pack a grace period, so setup counts toward its deadline.
   const started = Date.now();
   const pending = getOnDeviceTranslator(code, source);
-  const translator = waitForSetup || timeoutMs === undefined
-    ? await pending
-    : await rejectAfter(pending, timeoutMs);
+  const translator = waitForSetup || timeoutMs === undefined ? await pending : await rejectAfter(pending, timeoutMs);
   if (!translator) {
     throw new OnDeviceUnavailableError(`No on-device translator for ${code}`);
   }
@@ -467,10 +478,7 @@ export async function translateOnDevice(
  * Make sure on-device English speech recognition is ready, downloading it if needed.
  * Returns true if recognition can run locally. Call from a click handler (install needs one).
  */
-async function prepareSpeechUncached(
-  lang: string,
-  onDownloadStart?: () => void
-): Promise<boolean> {
+async function prepareSpeechUncached(lang: string, onDownloadStart?: () => void): Promise<boolean> {
   const api = getSpeechApi();
   if (!api) return false;
   try {
@@ -522,9 +530,12 @@ export function prepareOnDeviceSpeech(
   const promise = prepareSpeechUncached(lang, onDownloadStart);
   speechPreparations.set(lang, promise);
   // Only in-flight work is shared; a missing pack is re-checked next time
-  promise.then((ready) => {
-    if (ready) readySpeech.add(lang);
-  }, () => {});
+  promise.then(
+    (ready) => {
+      if (ready) readySpeech.add(lang);
+    },
+    () => {}
+  );
   const done = () => speechPreparations.delete(lang);
   promise.then(done, done);
   return promise;
@@ -547,9 +558,7 @@ export function prepareOfflineSpeechIfTranslatorsReady(
     .then((statuses) => {
       if (!statuses.every((status) => status === 'available' || status === 'unavailable')) return;
       for (const { key, locale } of speech) {
-        void prepareOnDeviceSpeech(locale, () => onProgress?.(key, -1)).then(() =>
-          onProgress?.(key, null)
-        );
+        void prepareOnDeviceSpeech(locale, () => onProgress?.(key, -1)).then(() => onProgress?.(key, null));
       }
     })
     .catch(() => {});
@@ -579,8 +588,6 @@ export function prepareOnDeviceConversation(
   if (options.speech === false) return;
   for (const code of new Set([langs.a, langs.b])) {
     const key = `speech:${code}`;
-    void prepareOnDeviceSpeech(speechLocale(code), () => onProgress?.(key, -1)).then(() =>
-      onProgress?.(key, null)
-    );
+    void prepareOnDeviceSpeech(speechLocale(code), () => onProgress?.(key, -1)).then(() => onProgress?.(key, null));
   }
 }

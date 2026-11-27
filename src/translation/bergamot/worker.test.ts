@@ -42,7 +42,9 @@ const buffers = () => ({ model: new ArrayBuffer(4), lex: new ArrayBuffer(2), voc
 describe('BergamotWorker', () => {
   it('initializes once, loads a model with its buffers transferred, and translates', async () => {
     const fake = new FakeWorker(({ name, args }) =>
-      name === 'translate' ? [{ target: { text: `ur:${(args[0] as { texts: Array<{ text: string }> }).texts[0].text}` } }] : undefined,
+      name === 'translate'
+        ? [{ target: { text: `ur:${(args[0] as { texts: Array<{ text: string }> }).texts[0].text}` } }]
+        : undefined
     );
     const worker = new BergamotWorker(() => fake);
     await worker.load('enur', buffers());
@@ -86,7 +88,10 @@ describe('BergamotWorker', () => {
     let hang = true;
     const factory = vi.fn(() => {
       const fake = new FakeWorker();
-      if (hang) fake.postMessage = function (this: FakeWorker, message: Message) { this.calls.push(message); };
+      if (hang)
+        fake.postMessage = function (this: FakeWorker, message: Message) {
+          this.calls.push(message);
+        };
       workers.push(fake);
       return fake;
     });

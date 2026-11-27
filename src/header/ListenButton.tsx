@@ -5,9 +5,7 @@ interface ListenButtonProps {
   toggleListening: () => void;
 }
 
-export function ListenButton({
-  isListening, toggleListening,
-}: ListenButtonProps) {
+export function ListenButton({ isListening, toggleListening }: ListenButtonProps) {
   return (
     <button
       type="button"

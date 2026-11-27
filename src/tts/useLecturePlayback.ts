@@ -232,7 +232,7 @@ export function useLecturePlayback({
       }
       handleRef.current = handle;
     },
-    [client],
+    [client]
   );
 
   // Speak the next translated piece of the line still being spoken, if it is ready.
@@ -323,26 +323,34 @@ export function useLecturePlayback({
   pumpLiveRef.current = pumpLive;
 
   // Translate a settled piece now; it plays in order once its translation arrives.
-  const queueLivePiece = useCallback((english: string) => {
-    const options = liveRef.current;
-    if (!options || !english.trim()) return;
-    const slot: LiveSlot = { text: null, done: false };
-    liveStateRef.current.slots.push(slot);
-    const lang = liveLangRef.current;
-    const translated = lang === 'en' ? Promise.resolve(english) : options.translate(english, lang);
-    translated.then(
-      (text) => {
-        slot.text = text.trim() || null;
-        // Synthesize now, while earlier pieces are still playing
-        const voiceId = resolveVoiceId(lang, voicePrefsRef.current);
-        if (slot.text && client.isPiperSupported() && voiceId !== BROWSER_VOICE_ID) client.prefetch(slot.text, voiceId);
-      },
-      () => { slot.text = null; },
-    ).finally(() => {
-      slot.done = true;
-      pumpLiveRef.current();
-    });
-  }, [client]);
+  const queueLivePiece = useCallback(
+    (english: string) => {
+      const options = liveRef.current;
+      if (!options || !english.trim()) return;
+      const slot: LiveSlot = { text: null, done: false };
+      liveStateRef.current.slots.push(slot);
+      const lang = liveLangRef.current;
+      const translated = lang === 'en' ? Promise.resolve(english) : options.translate(english, lang);
+      translated
+        .then(
+          (text) => {
+            slot.text = text.trim() || null;
+            // Synthesize now, while earlier pieces are still playing
+            const voiceId = resolveVoiceId(lang, voicePrefsRef.current);
+            if (slot.text && client.isPiperSupported() && voiceId !== BROWSER_VOICE_ID)
+              client.prefetch(slot.text, voiceId);
+          },
+          () => {
+            slot.text = null;
+          }
+        )
+        .finally(() => {
+          slot.done = true;
+          pumpLiveRef.current();
+        });
+    },
+    [client]
+  );
 
   /** Start a fresh utterance; `spoken` words at its start are skipped. */
   const resetLive = useCallback((spoken: number, keepSlots: boolean) => {
@@ -390,7 +398,7 @@ export function useLecturePlayback({
       const gen = generationRef.current;
       speakEntryAt(target, lang, gen, false);
     },
-    [client, speakEntryAt, stopInternal, togglePause],
+    [client, speakEntryAt, stopInternal, togglePause]
   );
 
   // Stop playback when the transcript is cleared.
@@ -486,16 +494,17 @@ export function useLecturePlayback({
     // speakNextUnseen reads everything else it needs from refs
   }, [entries, readAloud, liveLang, speakEntryAt]);
 
-  useEffect(() => () => {
-    generationRef.current += 1;
-    handleRef.current?.stop();
-    handleRef.current = null;
-  }, []);
+  useEffect(
+    () => () => {
+      generationRef.current += 1;
+      handleRef.current?.stop();
+      handleRef.current = null;
+    },
+    []
+  );
 
   const activePlayback: ActivePlayback | null =
-    cursor && status !== 'idle'
-      ? { entryId: cursor.entryId, lang: cursor.lang, status }
-      : null;
+    cursor && status !== 'idle' ? { entryId: cursor.entryId, lang: cursor.lang, status } : null;
 
   return {
     activePlayback,

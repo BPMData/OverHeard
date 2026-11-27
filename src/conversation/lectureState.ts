@@ -71,9 +71,7 @@ export function loadLectureEntries(): LectureEntry[] {
       const english = typeof item.english === 'string' ? item.english.trim() : '';
       if (!english) continue;
       const timestamp =
-        typeof item.timestamp === 'number' && Number.isFinite(item.timestamp)
-          ? item.timestamp
-          : Date.now();
+        typeof item.timestamp === 'number' && Number.isFinite(item.timestamp) ? item.timestamp : Date.now();
       const translations: Partial<Record<LanguageCode, string>> = {};
       if (item.translations && typeof item.translations === 'object') {
         for (const [code, value] of Object.entries(item.translations)) {

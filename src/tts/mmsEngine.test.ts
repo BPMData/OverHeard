@@ -18,7 +18,12 @@ function fakeFetch(size: number, contentLength: number): typeof fetch {
 describe('downloadMmsModel', () => {
   it('accepts a gzipped download whose Content-Length is the compressed size', async () => {
     const progress: number[] = [];
-    const bytes = await downloadMmsModel('https://x.test/m.onnx', 1000, (pct) => progress.push(pct), fakeFetch(1000, 850));
+    const bytes = await downloadMmsModel(
+      'https://x.test/m.onnx',
+      1000,
+      (pct) => progress.push(pct),
+      fakeFetch(1000, 850)
+    );
     expect(bytes.length).toBe(1000);
     expect(bytes[999]).toBe(7);
     expect(progress.at(-1)).toBe(99);
@@ -26,13 +31,15 @@ describe('downloadMmsModel', () => {
   });
 
   it('rejects a download that stops short of the expected size', async () => {
-    await expect(downloadMmsModel('https://x.test/m.onnx', 1000, () => undefined, fakeFetch(600, 1000))).rejects.toThrow(
-      'interrupted',
-    );
+    await expect(
+      downloadMmsModel('https://x.test/m.onnx', 1000, () => undefined, fakeFetch(600, 1000))
+    ).rejects.toThrow('interrupted');
   });
 
   it('reports an HTTP error', async () => {
     const notFound = (async () => new Response('nope', { status: 404 })) as typeof fetch;
-    await expect(downloadMmsModel('https://x.test/m.onnx', 1000, () => undefined, notFound)).rejects.toThrow('HTTP 404');
+    await expect(downloadMmsModel('https://x.test/m.onnx', 1000, () => undefined, notFound)).rejects.toThrow(
+      'HTTP 404'
+    );
   });
 });

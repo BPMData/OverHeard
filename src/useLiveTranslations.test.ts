@@ -7,11 +7,10 @@ type Pending = { text: string; resolve: (value: string) => void };
 
 function setup() {
   const pending: Pending[] = [];
-  const translate = vi.fn((text: string) =>
-    new Promise<string>((resolve) => pending.push({ text, resolve })));
+  const translate = vi.fn((text: string) => new Promise<string>((resolve) => pending.push({ text, resolve })));
   const hook = renderHook(
     ({ text, key }: { text: string; key: string }) => useLiveTranslations(text, ['es'], translate, key),
-    { initialProps: { text: '', key: 'a' } },
+    { initialProps: { text: '', key: 'a' } }
   );
   return { pending, translate, hook };
 }
@@ -31,7 +30,9 @@ describe('useLiveTranslations', () => {
     expect(hook.result.current.es).toBe('hola clase');
 
     // Only one request per chunk is in flight; the newest text is sent once it returns
-    await act(async () => { vi.advanceTimersByTime(LIVE_THROTTLE_MS); });
+    await act(async () => {
+      vi.advanceTimersByTime(LIVE_THROTTLE_MS);
+    });
     expect(pending.map((p) => p.text)).toEqual(['hello class', 'hello class today we']);
     await act(async () => pending[1].resolve('hola clase hoy'));
     expect(hook.result.current.es).toBe('hola clase hoy');
@@ -43,7 +44,9 @@ describe('useLiveTranslations', () => {
     await act(async () => pending[0].resolve('primera'));
     hook.rerender({ text: 'second', key: 'b' });
     expect(hook.result.current.es).toBeUndefined();
-    await act(async () => { vi.advanceTimersByTime(LIVE_THROTTLE_MS); });
+    await act(async () => {
+      vi.advanceTimersByTime(LIVE_THROTTLE_MS);
+    });
     expect(pending.at(-1)!.text).toBe('second');
   });
 });

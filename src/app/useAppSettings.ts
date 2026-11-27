@@ -5,12 +5,8 @@ import { parseInitialLanguages } from './settings';
 
 export function useAppSettings() {
   // Language selection state hydrated from ?langs=
-  const [selectedLangs, setSelectedLangs] = useState<LanguageCode[]>(() =>
-    parseInitialLanguages()
-  );
-  const [subtitleLang, setSubtitleLang] = useState<LanguageCode>(
-    () => parseInitialLanguages()[0] || 'es'
-  );
+  const [selectedLangs, setSelectedLangs] = useState<LanguageCode[]>(() => parseInitialLanguages());
+  const [subtitleLang, setSubtitleLang] = useState<LanguageCode>(() => parseInitialLanguages()[0] || 'es');
 
   // Display & typography controls
   const [fontSize, setFontSize] = useState<number>(DEFAULT_FONT_SIZE);
@@ -43,14 +39,21 @@ export function useAppSettings() {
 
   // Font size adjustment (20px to 56px)
   const handleAdjustFont = (delta: number) => {
-    setFontSize((prev) =>
-      Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, prev + delta))
-    );
+    setFontSize((prev) => Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, prev + delta)));
   };
 
   return {
-    selectedLangs, setSelectedLangs, selectedLangsRef, subtitleLang, setSubtitleLang,
-    fontSize, handleAdjustFont, handleToggleLanguage, displayMode, setDisplayMode,
-    showPreviousLine, setShowPreviousLine,
+    selectedLangs,
+    setSelectedLangs,
+    selectedLangsRef,
+    subtitleLang,
+    setSubtitleLang,
+    fontSize,
+    handleAdjustFont,
+    handleToggleLanguage,
+    displayMode,
+    setDisplayMode,
+    showPreviousLine,
+    setShowPreviousLine,
   };
 }

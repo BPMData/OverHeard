@@ -96,12 +96,8 @@ export function usePipWindow(selectedLangs: LanguageCode[], isEmbeddedIframe: bo
         savedSize = null;
       }
       const win = await window.documentPictureInPicture.requestWindow({
-        width:
-          savedSize?.width && savedSize.width >= 120 ? savedSize.width : 920,
-        height:
-          savedSize?.height && savedSize.height >= 60
-            ? savedSize.height
-            : pipHeightFor(visiblePipLines.length),
+        width: savedSize?.width && savedSize.width >= 120 ? savedSize.width : 920,
+        height: savedSize?.height && savedSize.height >= 60 ? savedSize.height : pipHeightFor(visiblePipLines.length),
       });
 
       // Remember the shape whenever the user resizes it
@@ -157,7 +153,17 @@ export function usePipWindow(selectedLangs: LanguageCode[], isEmbeddedIframe: bo
   }, [pipWindow]);
 
   return {
-    pipWindow, pipNotice, setPipNotice, visiblePipLines, pipLayout, setPipLayout, isDark, setIsDark,
-    handleTogglePip, handleTogglePipLine, closePip, closePipForConversation,
+    pipWindow,
+    pipNotice,
+    setPipNotice,
+    visiblePipLines,
+    pipLayout,
+    setPipLayout,
+    isDark,
+    setIsDark,
+    handleTogglePip,
+    handleTogglePipLine,
+    closePip,
+    closePipForConversation,
   };
 }

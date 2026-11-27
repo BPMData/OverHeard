@@ -36,7 +36,11 @@ function doPost(e) {
 
 /** Run once from the editor to check that mail sending works and to grant permission. */
 function sendTestEmail() {
-  MailApp.sendEmail({ to: INBOX, subject: '[OverHeard] Relay test', body: 'The OverHeard report relay can send mail.' });
+  MailApp.sendEmail({
+    to: INBOX,
+    subject: '[OverHeard] Relay test',
+    body: 'The OverHeard report relay can send mail.',
+  });
 }
 
 function reply_(value) {

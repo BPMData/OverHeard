@@ -7,7 +7,7 @@ import App from './App';
 import { getOnDeviceAvailability, isOnDeviceTranslationSupported, translateOnDevice } from './onDevice';
 
 vi.mock('./onDevice', async (importOriginal) => ({
-  ...await importOriginal<typeof import('./onDevice')>(),
+  ...(await importOriginal<typeof import('./onDevice')>()),
   isOnDeviceTranslationSupported: vi.fn(),
   // Chrome's own translator (the one that brings on-device speech too)
   hasChromeTranslator: vi.fn(() => true),
@@ -21,7 +21,7 @@ const speech = createSpeechHarness();
 
 type RequestBody = { text: string; lang: string; source: string };
 const mt = vi.fn(async ({ lang, text }: RequestBody) =>
-  Response.json({ translation: lang + ': ' + text, provider: 'gtx' }),
+  Response.json({ translation: lang + ': ' + text, provider: 'gtx' })
 );
 const phrase = 'The lesson starts at noon';
 
@@ -51,7 +51,9 @@ function click(name: string | RegExp) {
 }
 
 async function listen() {
-  await act(async () => { render(<App />); });
+  await act(async () => {
+    render(<App />);
+  });
   click(/Start Listening/);
 }
 
@@ -82,9 +84,12 @@ it('fills the English and selected language columns from a final speech result',
   expect(column('English Captions').getByText(phrase)).toBeTruthy();
   expect(column('Spanish Translation').getByText('es: ' + phrase)).toBeTruthy();
   expect(column('French Translation').getByText('fr: ' + phrase)).toBeTruthy();
-  expect(mt.mock.calls.map(([body]) => body)).toEqual(expect.arrayContaining([
-    { text: phrase, lang: 'es', source: 'en' }, { text: phrase, lang: 'fr', source: 'en' },
-  ]));
+  expect(mt.mock.calls.map(([body]) => body)).toEqual(
+    expect.arrayContaining([
+      { text: phrase, lang: 'es', source: 'en' },
+      { text: phrase, lang: 'fr', source: 'en' },
+    ])
+  );
   expect(mt).toHaveBeenCalledTimes(2);
 });
 
@@ -92,7 +97,12 @@ it('marks translated captions with their language so Japanese gets Japanese glyp
   window.history.replaceState({}, '', '/?langs=ja');
   await listen();
   await say(true);
-  expect(column('Japanese Translation').getByText('ja: ' + phrase).closest('[lang]')?.getAttribute('lang')).toBe('ja');
+  expect(
+    column('Japanese Translation')
+      .getByText('ja: ' + phrase)
+      .closest('[lang]')
+      ?.getAttribute('lang')
+  ).toBe('ja');
 });
 
 it('sends live text as free-only and a finished line as an ordinary request', async () => {
@@ -116,13 +126,20 @@ it('shows the interim English and translation before the speaker finishes', asyn
 
 it('reuses an in-flight interim request when the same text becomes final', async () => {
   let finish!: (response: Response) => void;
-  mt.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  mt.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      })
+  );
   await listen();
   await say(false);
   expect(mt).toHaveBeenCalledTimes(1);
   await say(true);
   expect(column('Spanish Translation').getByText('Translating…')).toBeTruthy();
-  await act(async () => { finish(Response.json({ translation: 'La clase empieza al mediodía' })); });
+  await act(async () => {
+    finish(Response.json({ translation: 'La clase empieza al mediodía' }));
+  });
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(mt).toHaveBeenCalledTimes(1);
 });
@@ -132,7 +149,9 @@ it('shows unavailable after HTTP 429 without retrying the request', async () => 
   mt.mockResolvedValueOnce(new Response(null, { status: 429 }));
   await listen();
   await say(true);
-  await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
   expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
   expect(mt).toHaveBeenCalledTimes(1);
 });
@@ -152,10 +171,14 @@ it('defaults to on-device first and gives an installed translator five seconds',
 it('translates on this device without sending the caption to /api/mt', async () => {
   vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
   vi.mocked(translateOnDevice).mockResolvedValue('La clase empieza al mediodía');
-  await act(async () => { render(<App />); });
+  await act(async () => {
+    render(<App />);
+  });
   const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
   fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
-  await act(async () => { click(/Start Listening/); });
+  await act(async () => {
+    click(/Start Listening/);
+  });
   await say(true);
   expect(column('Spanish Translation').getByText('La clase empieza al mediodía')).toBeTruthy();
   expect(mt).not.toHaveBeenCalled();
@@ -172,12 +195,18 @@ it('never falls back to the server in "Only on this device" mode, and says so on
   vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
   vi.mocked(getOnDeviceAvailability).mockResolvedValue('available');
   vi.mocked(translateOnDevice).mockRejectedValue(new Error('InvalidStateError'));
-  await act(async () => { render(<App />); });
+  await act(async () => {
+    render(<App />);
+  });
   const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
   fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
-  await act(async () => { click(/Start Listening/); });
+  await act(async () => {
+    click(/Start Listening/);
+  });
   await say(true);
-  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 400)); });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  });
   expect(column('Spanish Translation').getByText('translation unavailable')).toBeTruthy();
   expect(screen.getByRole('status').textContent).toContain('On-device translation failing');
   expect(mt).not.toHaveBeenCalled();
@@ -187,7 +216,9 @@ it('never falls back to the server in "Only on this device" mode, and says so on
 it('names a language "Only on this device" cannot translate instead of a vague failure', async () => {
   vi.mocked(isOnDeviceTranslationSupported).mockReturnValue(true);
   vi.mocked(getOnDeviceAvailability).mockImplementation(async (code) => (code === 'es' ? 'unavailable' : 'available'));
-  await act(async () => { render(<App />); });
+  await act(async () => {
+    render(<App />);
+  });
   const option = screen.getByRole('option', { name: 'Only on this device' }) as HTMLOptionElement;
   await act(async () => {
     fireEvent.change(screen.getByRole('combobox', { name: /Translator/ }), { target: { value: option.value } });
@@ -206,16 +237,21 @@ it('clears the English and translated captions after confirmation', async () => 
   expect(column('Spanish Translation').getByText('es: ' + phrase)).toBeTruthy();
   click('Yes');
   expect(column('English Captions').queryByText(phrase)).toBeNull();
-  expect(column('Spanish Translation').getByText('Spanish translation will appear here as each sentence completes.')).toBeTruthy();
+  expect(
+    column('Spanish Translation').getByText('Spanish translation will appear here as each sentence completes.')
+  ).toBeTruthy();
 });
 
 it('downloads the spoken caption and translation in the version 1 lecture format', async () => {
   const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   const createObjectURL = vi.fn((_blob: Blob) => 'blob:lecture');
-  vi.stubGlobal('URL', class extends URL {
-    static createObjectURL = createObjectURL;
-    static revokeObjectURL = vi.fn();
-  });
+  vi.stubGlobal(
+    'URL',
+    class extends URL {
+      static createObjectURL = createObjectURL;
+      static revokeObjectURL = vi.fn();
+    }
+  );
   await listen();
   await say(true);
   click('File');
@@ -233,13 +269,17 @@ it('downloads the spoken caption and translation in the version 1 lecture format
   });
   reader.readAsText(blob);
   expect(JSON.parse(await content)).toMatchObject({
-    format: 'overheard-lecture', version: 1, selectedLangs: ['es'],
+    format: 'overheard-lecture',
+    version: 1,
+    selectedLangs: ['es'],
     entries: [{ english: phrase, translations: { es: 'es: ' + phrase } }],
   });
 });
 
 it('toggles listening with Space and leaves Space available when typing', async () => {
-  await act(async () => { render(<App />); });
+  await act(async () => {
+    render(<App />);
+  });
   fireEvent.keyDown(window, { code: 'Space' });
   expect(screen.getByRole('button', { name: /Stop Listening/ })).toBeTruthy();
   click('Test Input');

@@ -5,7 +5,12 @@ import type { MicBlock } from '../micPermission';
 import type { PackProgress } from '../onDevice';
 import type { LectureEntry } from '../conversation/lectureState';
 import type { ConversationSubMode } from './conversationSettings';
-import { bothWays, fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
+import {
+  bothWays,
+  fromEnglish,
+  needOnlineText,
+  useLanguagesNeedingOnline,
+} from '../translation/useLanguagesNeedingOnline';
 import { useWakeLock } from '../wakeLock';
 import { useLectureWorkspace } from '../conversation/useLectureWorkspace';
 import { useTwoWayWorkspace } from '../conversation/useTwoWayWorkspace';
@@ -33,7 +38,7 @@ export interface ConversationModeProps {
     text: string,
     target: ConversationLanguage,
     source: ConversationLanguage,
-    options?: { live?: boolean },
+    options?: { live?: boolean }
   ) => Promise<string>;
   onExit: () => void;
   onHome?: () => void;
@@ -83,12 +88,11 @@ export function ConversationMode({
 }: ConversationModeProps) {
   const [settings, setSettings] = useConversationSettings(initialLanguage);
   const showAllControls = settings.alwaysShowAllLectureControls || settings.showAllLectureControls;
-  const targetLangs: LanguageCode[] =
-    selectedLangs
-      ? selectedLangs
-      : initialLanguage && initialLanguage !== 'en'
-        ? [initialLanguage]
-        : DEFAULT_LANGUAGES;
+  const targetLangs: LanguageCode[] = selectedLangs
+    ? selectedLangs
+    : initialLanguage && initialLanguage !== 'en'
+      ? [initialLanguage]
+      : DEFAULT_LANGUAGES;
   const isLecture = settings.mode === 'lecture';
   const faceToFace = !isLecture && settings.layout === 'face-to-face';
   // Face to face keeps the screen for the two halves; the toolbar opens on request
@@ -96,7 +100,7 @@ export function ConversationMode({
   // Every place a language is chosen says which ones "Only on this device" can't translate
   const needOnline = useLanguagesNeedingOnline(
     isLecture ? fromEnglish(targetLangs) : bothWays(settings.a.lang, settings.b.lang),
-    mtPreference === 'on-device' && active,
+    mtPreference === 'on-device' && active
   );
   const needOnlineNotice = needOnlineText(needOnline, { rooms: isLecture });
   const [fullscreen, setFullscreen] = useState(false);
@@ -112,20 +116,52 @@ export function ConversationMode({
         piperClient.preloadVoice(voiceId);
       }
     },
-    [persistVoicePref],
+    [persistVoicePref]
   );
   const lectureWorkspace = useLectureWorkspace({
-    active, translate, mtPreference, onStartAttempt, onPermissionDenied, onPackProgress,
-    settings, setSettings, voicePrefs, targetLangs, showAllControls, importedLecture,
+    active,
+    translate,
+    mtPreference,
+    onStartAttempt,
+    onPermissionDenied,
+    onPackProgress,
+    settings,
+    setSettings,
+    voicePrefs,
+    targetLangs,
+    showAllControls,
+    importedLecture,
   });
   const { lecture, lecturePlayback, driveStatus, setDriveStatus, stopLectureWorkspace } = lectureWorkspace;
   const twoWayWorkspace = useTwoWayWorkspace({
-    active, translate, mtPreference, onStartAttempt, onPermissionDenied, onPackProgress,
-    settings, voicePrefs, setUiError,
+    active,
+    translate,
+    mtPreference,
+    onStartAttempt,
+    onPermissionDenied,
+    onPackProgress,
+    settings,
+    voicePrefs,
+    setUiError,
   });
-  const { messages, onCorrectMessage, sender, setSender, text, setText, newMessage,
-    setNewMessage, thread, nextButton, following, send, speech, twoWayPlayback,
-    startFrom, stopTwoWayWorkspace } = twoWayWorkspace;
+  const {
+    messages,
+    onCorrectMessage,
+    sender,
+    setSender,
+    text,
+    setText,
+    newMessage,
+    setNewMessage,
+    thread,
+    nextButton,
+    following,
+    send,
+    speech,
+    twoWayPlayback,
+    startFrom,
+    stopTwoWayWorkspace,
+  } = twoWayWorkspace;
   // Feature status for "Something not working?" reports
   const reportListening = isLecture ? lectureWorkspace.lecture.speech.isListening : speech.isListening;
   useEffect(() => {
@@ -171,9 +207,7 @@ export function ConversationMode({
   const toggleFullscreen = () => {
     if (fullscreen) void document.exitFullscreen();
     else
-      void root.current
-        ?.requestFullscreen?.()
-        .catch(() => setUiError('Full screen is unavailable in this browser.'));
+      void root.current?.requestFullscreen?.().catch(() => setUiError('Full screen is unavailable in this browser.'));
   };
   const returnViewName = returnView === 'subtitle' ? 'Subtitle' : 'Columns';
   return (
@@ -183,34 +217,70 @@ export function ConversationMode({
       hidden={!active}
     >
       {permissionBanner}
-      <ConversationToolbar {...lectureWorkspace} {...twoWayWorkspace}
-        settings={settings} setSettings={setSettings} voicePrefs={voicePrefs} updateVoicePref={updateVoicePref}
-        targetLangs={targetLangs} showAllControls={showAllControls} isLecture={isLecture}
-        faceToFace={faceToFace} controlsOpen={controlsOpen} goHome={goHome} exit={exit}
-        switchSubMode={switchSubMode} fullscreen={fullscreen} toggleFullscreen={toggleFullscreen}
-        onOpenLanguages={onOpenLanguages} onAdjustFont={onAdjustFont} onToggleDark={onToggleDark}
-        isDark={isDark} translatorPicker={translatorPicker} setIsVoiceSettingsOpen={setIsVoiceSettingsOpen}
-        setIsGuideOpen={setIsGuideOpen} returnViewName={returnViewName} />
+      <ConversationToolbar
+        {...lectureWorkspace}
+        {...twoWayWorkspace}
+        settings={settings}
+        setSettings={setSettings}
+        voicePrefs={voicePrefs}
+        updateVoicePref={updateVoicePref}
+        targetLangs={targetLangs}
+        showAllControls={showAllControls}
+        isLecture={isLecture}
+        faceToFace={faceToFace}
+        controlsOpen={controlsOpen}
+        goHome={goHome}
+        exit={exit}
+        switchSubMode={switchSubMode}
+        fullscreen={fullscreen}
+        toggleFullscreen={toggleFullscreen}
+        onOpenLanguages={onOpenLanguages}
+        onAdjustFont={onAdjustFont}
+        onToggleDark={onToggleDark}
+        isDark={isDark}
+        translatorPicker={translatorPicker}
+        setIsVoiceSettingsOpen={setIsVoiceSettingsOpen}
+        setIsGuideOpen={setIsGuideOpen}
+        returnViewName={returnViewName}
+      />
       {needOnline.length > 0 ? (
         <p className="lecture-translator-warning" role="alert" title={needOnlineNotice.title}>
-          ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate {needOnline.length > 1 ? 'these languages' : 'this language'}, so {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated on this screen{isLecture ? ` (students in a live room still get ${needOnline.length > 1 ? 'them' : 'it'} online)` : ''}.
+          ⚠ {needOnlineNotice.names}: “Only on this device” can’t translate{' '}
+          {needOnline.length > 1 ? 'these languages' : 'this language'}, so{' '}
+          {needOnline.length > 1 ? 'they stay' : 'it stays'} untranslated on this screen
+          {isLecture ? ` (students in a live room still get ${needOnline.length > 1 ? 'them' : 'it'} online)` : ''}.
           {isLecture && !showAllControls
             ? ' Open all controls and choose On-device first or an online translator.'
             : ' Choose On-device first or an online translator.'}
         </p>
-      ) : mtPreference === 'on-device' && onDeviceTranslationFailing && (
-        <p className="lecture-translator-warning" role="alert">
-          On-device translation failed. “Only on this device” never uses online translators, so these lines stay untranslated.
-          {isLecture && !showAllControls
-            ? ' Open all controls to choose another translator.'
-            : ' Choose On-device first or an online translator.'}
-        </p>
+      ) : (
+        mtPreference === 'on-device' &&
+        onDeviceTranslationFailing && (
+          <p className="lecture-translator-warning" role="alert">
+            On-device translation failed. “Only on this device” never uses online translators, so these lines stay
+            untranslated.
+            {isLecture && !showAllControls
+              ? ' Open all controls to choose another translator.'
+              : ' Choose On-device first or an online translator.'}
+          </p>
+        )
       )}
-      <LectureToolbar {...lectureWorkspace} active={active} isLecture={isLecture}
-        showAllControls={showAllControls} settings={settings} setSettings={setSettings}
-        onSetLanguages={onSetLanguages} translatorPicker={translatorPicker} isDark={isDark}
-        fontSize={fontSize} onAdjustFont={onAdjustFont} voicePrefs={voicePrefs}
-        updateVoicePref={updateVoicePref} setUiError={setUiError} />
+      <LectureToolbar
+        {...lectureWorkspace}
+        active={active}
+        isLecture={isLecture}
+        showAllControls={showAllControls}
+        settings={settings}
+        setSettings={setSettings}
+        onSetLanguages={onSetLanguages}
+        translatorPicker={translatorPicker}
+        isDark={isDark}
+        fontSize={fontSize}
+        onAdjustFont={onAdjustFont}
+        voicePrefs={voicePrefs}
+        updateVoicePref={updateVoicePref}
+        setUiError={setUiError}
+      />
       {isLecture ? (
         <LectureView
           packPanel={packPanel}
@@ -272,10 +342,7 @@ export function ConversationMode({
       >
         <LectureControlsSetting initialLanguage={initialLanguage} />
       </VoiceSettingsModal>
-      <AboutModal
-        isOpen={isGuideOpen}
-        onClose={() => setIsGuideOpen(false)}
-      />
+      <AboutModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </div>
   );
 }

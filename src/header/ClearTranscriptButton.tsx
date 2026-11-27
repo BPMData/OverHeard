@@ -6,14 +6,14 @@ interface ClearTranscriptButtonProps {
 
 /** Inline "Clear all?" confirmation shown in the toolbar after File → Clear. */
 export function ClearTranscriptButton({
-  confirmClear, setConfirmClear, handleClearConfirm,
+  confirmClear,
+  setConfirmClear,
+  handleClearConfirm,
 }: ClearTranscriptButtonProps) {
   if (!confirmClear) return null;
   return (
     <div className="inline-flex items-center gap-1 rounded-[2px] border border-red-500/50 bg-red-500/10 px-2 py-1">
-      <span className="text-xs font-semibold text-red-600 dark:text-red-400">
-        Clear all?
-      </span>
+      <span className="text-xs font-semibold text-red-600 dark:text-red-400">Clear all?</span>
       <button
         type="button"
         onClick={handleClearConfirm}

@@ -1,7 +1,17 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import express, { type Response } from 'express';
-import { applyPatch, emptyLecture, MAX_ROOM_FILE_BYTES, normalizePin, normalizeRoomCode,
-  isReservedRoomCode, parsePatch, validPin, validRoomCode, type RoomSnapshot } from '../src/rooms/protocol.ts';
+import {
+  applyPatch,
+  emptyLecture,
+  MAX_ROOM_FILE_BYTES,
+  normalizePin,
+  normalizeRoomCode,
+  isReservedRoomCode,
+  parsePatch,
+  validPin,
+  validRoomCode,
+  type RoomSnapshot,
+} from '../src/rooms/protocol.ts';
 import { createRateLimiter } from './rateLimit.ts';
 
 interface Room {
@@ -26,7 +36,10 @@ export type EventWriter = Pick<Response, 'destroyed' | 'writableLength' | 'write
 export function writeEvent(res: EventWriter, frame: string) {
   if (res.destroyed) return;
   // Disconnect slow readers instead of retaining unbounded caption buffers.
-  if (res.writableLength > MAX_ROOM_FILE_BYTES * 2) { res.end(); return; }
+  if (res.writableLength > MAX_ROOM_FILE_BYTES * 2) {
+    res.end();
+    return;
+  }
   res.write(frame);
 }
 
@@ -35,7 +48,12 @@ export function writeEvent(res: EventWriter, frame: string) {
 // Join and create limits are per IP, and a whole school usually shares one public IP, so they
 // are sized for every class at a bell. Joins are also keyed by room, so one busy class (or its
 // reconnects) cannot lock students out of another room.
-export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinute = 600, createsPerMinute = 100 } = {}) {
+export function createRoomRouter({
+  now = Date.now,
+  maxRooms = 100,
+  joinsPerMinute = 600,
+  createsPerMinute = 100,
+} = {}) {
   const router = express.Router();
   const rooms = new Map<string, Room>();
   const creates = createRateLimiter(createsPerMinute, 60_000, now);
@@ -50,53 +68,87 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
     const frame = formatEvent(event, value);
     for (const client of room.clients) writeEvent(client, frame);
   };
-  const isExpired = (room: Room) =>
-    now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000);
+  const isExpired = (room: Room) => now() - room.touchedAt > (room.snapshot.ended ? 60 * 60_000 : 8 * 60 * 60_000);
   // One log line per minute while rooms exist, so Cloud Run logs show how close the single
   // instance is to its connection limit (every student stream is one in-flight request).
   let lastStatsAt = now();
   let peakStudents = 0;
   const logStats = () => {
-    let students = 0, live = 0;
-    for (const room of rooms.values()) { students += room.clients.size; if (room.snapshot.teacherOnline) live++; }
+    let students = 0,
+      live = 0;
+    for (const room of rooms.values()) {
+      students += room.clients.size;
+      if (room.snapshot.teacherOnline) live++;
+    }
     peakStudents = Math.max(peakStudents, students);
     if (now() - lastStatsAt < 60_000) return;
     if (rooms.size > 0) console.log('[rooms]', JSON.stringify({ rooms: rooms.size, live, students, peakStudents }));
-    lastStatsAt = now(); peakStudents = students;
+    lastStatsAt = now();
+    peakStudents = students;
   };
   const sweep = () => {
     for (const [code, room] of rooms) {
       if (isExpired(room)) {
-        for (const client of room.clients) { send(client, 'expired', {}); client.end(); }
+        for (const client of room.clients) {
+          send(client, 'expired', {});
+          client.end();
+        }
         rooms.delete(code);
       } else {
         if (room.snapshot.teacherOnline && now() - room.publishedAt > 35_000) {
-          room.snapshot = { ...room.snapshot, teacherOnline: false, isListening: false,
-            interim: '', liveTranslations: {}, revision: room.snapshot.revision + 1 };
+          room.snapshot = {
+            ...room.snapshot,
+            teacherOnline: false,
+            isListening: false,
+            interim: '',
+            liveTranslations: {},
+            revision: room.snapshot.revision + 1,
+          };
           broadcast(room, 'snapshot', room.snapshot);
         }
         for (const client of room.clients) client.write(': heartbeat\n\n');
       }
     }
-    creates.prune(); rejoins.prune(); joins.prune(); publishes.prune();
+    creates.prune();
+    rejoins.prune();
+    joins.prune();
+    publishes.prune();
     logStats();
   };
   const timer = setInterval(sweep, 10_000);
   timer.unref();
 
-  router.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+  router.use((_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
   router.post('/', express.json({ limit: '1kb' }), (req, res) => {
     sweep();
-    if (creates.isLimited(req.ip || 'unknown')) { res.status(429).json({ error: 'Too many rooms created. Try again in a minute.' }); return; }
-    if (rooms.size >= maxRooms) { res.status(503).json({ error: 'Room capacity reached. Please try again later.' }); return; }
-    if (req.body?.code !== undefined && typeof req.body.code !== 'string') { res.status(400).json({ error: 'Invalid room code.' }); return; }
+    if (creates.isLimited(req.ip || 'unknown')) {
+      res.status(429).json({ error: 'Too many rooms created. Try again in a minute.' });
+      return;
+    }
+    if (rooms.size >= maxRooms) {
+      res.status(503).json({ error: 'Room capacity reached. Please try again later.' });
+      return;
+    }
+    if (req.body?.code !== undefined && typeof req.body.code !== 'string') {
+      res.status(400).json({ error: 'Invalid room code.' });
+      return;
+    }
     if (typeof req.body?.pin !== 'string' || !validPin(req.body.pin)) {
       res.status(400).json({ error: 'Enter a room PIN (4–20 characters) so you can rejoin if disconnected.' });
       return;
     }
     const code = normalizeRoomCode(req.body?.code || randomBytes(4).toString('hex'));
-    if (!validRoomCode(code)) { res.status(400).json({ error: 'Use 3–40 letters, numbers, or hyphens for the room code.' }); return; }
-    if (isReservedRoomCode(code)) { res.status(400).json({ error: `“${code}” is reserved. Choose another room code.` }); return; }
+    if (!validRoomCode(code)) {
+      res.status(400).json({ error: 'Use 3–40 letters, numbers, or hyphens for the room code.' });
+      return;
+    }
+    if (isReservedRoomCode(code)) {
+      res.status(400).json({ error: `“${code}” is reserved. Choose another room code.` });
+      return;
+    }
     const existing = rooms.get(code);
     if (existing) {
       res.status(409).json({
@@ -109,8 +161,15 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
     const token = randomBytes(32).toString('hex');
     const pinSalt = randomBytes(16).toString('hex');
     const pinHash = hashPin(normalizePin(req.body.pin), pinSalt);
-    rooms.set(code, { token, pinSalt, pinHash, touchedAt: now(), publishedAt: now(), clients: new Set(),
-      snapshot: { ...emptyLecture(), revision: 0, teacherOnline: true, ended: false } });
+    rooms.set(code, {
+      token,
+      pinSalt,
+      pinHash,
+      touchedAt: now(),
+      publishedAt: now(),
+      clients: new Set(),
+      snapshot: { ...emptyLecture(), revision: 0, teacherOnline: true, ended: false },
+    });
     res.status(201).json({ code, token });
   });
 
@@ -122,7 +181,10 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
       return;
     }
     const room = rooms.get(code);
-    if (!room) { res.status(404).json({ error: 'Room not found. Check the room code or create a new room.' }); return; }
+    if (!room) {
+      res.status(404).json({ error: 'Room not found. Check the room code or create a new room.' });
+      return;
+    }
     if (typeof req.body?.pin !== 'string' || !validPin(req.body.pin)) {
       res.status(400).json({ error: 'Enter the room PIN (4–20 characters).' });
       return;
@@ -141,10 +203,20 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
 
   router.get('/:code/events', (req, res) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
-    if (!room || isExpired(room)) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
-    if (room.clients.size >= 200 || joins.isLimited(`${req.ip || 'unknown'}:${normalizeRoomCode(req.params.code)}`)) { res.status(429).json({ error: 'Room connection limit reached.' }); return; }
-    res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    if (!room || isExpired(room)) {
+      res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' });
+      return;
+    }
+    if (room.clients.size >= 200 || joins.isLimited(`${req.ip || 'unknown'}:${normalizeRoomCode(req.params.code)}`)) {
+      res.status(429).json({ error: 'Room connection limit reached.' });
+      return;
+    }
+    res.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
     res.flushHeaders();
     res.write('retry: 2000\n\n');
     room.clients.add(res);
@@ -154,30 +226,44 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
 
   router.get('/:code', (req, res) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
-    if (!room || isExpired(room)) { res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' }); return; }
+    if (!room || isExpired(room)) {
+      res.status(404).json({ error: 'Room not found. Check the code or ask your teacher for a new link.' });
+      return;
+    }
     res.json({ ended: room.snapshot.ended });
   });
 
   router.use('/:code', (req, res, next) => {
     const room = rooms.get(normalizeRoomCode(req.params.code));
-    if (!room) { res.status(404).json({ error: 'This room is no longer available. Create a new room and share its link.' }); return; }
+    if (!room) {
+      res.status(404).json({ error: 'This room is no longer available. Create a new room and share its link.' });
+      return;
+    }
     const token = req.get('authorization')?.replace(/^Bearer /, '') ?? '';
     const expected = Buffer.from(room.token);
     const actual = Buffer.from(token);
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
-      res.status(403).json({ error: 'Only the teacher can change this room.' }); return;
+      res.status(403).json({ error: 'Only the teacher can change this room.' });
+      return;
     }
     res.locals.room = room;
     next();
   });
   router.put('/:code', express.json({ limit: MAX_ROOM_FILE_BYTES }), (req, res) => {
     const room: Room = res.locals.room;
-    if (room.snapshot.ended) { res.status(410).json({ error: 'This room has ended. Create a new room to continue.' }); return; }
-    if (publishes.isLimited(room.token)) { res.status(429).json({ error: 'Too many updates. Reconnecting shortly.' }); return; }
+    if (room.snapshot.ended) {
+      res.status(410).json({ error: 'This room has ended. Create a new room to continue.' });
+      return;
+    }
+    if (publishes.isLimited(room.token)) {
+      res.status(429).json({ error: 'Too many updates. Reconnecting shortly.' });
+      return;
+    }
     try {
       const patch = parsePatch(req.body);
       const next = { ...applyPatch(room.snapshot, patch), revision: room.snapshot.revision + 1, teacherOnline: true };
-      if (Buffer.byteLength(JSON.stringify(next)) > MAX_ROOM_FILE_BYTES) throw new Error('Room is full. Export and clear the transcript to continue.');
+      if (Buffer.byteLength(JSON.stringify(next)) > MAX_ROOM_FILE_BYTES)
+        throw new Error('Room is full. Export and clear the transcript to continue.');
       room.snapshot = next;
       room.touchedAt = room.publishedAt = now();
       broadcast(room, 'patch', { ...patch, revision: next.revision, teacherOnline: true, ended: false });
@@ -188,12 +274,27 @@ export function createRoomRouter({ now = Date.now, maxRooms = 100, joinsPerMinut
   });
   router.delete('/:code', (_req, res) => {
     const room: Room = res.locals.room;
-    room.snapshot = { ...room.snapshot, ended: true, isListening: false, interim: '',
-      liveTranslations: {}, teacherOnline: false, revision: room.snapshot.revision + 1 };
+    room.snapshot = {
+      ...room.snapshot,
+      ended: true,
+      isListening: false,
+      interim: '',
+      liveTranslations: {},
+      teacherOnline: false,
+      revision: room.snapshot.revision + 1,
+    };
     room.touchedAt = now();
     broadcast(room, 'snapshot', room.snapshot);
     res.json({ ok: true });
   });
 
-  return { router, sweep, close: () => { clearInterval(timer); for (const room of rooms.values()) for (const client of room.clients) client.end(); rooms.clear(); } };
+  return {
+    router,
+    sweep,
+    close: () => {
+      clearInterval(timer);
+      for (const room of rooms.values()) for (const client of room.clients) client.end();
+      rooms.clear();
+    },
+  };
 }

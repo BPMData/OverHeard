@@ -87,14 +87,10 @@ describe('PipSubtitlePortal', () => {
 
   it('disables adding a fourth line and removing the last one', () => {
     renderPip();
-    expect(
-      (toggles().getByRole('button', { name: 'Arabic' }) as HTMLButtonElement).disabled
-    ).toBe(true);
+    expect((toggles().getByRole('button', { name: 'Arabic' }) as HTMLButtonElement).disabled).toBe(true);
     cleanup();
     renderPip({ visibleLines: ['es'] });
-    expect(
-      (toggles().getByRole('button', { name: 'Spanish' }) as HTMLButtonElement).disabled
-    ).toBe(true);
+    expect((toggles().getByRole('button', { name: 'Spanish' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('shows live translations while the teacher is still talking', () => {

@@ -122,7 +122,6 @@ export function stripEcho(text: string, echo: string): string {
   const sentWords = new Set(sent.map(norm));
   const shared = head.filter((w) => sentWords.has(norm(w))).length;
   const needed = Math.min(sent.length - 1, Math.ceil(sent.length * 0.7));
-  if (head.length === sent.length && shared >= needed)
-    return words.slice(sent.length).join(' ');
+  if (head.length === sent.length && shared >= needed) return words.slice(sent.length).join(' ');
   return words.join(' ');
 }

@@ -32,9 +32,10 @@ let shortLinkBase: Promise<string | null> | null = null;
  */
 export function loadShortLinkBase(): Promise<string | null> {
   shortLinkBase ??= fetch('/api/config', { cache: 'no-store' })
-    .then(response => (response.ok ? response.json() : null))
+    .then((response) => (response.ok ? response.json() : null))
     .then((data: Partial<ServerConfigResponse> | null) =>
-      typeof data?.shortLinkBase === 'string' && /^https?:\/\//.test(data.shortLinkBase) ? data.shortLinkBase : null)
+      typeof data?.shortLinkBase === 'string' && /^https?:\/\//.test(data.shortLinkBase) ? data.shortLinkBase : null
+    )
     .catch(() => null);
   return shortLinkBase;
 }

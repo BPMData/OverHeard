@@ -6,7 +6,7 @@
 export function isAppleMobile(
   ua = navigator.userAgent,
   platform = navigator.platform,
-  touchPoints = navigator.maxTouchPoints ?? 0,
+  touchPoints = navigator.maxTouchPoints ?? 0
 ): boolean {
   return /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
 }

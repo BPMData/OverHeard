@@ -20,10 +20,22 @@ export interface ReportCategory {
 }
 
 export const REPORT_CATEGORIES: readonly ReportCategory[] = [
-  { id: 'mic-captions', label: 'Microphone or captions', hint: 'Listening won’t start, stops, or captions are wrong or missing.' },
-  { id: 'translation', label: 'Translation', hint: 'A language doesn’t translate, is slow, or says it needs the internet.' },
+  {
+    id: 'mic-captions',
+    label: 'Microphone or captions',
+    hint: 'Listening won’t start, stops, or captions are wrong or missing.',
+  },
+  {
+    id: 'translation',
+    label: 'Translation',
+    hint: 'A language doesn’t translate, is slow, or says it needs the internet.',
+  },
   { id: 'read-aloud', label: 'Read-aloud voices', hint: 'A voice won’t download, play, or sounds wrong.' },
-  { id: 'conversation-lecture', label: 'Two-way or Lecture', hint: 'Speaker switching, the lecture transcript, or saving it.' },
+  {
+    id: 'conversation-lecture',
+    label: 'Two-way or Lecture',
+    hint: 'Speaker switching, the lecture transcript, or saving it.',
+  },
   { id: 'student-room', label: 'Student rooms', hint: 'Students can’t join, or captions don’t reach their devices.' },
   { id: 'popout-display', label: 'Pop-out or display', hint: 'The floating caption window, text size, or dark mode.' },
   { id: 'other', label: 'Something else', hint: 'Anything that doesn’t fit above.' },
@@ -83,8 +95,8 @@ export function normalizeReport(input: unknown): ProblemReport | null {
   const raw = input as Record<string, unknown>;
   if (typeof raw.category !== 'string' || !REPORT_CATEGORIES.some((c) => c.id === raw.category)) return null;
   const diagnostics: Diagnostics = {};
-  const rawDiagnostics = raw.diagnostics && typeof raw.diagnostics === 'object'
-    ? raw.diagnostics as Record<string, unknown> : {};
+  const rawDiagnostics =
+    raw.diagnostics && typeof raw.diagnostics === 'object' ? (raw.diagnostics as Record<string, unknown>) : {};
   for (const { key } of DIAGNOSTIC_FIELDS) {
     const value = clip(rawDiagnostics[key], MAX_DIAGNOSTIC_VALUE).replace(/\s+/g, ' ');
     if (value) diagnostics[key] = value;
@@ -105,12 +117,15 @@ export function normalizeReport(input: unknown): ProblemReport | null {
  * room codes or PINs; this is a backstop, not a guarantee.
  */
 export function scrubPublicText(text: string): string {
-  return text
-    .replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, '[email removed]')
-    // Phone-like runs of 9+ digits. Dots aren't separators here, so version numbers survive,
-    // and dates (8 digits) do too.
-    .replace(/(?:\+|\()?\d[\d\s()-]{7,}\d/g, (match) =>
-      (match.match(/\d/g)?.length ?? 0) >= 9 ? '[number removed]' : match);
+  return (
+    text
+      .replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, '[email removed]')
+      // Phone-like runs of 9+ digits. Dots aren't separators here, so version numbers survive,
+      // and dates (8 digits) do too.
+      .replace(/(?:\+|\()?\d[\d\s()-]{7,}\d/g, (match) =>
+        (match.match(/\d/g)?.length ?? 0) >= 9 ? '[number removed]' : match
+      )
+  );
 }
 
 /** Text inside a fenced block can't ping people, embed images or break the issue's layout. */
@@ -120,7 +135,7 @@ function fenced(text: string): string {
 
 function diagnosticLines(diagnostics: Diagnostics): string[] {
   return DIAGNOSTIC_FIELDS.filter(({ key }) => diagnostics[key]).map(
-    ({ key, label }) => `${label}: ${diagnostics[key]}`,
+    ({ key, label }) => `${label}: ${diagnostics[key]}`
   );
 }
 

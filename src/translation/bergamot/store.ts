@@ -2,7 +2,12 @@
 // every browser this fallback is for (Safari, Firefox, Chrome), unlike OPFS writes from a page.
 // The service worker keeps this cache across deploys (see public/sw.js).
 import {
-  BERGAMOT_BASE_URL, modelBytes, modelFileUrl, ON_DEVICE_MODELS, type BergamotModel, type BergamotPart,
+  BERGAMOT_BASE_URL,
+  modelBytes,
+  modelFileUrl,
+  ON_DEVICE_MODELS,
+  type BergamotModel,
+  type BergamotPart,
 } from './models';
 
 export const BERGAMOT_CACHE_NAME = 'overheard-bergamot-v1';
@@ -36,7 +41,7 @@ export async function downloadFile(
   url: string,
   expected: { bytes: number; sha256: string },
   onBytes: (received: number) => void,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = fetch
 ): Promise<Uint8Array> {
   const response = await fetchImpl(url, { mode: 'cors', credentials: 'omit' });
   if (!response.ok) throw new Error(`Translation download failed (HTTP ${response.status})`);
@@ -78,7 +83,7 @@ export async function downloadFile(
 export async function downloadAndSaveModel(
   model: BergamotModel,
   onProgress: (fraction: number) => void,
-  { storage = getCaches(), fetchImpl = fetch }: { storage?: CachesLike | null; fetchImpl?: typeof fetch } = {},
+  { storage = getCaches(), fetchImpl = fetch }: { storage?: CachesLike | null; fetchImpl?: typeof fetch } = {}
 ): Promise<void> {
   const cache = await openCache(storage, true);
   if (!cache) throw new Error('This browser can’t save translation models');
@@ -87,7 +92,12 @@ export async function downloadAndSaveModel(
   const files: Array<{ url: string; bytes: Uint8Array }> = [];
   for (const file of model.files) {
     const url = modelFileUrl(model, file);
-    const bytes = await downloadFile(url, file, (received) => onProgress(Math.min(0.99, (done + received) / total)), fetchImpl);
+    const bytes = await downloadFile(
+      url,
+      file,
+      (received) => onProgress(Math.min(0.99, (done + received) / total)),
+      fetchImpl
+    );
     done += file.bytes;
     files.push({ url, bytes });
   }
@@ -96,7 +106,7 @@ export async function downloadAndSaveModel(
       url,
       new Response(bytes as unknown as BodyInit, {
         headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': String(bytes.length) },
-      }),
+      })
     );
   }
 }
@@ -114,7 +124,7 @@ export async function isModelSaved(model: BergamotModel, storage: CachesLike | n
 /** The saved files, ready for the worker. Null when any file is missing. */
 export async function readSavedModel(
   model: BergamotModel,
-  storage: CachesLike | null = getCaches(),
+  storage: CachesLike | null = getCaches()
 ): Promise<Partial<Record<BergamotPart, ArrayBuffer>> | null> {
   const cache = await openCache(storage, false);
   if (!cache) return null;
@@ -136,11 +146,14 @@ const sizeOf = async (response: Response | undefined): Promise<number> => {
 };
 
 /** Bytes per saved model (by language), plus '' for files that belong to no current model. */
-export async function savedModelSizes(storage: CachesLike | null = getCaches()): Promise<Array<{ lang: string; bytes: number }>> {
+export async function savedModelSizes(
+  storage: CachesLike | null = getCaches()
+): Promise<Array<{ lang: string; bytes: number }>> {
   const cache = await openCache(storage, false);
   if (!cache) return [];
   const owner = new Map<string, string>();
-  for (const model of ON_DEVICE_MODELS) for (const file of model.files) owner.set(modelFileUrl(model, file), model.lang);
+  for (const model of ON_DEVICE_MODELS)
+    for (const file of model.files) owner.set(modelFileUrl(model, file), model.lang);
   const sizes = new Map<string, number>();
   const present = new Map<string, number>();
   for (const request of await cache.keys()) {

@@ -1,9 +1,5 @@
 import React from 'react';
-import {
-  CaptionText,
-  ENGLISH_CAPTION_COLOR,
-  languageCaptionColor,
-} from '../captionColors';
+import { CaptionText, ENGLISH_CAPTION_COLOR, languageCaptionColor } from '../captionColors';
 import { createPortal } from 'react-dom';
 import { Columns2, Mic, MicOff, Minus, Plus, X } from 'lucide-react';
 import { WhiteboatIcon } from './WhiteboatIcon';
@@ -59,24 +55,18 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
   if (!pipWindow) return null;
 
   const isSpeaking = interimTranscript.trim().length > 0;
-  const englishLine = isSpeaking
-    ? interimTranscript
-    : currentSegment?.english || '';
+  const englishLine = isSpeaking ? interimTranscript : currentSegment?.english || '';
 
   const translationFor = (code: LanguageCode): string => {
     if (isSpeaking) return liveTranslations[code] || 'Translating…';
     if (!currentSegment) return '';
-    return (
-      currentSegment.translations[code] ||
-      (currentSegment.status === 'translating' ? 'Translating…' : '')
-    );
+    return currentSegment.translations[code] || (currentSegment.status === 'translating' ? 'Translating…' : '');
   };
 
   const isSideBySide = layout === 'columns' && visibleLines.length > 1;
   // Shrink text a little when three lines share height or columns share width
   const baseFontSize = Math.max(20, Math.min(44, Math.round(fontSize * 0.85)));
-  const pipFontSize =
-    visibleLines.length >= 3 ? Math.round(baseFontSize * (isSideBySide ? 0.72 : 0.8)) : baseFontSize;
+  const pipFontSize = visibleLines.length >= 3 ? Math.round(baseFontSize * (isSideBySide ? 0.72 : 0.8)) : baseFontSize;
   const translationCount = visibleLines.filter((l) => l !== 'en').length;
   const atMax = visibleLines.length >= MAX_PIP_LINES;
 
@@ -85,18 +75,14 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
   return createPortal(
     <div
       className={`group relative h-screen w-screen flex flex-col select-none overflow-hidden ${
-        isDark
-          ? 'bg-[#090D16] text-[#F8FAFC]'
-          : 'bg-[#F8FAFC] text-[#0F172A]'
+        isDark ? 'bg-[#090D16] text-[#F8FAFC]' : 'bg-[#F8FAFC] text-[#0F172A]'
       }`}
     >
       {/* Floating toolbar: hidden until the pointer is over the window (or a control has keyboard focus),
           so the captions get the whole window. Wraps instead of overflowing in narrow/tall windows. */}
       <div
         className={`oh-chrome-bar absolute inset-x-0 top-0 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2 border-b text-xs transition-opacity duration-150 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto ${
-          isDark
-            ? 'bg-[#111827] border-[#243044] text-[#94A3B8]'
-            : 'bg-white border-[#CBD5E1] text-[#64748B]'
+          isDark ? 'bg-[#111827] border-[#243044] text-[#94A3B8]' : 'bg-white border-[#CBD5E1] text-[#64748B]'
         }`}
       >
         <div className="flex items-center gap-2.5">
@@ -104,27 +90,29 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
             <WhiteboatIcon app="overheard" size={18} />
             <span>OverHeard</span>
           </span>
-          {onToggleListening && <button
-            type="button"
-            onClick={onToggleListening}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] border font-semibold text-xs transition-colors ${
-              isListening
-                ? 'oh-btn-listening border-[#047857] bg-emerald-600 text-white'
-                : 'oh-btn-primary border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
-            }`}
-          >
-            {isListening ? (
-              <>
-                <Mic className="w-3.5 h-3.5 animate-pulse" />
-                <span>Listening</span>
-              </>
-            ) : (
-              <>
-                <MicOff className="w-3.5 h-3.5" />
-                <span>Start Mic</span>
-              </>
-            )}
-          </button>}
+          {onToggleListening && (
+            <button
+              type="button"
+              onClick={onToggleListening}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] border font-semibold text-xs transition-colors ${
+                isListening
+                  ? 'oh-btn-listening border-[#047857] bg-emerald-600 text-white'
+                  : 'oh-btn-primary border-[#443180] bg-[#5843A5] hover:bg-[#4B3891] dark:bg-[#6D56C6] dark:hover:bg-[#7D66D6] text-white'
+              }`}
+            >
+              {isListening ? (
+                <>
+                  <Mic className="w-3.5 h-3.5 animate-pulse" />
+                  <span>Listening</span>
+                </>
+              ) : (
+                <>
+                  <MicOff className="w-3.5 h-3.5" />
+                  <span>Start Mic</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Line toggles: pick which lines (English and/or languages) to show, up to MAX_PIP_LINES */}
@@ -132,8 +120,7 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
           {chipOptions.map((line) => {
             const shown = visibleLines.includes(line);
             const label = line === 'en' ? 'English' : LANGUAGE_MAP[line].name;
-            const disabled =
-              (!shown && atMax) || (shown && visibleLines.length === 1);
+            const disabled = (!shown && atMax) || (shown && visibleLines.length === 1);
             return (
               <button
                 key={line}
@@ -166,16 +153,8 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
               type="button"
               onClick={onToggleLayout}
               aria-pressed={layout === 'columns'}
-              aria-label={
-                layout === 'columns'
-                  ? 'Side by side columns (switch to stacked)'
-                  : 'Side by side columns'
-              }
-              title={
-                layout === 'columns'
-                  ? 'Stack caption lines vertically'
-                  : 'Arrange caption lines side by side'
-              }
+              aria-label={layout === 'columns' ? 'Side by side columns (switch to stacked)' : 'Side by side columns'}
+              title={layout === 'columns' ? 'Stack caption lines vertically' : 'Arrange caption lines side by side'}
               className={`inline-flex items-center gap-1 px-2 py-0.5 mr-1 rounded-[2px] text-xs font-semibold transition-colors whitespace-nowrap ${
                 layout === 'columns'
                   ? 'oh-btn-primary bg-[#5843A5] dark:bg-[#6D56C6] text-white'
@@ -220,20 +199,11 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
           the oldest words scroll off the top so the newest stay visible. */}
       <div
         data-layout={isSideBySide ? 'columns' : 'stacked'}
-        style={
-          isSideBySide
-            ? { gridTemplateColumns: `repeat(${visibleLines.length}, minmax(0, 1fr))` }
-            : undefined
-        }
-        className={`flex-1 min-h-0 px-4 py-2 ${
-          isSideBySide ? 'grid gap-3 items-stretch' : 'flex flex-col gap-2'
-        }`}
+        style={isSideBySide ? { gridTemplateColumns: `repeat(${visibleLines.length}, minmax(0, 1fr))` } : undefined}
+        className={`flex-1 min-h-0 px-4 py-2 ${isSideBySide ? 'grid gap-3 items-stretch' : 'flex flex-col gap-2'}`}
       >
         {visibleLines.map((line, index) => {
-          const columnDivider =
-            isSideBySide && index > 0
-              ? 'border-l border-slate-200 dark:border-slate-800 pl-3'
-              : '';
+          const columnDivider = isSideBySide && index > 0 ? 'border-l border-slate-200 dark:border-slate-800 pl-3' : '';
           if (line === 'en') {
             return (
               <div
@@ -252,7 +222,8 @@ export const PipSubtitlePortal: React.FC<PipSubtitlePortalProps> = ({
                     <span className="text-slate-400 dark:text-slate-600 text-base">
                       {isListening
                         ? 'Listening for teacher speech…'
-                        : onToggleListening ? 'Press Start Mic to caption over your slides. Hover for controls.'
+                        : onToggleListening
+                          ? 'Press Start Mic to caption over your slides. Hover for controls.'
                           : 'Waiting for lecture captions…'}
                     </span>
                   )}

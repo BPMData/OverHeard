@@ -15,11 +15,7 @@ describe('visiblePipLines', () => {
   });
 
   it('never shows more than the max', () => {
-    expect(visiblePipLines(['en', 'es', 'pt', 'zh'], ['es', 'pt', 'zh'], 3)).toEqual([
-      'en',
-      'es',
-      'pt',
-    ]);
+    expect(visiblePipLines(['en', 'es', 'pt', 'zh'], ['es', 'pt', 'zh'], 3)).toEqual(['en', 'es', 'pt']);
   });
 });
 

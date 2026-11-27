@@ -178,7 +178,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     if (!client.listSavedModels) return Promise.resolve();
     return client.listSavedModels().then(
       (ids) => setSavedModels(new Set(ids)),
-      () => setSavedModels(new Set()),
+      () => setSavedModels(new Set())
     );
   }, [client]);
 
@@ -249,7 +249,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
         handle.stop();
       }
     },
-    [client, stopPreview],
+    [client, stopPreview]
   );
 
   const isSaved = (voiceId: string) => {
@@ -291,9 +291,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
     >
       <div
         className={`w-full max-w-2xl max-h-[90vh] flex flex-col rounded-[3px] border-2 overflow-hidden ${
-          darkMode
-            ? 'border-[#334155] bg-[#111827] text-[#F8FAFC]'
-            : 'border-[#94A3B8] bg-white text-slate-900'
+          darkMode ? 'border-[#334155] bg-[#111827] text-[#F8FAFC]' : 'border-[#94A3B8] bg-white text-slate-900'
         }`}
       >
         <div
@@ -340,13 +338,11 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 <h3>Reader Voices</h3>
               </div>
               <p className={`text-sm ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
-                Choose your default reader voice for each language that has one. Your choices
-                save automatically on this device and neural voice models (Piper, and Meta MMS
-                for Swahili, Haitian Creole, Somali, Indonesian and Turkish) download on demand.
-                To use read-aloud offline, click Save offline on a voice while you're online.
-                Each Piper voice takes about 60 MB (a few take up to 115 MB), each Meta MMS voice
-                about 28 MB, and the first one also downloads the voice engine (about 40 MB).
-                The list shows each voice's size.
+                Choose your default reader voice for each language that has one. Your choices save automatically on this
+                device and neural voice models (Piper, and Meta MMS for Swahili, Haitian Creole, Somali, Indonesian and
+                Turkish) download on demand. To use read-aloud offline, click Save offline on a voice while you're
+                online. Each Piper voice takes about 60 MB (a few take up to 115 MB), each Meta MMS voice about 28 MB,
+                and the first one also downloads the voice engine (about 40 MB). The list shows each voice's size.
               </p>
             </div>
 
@@ -357,192 +353,171 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
             )}
 
             <div className="space-y-3">
-              {VOICE_SETTINGS_LANGUAGES.map(
-                ({ code, title, selectAriaLabel, previewAriaLabel }) => {
-                  const selectedVoiceId = resolveVoiceId(code, voicePrefs);
-                  const selectedVoice = findPiperVoice(selectedVoiceId);
-                  const canSave =
-                    Boolean(client.saveForOffline) &&
-                    savedModels !== null &&
-                    findPiperVoice(selectedVoiceId) !== undefined &&
-                    !isSaved(selectedVoiceId);
-                  const isSavingThis = savingVoice === selectedVoiceId;
-                  const preview = voicePreviewText(code, selectedVoiceId);
-                  const isThisLangActive = previewState?.lang === code;
+              {VOICE_SETTINGS_LANGUAGES.map(({ code, title, selectAriaLabel, previewAriaLabel }) => {
+                const selectedVoiceId = resolveVoiceId(code, voicePrefs);
+                const selectedVoice = findPiperVoice(selectedVoiceId);
+                const canSave =
+                  Boolean(client.saveForOffline) &&
+                  savedModels !== null &&
+                  findPiperVoice(selectedVoiceId) !== undefined &&
+                  !isSaved(selectedVoiceId);
+                const isSavingThis = savingVoice === selectedVoiceId;
+                const preview = voicePreviewText(code, selectedVoiceId);
+                const isThisLangActive = previewState?.lang === code;
 
-                  return (
-                    <div
-                      key={code}
-                      className={`p-4 rounded-[3px] border space-y-2 ${
-                        darkMode
-                          ? 'border-[#243044] bg-[#0D1422]'
-                          : 'border-[#CBD5E1] bg-[#F8FAFC]'
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <span className="inline-flex items-center gap-2 font-semibold text-sm">
-                          {title}
-                          {selectedVoiceId !== BROWSER_VOICE_ID && isSaved(selectedVoiceId) && (
-                            <span
-                              className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500"
-                              title="This voice is saved on this device and works offline"
-                            >
-                              <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
-                              Saved
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <VoiceSelect
-                            lang={code}
-                            ariaLabel={selectAriaLabel}
-                            value={selectedVoiceId}
-                            savedModelIds={savedModels}
-                            className={`rounded-[2px] border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer [&>option]:text-[#0F172A] ${
+                return (
+                  <div
+                    key={code}
+                    className={`p-4 rounded-[3px] border space-y-2 ${
+                      darkMode ? 'border-[#243044] bg-[#0D1422]' : 'border-[#CBD5E1] bg-[#F8FAFC]'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-2 font-semibold text-sm">
+                        {title}
+                        {selectedVoiceId !== BROWSER_VOICE_ID && isSaved(selectedVoiceId) && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500"
+                            title="This voice is saved on this device and works offline"
+                          >
+                            <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                            Saved
+                          </span>
+                        )}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <VoiceSelect
+                          lang={code}
+                          ariaLabel={selectAriaLabel}
+                          value={selectedVoiceId}
+                          savedModelIds={savedModels}
+                          className={`rounded-[2px] border px-2.5 py-1.5 text-xs font-medium outline-none cursor-pointer [&>option]:text-[#0F172A] ${
+                            darkMode
+                              ? 'border-[#2B3952] bg-[#111827] text-[#F8FAFC]'
+                              : 'border-[#CBD5E1] bg-white text-slate-900'
+                          }`}
+                          onChange={(nextVoice) => {
+                            updateVoicePref(code, nextVoice);
+                            playPreview(code, nextVoice);
+                          }}
+                        />
+                        {canSave && (
+                          <button
+                            type="button"
+                            aria-label={`Save ${title.split(' · ')[0]} voice for offline`}
+                            onClick={() => void saveForOffline(code, selectedVoiceId)}
+                            disabled={savingVoice !== null || !online}
+                            title={online ? 'Download this voice now so read-aloud works offline' : OFFLINE_TITLE}
+                            className={`oh-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-xs font-semibold border transition-colors disabled:opacity-60 ${
                               darkMode
-                                ? 'border-[#2B3952] bg-[#111827] text-[#F8FAFC]'
-                                : 'border-[#CBD5E1] bg-white text-slate-900'
+                                ? 'border-[#2B3952] bg-[#162033] hover:bg-slate-800 text-[#F8FAFC]'
+                                : 'border-[#CBD5E1] bg-white hover:bg-[#EDF2F7] text-slate-900'
                             }`}
-                            onChange={(nextVoice) => {
-                              updateVoicePref(code, nextVoice);
-                              playPreview(code, nextVoice);
-                            }}
-                          />
-                          {canSave && (
-                            <button
-                              type="button"
-                              aria-label={`Save ${title.split(' · ')[0]} voice for offline`}
-                              onClick={() => void saveForOffline(code, selectedVoiceId)}
-                              disabled={savingVoice !== null || !online}
-                              title={online ? 'Download this voice now so read-aloud works offline' : OFFLINE_TITLE}
-                              className={`oh-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] text-xs font-semibold border transition-colors disabled:opacity-60 ${
-                                darkMode
-                                  ? 'border-[#2B3952] bg-[#162033] hover:bg-slate-800 text-[#F8FAFC]'
-                                  : 'border-[#CBD5E1] bg-white hover:bg-[#EDF2F7] text-slate-900'
-                              }`}
-                            >
-                              <CloudDownload className="w-3.5 h-3.5" />
-                              <span>
-                                {isSavingThis ? 'Saving…' : `Save offline (${voiceDownloadLabel(selectedVoiceId)})`}
-                              </span>
-                            </button>
-                          )}
-                          {isThisLangActive ? (
-                            <button
-                              type="button"
-                              onClick={stopPreview}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-amber-700 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
-                            >
-                              <Square className="w-3 h-3" />
-                              <span>Stop preview</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              aria-label={previewAriaLabel}
-                              onClick={() => playPreview(code, selectedVoiceId)}
-                              className="oh-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[#443180] text-xs font-semibold bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
-                            >
-                              <Volume2 className="w-3.5 h-3.5" />
-                              <span>Preview</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {saveError?.lang === code && (
-                        <p role="alert" className="text-xs font-medium text-amber-500">
-                          {saveError.message}
-                        </p>
-                      )}
-
-                      {isThisLangActive && previewState?.status === 'downloading' && (
-                        <p role="status" className="text-xs font-medium text-[#A78BFA]">
-                          {typeof previewState.progress === 'number'
-                            ? `Downloading voice (${previewState.progress}%)…`
-                            : 'Loading voice…'}
-                        </p>
-                      )}
-
-                      <div
-                        className={`text-xs space-y-0.5 ${
-                          darkMode ? 'text-[#94A3B8]' : 'text-slate-600'
-                        }`}
-                      >
-                        <p className="italic">“{preview.spoken}”</p>
-                        {code !== 'en' && <p className="opacity-75">{preview.englishHint}</p>}
-                        {selectedVoice?.engine === 'mms' && selectedVoice.mmsIso3 && (
-                          <p className="opacity-75" data-testid="mms-attribution">
-                            Voice:{' '}
-                            <a
-                              href={MMS_ATTRIBUTION.modelUrl(selectedVoice.mmsIso3)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="underline"
-                            >
-                              {MMS_ATTRIBUTION.text}
-                            </a>{' '}
-                            (
-                            <a href={MMS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">
-                              license
-                            </a>
-                            ). Non-commercial use only.
-                          </p>
+                          >
+                            <CloudDownload className="w-3.5 h-3.5" />
+                            <span>
+                              {isSavingThis ? 'Saving…' : `Save offline (${voiceDownloadLabel(selectedVoiceId)})`}
+                            </span>
+                          </button>
+                        )}
+                        {isThisLangActive ? (
+                          <button
+                            type="button"
+                            onClick={stopPreview}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-amber-700 text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                          >
+                            <Square className="w-3 h-3" />
+                            <span>Stop preview</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label={previewAriaLabel}
+                            onClick={() => playPreview(code, selectedVoiceId)}
+                            className="oh-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[#443180] text-xs font-semibold bg-[#5843A5] hover:bg-[#4B3891] text-white transition-colors"
+                          >
+                            <Volume2 className="w-3.5 h-3.5" />
+                            <span>Preview</span>
+                          </button>
                         )}
                       </div>
                     </div>
-                  );
-                },
-              )}
+
+                    {saveError?.lang === code && (
+                      <p role="alert" className="text-xs font-medium text-amber-500">
+                        {saveError.message}
+                      </p>
+                    )}
+
+                    {isThisLangActive && previewState?.status === 'downloading' && (
+                      <p role="status" className="text-xs font-medium text-[#A78BFA]">
+                        {typeof previewState.progress === 'number'
+                          ? `Downloading voice (${previewState.progress}%)…`
+                          : 'Loading voice…'}
+                      </p>
+                    )}
+
+                    <div className={`text-xs space-y-0.5 ${darkMode ? 'text-[#94A3B8]' : 'text-slate-600'}`}>
+                      <p className="italic">“{preview.spoken}”</p>
+                      {code !== 'en' && <p className="opacity-75">{preview.englishHint}</p>}
+                      {selectedVoice?.engine === 'mms' && selectedVoice.mmsIso3 && (
+                        <p className="opacity-75" data-testid="mms-attribution">
+                          Voice:{' '}
+                          <a
+                            href={MMS_ATTRIBUTION.modelUrl(selectedVoice.mmsIso3)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline"
+                          >
+                            {MMS_ATTRIBUTION.text}
+                          </a>{' '}
+                          (
+                          <a href={MMS_ATTRIBUTION.licenseUrl} target="_blank" rel="noreferrer" className="underline">
+                            license
+                          </a>
+                          ). Non-commercial use only.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </section>
 
           <div className={`pt-5 border-t ${darkMode ? 'border-[#1E293B]' : 'border-slate-200'}`}>
-            <StorageManager
-              isDark={darkMode}
-              categories={storageCategories}
-              onChanged={() => void refreshSaved()}
-            />
+            <StorageManager isDark={darkMode} categories={storageCategories} onChanged={() => void refreshSaved()} />
           </div>
 
           {/* On-device privacy */}
           {showPrivacy && (
-            <section
-              className={`pt-5 border-t space-y-3 ${
-                darkMode ? 'border-[#1E293B]' : 'border-slate-200'
-              }`}
-            >
+            <section className={`pt-5 border-t space-y-3 ${darkMode ? 'border-[#1E293B]' : 'border-slate-200'}`}>
+              <div
+                className={`p-3 rounded-[3px] border text-xs leading-relaxed space-y-1 ${
+                  darkMode
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+                    : 'border-emerald-600/25 bg-emerald-50 text-emerald-950'
+                }`}
+              >
                 <div
-                  className={`p-3 rounded-[3px] border text-xs leading-relaxed space-y-1 ${
-                    darkMode
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
-                      : 'border-emerald-600/25 bg-emerald-50 text-emerald-950'
+                  className={`flex items-center gap-1.5 font-semibold ${
+                    darkMode ? 'text-emerald-300' : 'text-emerald-800'
                   }`}
                 >
-                  <div
-                    className={`flex items-center gap-1.5 font-semibold ${
-                      darkMode ? 'text-emerald-300' : 'text-emerald-800'
-                    }`}
-                  >
-                    <ShieldCheck className="w-4 h-4 shrink-0" />
-                    <span>Zero-Cloud / On-Device Guarantee</span>
-                  </div>
-                  <p>
-                    If you select <strong>Only on this device</strong> in the <strong>Translator</strong>{' '}
-                    menu (with
-                    supported browser speech and language packs installed, plus local Piper or Meta MMS reader
-                    voices), speech recognition, translation, and playback all stay inside your
-                    browser —{' '}
-                    <strong>
-                      truly none of your student or classroom data goes online anywhere
-                    </strong>{' '}
-                    unless you actively host a live <strong>Student Room</strong> (which relays the
-                    lecture JSON through server memory to connected students without saving it to
-                    disk or a database) or click <strong>Save to Drive</strong>. That mode never uses
-                    an online translator: if on-device translation fails, the header says so and the
-                    line stays untranslated.
-                  </p>
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  <span>Zero-Cloud / On-Device Guarantee</span>
                 </div>
+                <p>
+                  If you select <strong>Only on this device</strong> in the <strong>Translator</strong> menu (with
+                  supported browser speech and language packs installed, plus local Piper or Meta MMS reader voices),
+                  speech recognition, translation, and playback all stay inside your browser —{' '}
+                  <strong>truly none of your student or classroom data goes online anywhere</strong> unless you actively
+                  host a live <strong>Student Room</strong> (which relays the lecture JSON through server memory to
+                  connected students without saving it to disk or a database) or click <strong>Save to Drive</strong>.
+                  That mode never uses an online translator: if on-device translation fails, the header says so and the
+                  line stays untranslated.
+                </p>
+              </div>
             </section>
           )}
         </div>
@@ -560,9 +535,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               openProblemReport({ afterModalClose: true });
             }}
             className={`oh-btn px-3 py-2 text-xs font-semibold rounded-[2px] border transition-colors ${
-              darkMode
-                ? 'border-[#2B3952] bg-[#162033] text-[#DDD6FE]'
-                : 'border-[#CBD5E1] bg-white text-[#443180]'
+              darkMode ? 'border-[#2B3952] bg-[#162033] text-[#DDD6FE]' : 'border-[#CBD5E1] bg-white text-[#443180]'
             }`}
           >
             Something not working?

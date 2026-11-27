@@ -49,7 +49,7 @@ describe('VoiceSettingsModal', () => {
     expect(preloadVoice).toHaveBeenCalledWith('en_US-kristin-medium');
     expect(speak).toHaveBeenCalledWith(
       "Hi, I'm Kristin. Should I be your reader for English?",
-      expect.objectContaining({ lang: 'en', voiceId: 'en_US-kristin-medium' }),
+      expect.objectContaining({ lang: 'en', voiceId: 'en_US-kristin-medium' })
     );
 
     // Click Stop preview, then change Spanish and click Preview for Portuguese
@@ -61,24 +61,20 @@ describe('VoiceSettingsModal', () => {
     });
     expect(speak).toHaveBeenLastCalledWith(
       'Hola, soy Ald. ¿Debería ser tu lector de español?',
-      expect.objectContaining({ lang: 'es', voiceId: 'es_MX-ald-medium' }),
+      expect.objectContaining({ lang: 'es', voiceId: 'es_MX-ald-medium' })
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview Portuguese voice' }));
     expect(speak).toHaveBeenLastCalledWith(
       'Olá, eu sou Faber. Devo ser o seu leitor de português?',
-      expect.objectContaining({ lang: 'pt', voiceId: 'pt_BR-faber-medium' }),
+      expect.objectContaining({ lang: 'pt', voiceId: 'pt_BR-faber-medium' })
     );
 
     // Remounting preserves saved selections from localStorage
     cleanup();
     render(<VoiceSettingsModal isOpen onClose={onClose} client={client} />);
-    expect((screen.getByLabelText('Default English voice') as HTMLSelectElement).value).toBe(
-      'en_US-kristin-medium',
-    );
-    expect((screen.getByLabelText('Default Spanish voice') as HTMLSelectElement).value).toBe(
-      'es_MX-ald-medium',
-    );
+    expect((screen.getByLabelText('Default English voice') as HTMLSelectElement).value).toBe('en_US-kristin-medium');
+    expect((screen.getByLabelText('Default Spanish voice') as HTMLSelectElement).value).toBe('es_MX-ald-medium');
 
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(onClose).toHaveBeenCalled();
@@ -103,9 +99,7 @@ describe('VoiceSettingsModal', () => {
       saved.add(findPiperVoice(voiceId)!.modelId);
     });
     const listSavedModels = vi.fn(async () => [...saved]);
-    render(
-      <VoiceSettingsModal isOpen onClose={vi.fn()} client={{ ...client, saveForOffline, listSavedModels }} />,
-    );
+    render(<VoiceSettingsModal isOpen onClose={vi.fn()} client={{ ...client, saveForOffline, listSavedModels }} />);
     const saveSpanish = await screen.findByRole('button', { name: 'Save Spanish voice for offline' });
     // Opening the settings downloads nothing
     expect(saveForOffline).not.toHaveBeenCalled();
@@ -130,7 +124,7 @@ describe('VoiceSettingsModal', () => {
         isOpen
         onClose={vi.fn()}
         client={{ ...client, saveForOffline, listSavedModels: async () => [] }}
-      />,
+      />
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Save English voice for offline' }));
     await screen.findByText(/Could not save this voice/);
@@ -146,7 +140,7 @@ describe('VoiceSettingsModal download sizes', () => {
         onClose={vi.fn()}
         client={{ ...client, saveForOffline: vi.fn(), listSavedModels: async () => ['en_US-hfc_female-medium'] }}
         storageCategories={[]}
-      />,
+      />
     );
     const save = await screen.findByRole('button', { name: 'Save Spanish voice for offline' });
     expect(save.textContent).toBe('Save offline (60 MB)');

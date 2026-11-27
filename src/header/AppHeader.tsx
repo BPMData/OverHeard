@@ -1,6 +1,16 @@
 import { type ComponentProps, type ReactNode, type Dispatch, type SetStateAction } from 'react';
 import type { DisplayMode, CaptionSegment, LanguageCode } from '../types';
-import { FlaskConical, Globe, HelpCircle, History, MessageSquareWarning, Moon, PictureInPicture2, Settings, Sun } from 'lucide-react';
+import {
+  FlaskConical,
+  Globe,
+  HelpCircle,
+  History,
+  MessageSquareWarning,
+  Moon,
+  PictureInPicture2,
+  Settings,
+  Sun,
+} from 'lucide-react';
 import { openProblemReport } from '../report/ProblemReportModal';
 import { PackProgressPanel } from '../components/PackProgressPanel';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
@@ -44,43 +54,63 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({
-  selectedLangs, isDark, hasPipApi, showPreviousLine, isTestBarOpen, packProgress,
-  packStartedAt, segments, pipWindow, speechStatusNotice, translatorPicker,
-  applyImportedLecture, setIsDark, setIsTestBarOpen, setShowPreviousLine, setDisplayMode,
-  handleTogglePip, setImportError, setIsVoiceSettingsOpen, setIsLangModalOpen,
-  setIsAboutModalOpen, handleExportJson, listen, sizing, modes, clear, testInput,
+  selectedLangs,
+  isDark,
+  hasPipApi,
+  showPreviousLine,
+  isTestBarOpen,
+  packProgress,
+  packStartedAt,
+  segments,
+  pipWindow,
+  speechStatusNotice,
+  translatorPicker,
+  applyImportedLecture,
+  setIsDark,
+  setIsTestBarOpen,
+  setShowPreviousLine,
+  setDisplayMode,
+  handleTogglePip,
+  setImportError,
+  setIsVoiceSettingsOpen,
+  setIsLangModalOpen,
+  setIsAboutModalOpen,
+  handleExportJson,
+  listen,
+  sizing,
+  modes,
+  clear,
+  testInput,
 }: AppHeaderProps) {
   return (
     <header className="oh-chrome-bar border-b border-[#CBD5E1] dark:border-[#243044] bg-white dark:bg-[#111827] px-4 lg:px-6 py-3">
       {/* Two rows: brand, Listen and display controls; then translation and session controls */}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        {/* Left: Brand & Primary Start/Stop Mic Action */}
-        <div className="flex items-center gap-3 xl:gap-4">
-          <button
-            type="button"
-            onClick={() => setDisplayMode('columns')}
-            aria-label="OverHeard — Go to Columns view"
-            title="Back to main Columns view"
-            className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-[2px] px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
-          >
-            <WhiteboatIcon app="overheard" size={28} />
-            <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
-              OverHeard
-            </span>
-          </button>
+          {/* Left: Brand & Primary Start/Stop Mic Action */}
+          <div className="flex items-center gap-3 xl:gap-4">
+            <button
+              type="button"
+              onClick={() => setDisplayMode('columns')}
+              aria-label="OverHeard — Go to Columns view"
+              title="Back to main Columns view"
+              className="flex items-center gap-2.5 shrink-0 cursor-pointer rounded-[2px] px-1 py-0.5 -mx-1 hover:opacity-85 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5843A5] dark:focus-visible:ring-[#A78BFA] transition-opacity"
+            >
+              <WhiteboatIcon app="overheard" size={28} />
+              <span className="text-xl font-extrabold tracking-tight text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap">
+                OverHeard
+              </span>
+            </button>
 
-          {/* Primary Start/Stop Button + Pulsing Mic Indicator */}
-          <ListenButton {...listen} />
+            {/* Primary Start/Stop Button + Pulsing Mic Indicator */}
+            <ListenButton {...listen} />
 
-          {speechStatusNotice && (
-            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-              {speechStatusNotice}
-            </span>
-          )}
+            {speechStatusNotice && (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">{speechStatusNotice}</span>
+            )}
 
-          <PackProgressPanel progress={packProgress} startedAt={packStartedAt} />
-        </div>
+            <PackProgressPanel progress={packProgress} startedAt={packStartedAt} />
+          </div>
 
           {/* Display: how captions look on the projector */}
           <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +146,6 @@ export function AppHeader({
               </button>
             )}
           </div>
-
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -207,9 +236,7 @@ export function AppHeader({
       </div>
 
       {/* Collapsible Silent Test Input Bar */}
-      {isTestBarOpen && (
-        <TestInputBar {...testInput} />
-      )}
+      {isTestBarOpen && <TestInputBar {...testInput} />}
     </header>
   );
 }

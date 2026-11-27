@@ -4,9 +4,7 @@
 // Nothing here sends caption text anywhere; only model files are downloaded.
 import { notifyStorageChanged } from '../../storage/registry';
 import { bergamotModelFor } from './models';
-import {
-  downloadAndSaveModel, isModelSaved, readSavedModel, removeAllSavedModels, removeSavedModel,
-} from './store';
+import { downloadAndSaveModel, isModelSaved, readSavedModel, removeAllSavedModels, removeSavedModel } from './store';
 import { OpusWorkers } from './opus';
 import { BergamotWorker } from './worker';
 
@@ -157,7 +155,7 @@ export async function deleteAllBergamotModels(): Promise<void> {
 /** For tests */
 export function resetBergamotForTests(
   next: BergamotWorker = new BergamotWorker(),
-  nextOpus: OpusWorkers = new OpusWorkers(),
+  nextOpus: OpusWorkers = new OpusWorkers()
 ): void {
   worker.reset();
   worker = next;

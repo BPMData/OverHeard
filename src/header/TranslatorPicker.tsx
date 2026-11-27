@@ -1,5 +1,13 @@
 import type { DisplayMode, LanguageCode } from '../types';
-import { MT_PROVIDER_LABELS, SLOW_TRANSLATION_MS, TRANSLATED_BY, overBy, type MtProviderId, type TranslatorId, type MtPreference } from '../app/settings';
+import {
+  MT_PROVIDER_LABELS,
+  SLOW_TRANSLATION_MS,
+  TRANSLATED_BY,
+  overBy,
+  type MtProviderId,
+  type TranslatorId,
+  type MtPreference,
+} from '../app/settings';
 import { hasChromeTranslator, prepareOnDeviceTranslators } from '../onDevice';
 import { useOnline } from '../app/useOnline';
 import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../translation/useLanguagesNeedingOnline';
@@ -8,7 +16,7 @@ import { fromEnglish, needOnlineText, useLanguagesNeedingOnline } from '../trans
 export function translatorTooltip(
   preference: MtPreference,
   onDeviceSupported: boolean,
-  firstProvider: MtProviderId | undefined,
+  firstProvider: MtProviderId | undefined
 ): string {
   switch (preference) {
     case 'auto':
@@ -47,19 +55,26 @@ interface TranslatorPickerProps {
 }
 
 export function TranslatorPicker({
-  displayMode, selectedLangs, onDeviceSupported, speechIsLocal, lastTranslateMs,
-  lastUsedProvider, availableProviders, effectiveMtPreference, setMtPreference, reportPack,
+  displayMode,
+  selectedLangs,
+  onDeviceSupported,
+  speechIsLocal,
+  lastTranslateMs,
+  lastUsedProvider,
+  availableProviders,
+  effectiveMtPreference,
+  setMtPreference,
+  reportPack,
   onDeviceFailing = false,
 }: TranslatorPickerProps) {
   const online = useOnline();
   // Lecture/Conversation shows these notices in its own always-visible row
   const needOnline = useLanguagesNeedingOnline(
     fromEnglish(selectedLangs),
-    effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation',
+    effectiveMtPreference === 'on-device' && onDeviceSupported && displayMode !== 'conversation'
   );
   const needOnlineNotice = needOnlineText(needOnline, { rooms: true });
-  const tip = (preference: MtPreference) =>
-    translatorTooltip(preference, onDeviceSupported, availableProviders[0]);
+  const tip = (preference: MtPreference) => translatorTooltip(preference, onDeviceSupported, availableProviders[0]);
   return (
     <label
       className="oh-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-[2px] text-xs font-semibold border border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#0F172A] dark:text-[#F8FAFC] whitespace-nowrap"
@@ -75,10 +90,7 @@ export function TranslatorPicker({
           const next = e.target.value as MtPreference;
           setMtPreference(next);
           // Choosing it is a user gesture, so start downloading language packs now
-          if (
-            (next === 'on-device' || (next === 'auto' && onDeviceSupported)) &&
-            displayMode !== 'conversation'
-          ) {
+          if ((next === 'on-device' || (next === 'auto' && onDeviceSupported)) && displayMode !== 'conversation') {
             prepareOnDeviceTranslators(selectedLangs, reportPack);
           }
         }}
@@ -117,9 +129,7 @@ export function TranslatorPicker({
       {displayMode !== 'conversation' && effectiveMtPreference === 'on-device' && speechIsLocal !== null && (
         <span
           className={`font-mono ${
-            speechIsLocal
-              ? 'text-emerald-600 dark:text-emerald-400'
-              : 'text-amber-600 dark:text-amber-400'
+            speechIsLocal ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
           }`}
           title={
             speechIsLocal
@@ -139,15 +149,18 @@ export function TranslatorPicker({
           {needOnlineNotice.label}
         </span>
       )}
-      {needOnline.length === 0 && displayMode !== 'conversation' && effectiveMtPreference === 'on-device' && onDeviceFailing && (
-        <span
-          role="status"
-          className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
-          title="Translation on this device failed. Only on this device never uses online translators, so these lines stay untranslated. Choose On-device first or an online translator to use one."
-        >
-          ⚠ On-device translation failing
-        </span>
-      )}
+      {needOnline.length === 0 &&
+        displayMode !== 'conversation' &&
+        effectiveMtPreference === 'on-device' &&
+        onDeviceFailing && (
+          <span
+            role="status"
+            className="px-1.5 py-0.5 rounded-[2px] bg-red-600 text-white font-semibold"
+            title="Translation on this device failed. Only on this device never uses online translators, so these lines stay untranslated. Choose On-device first or an online translator to use one."
+          >
+            ⚠ On-device translation failing
+          </span>
+        )}
       {lastUsedProvider && <TranslatedByBadge provider={lastUsedProvider} compact />}
     </label>
   );
@@ -170,9 +183,15 @@ export function TranslatedByBadge({ provider, compact = false }: { provider: Tra
     );
   }
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`} title={`Last translation: ${info.label}. ${info.title}`}>
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-[2px] font-semibold ${TONE_CLASSES[info.tone]}`}
+      title={`Last translation: ${info.label}. ${info.title}`}
+    >
       <span className="xl:hidden w-2 h-2 rounded-full bg-current" aria-hidden="true" />
-      <span className="hidden xl:inline"><span className="hidden 2xl:inline">Last translation: </span>{info.label}</span>
+      <span className="hidden xl:inline">
+        <span className="hidden 2xl:inline">Last translation: </span>
+        {info.label}
+      </span>
     </span>
   );
 }

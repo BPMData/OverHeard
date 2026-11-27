@@ -176,7 +176,10 @@ function writeStorage(key: string, value: string | null): void {
 }
 
 export function normalizeJsonFileName(name: string): string {
-  const trimmed = name.trim().replace(/[\r\n\0/\\]+/g, ' ').trim();
+  const trimmed = name
+    .trim()
+    .replace(/[\r\n\0/\\]+/g, ' ')
+    .trim();
   if (!trimmed) return 'OverHeard Lecture.json';
   return /\.json$/i.test(trimmed) ? trimmed : `${trimmed}.json`;
 }
@@ -184,7 +187,7 @@ export function normalizeJsonFileName(name: string): string {
 export function replacesLastSave(
   lastSave: SavedDriveFile | null | undefined,
   folderId: string,
-  fileName: string,
+  fileName: string
 ): boolean {
   if (!lastSave) return false;
   if (lastSave.folderId !== folderId) return false;
@@ -436,7 +439,7 @@ async function driveFetch(url: string, init: RequestInit = {}, allowInteractiveR
 async function parseDriveError(res: Response, fallback: string): Promise<Error> {
   let detail = '';
   try {
-    const json = await res.json() as { error?: { message?: string } };
+    const json = (await res.json()) as { error?: { message?: string } };
     detail = json?.error?.message || '';
   } catch {
     // Ignore non-JSON error bodies.
@@ -451,12 +454,12 @@ export async function fetchDriveAccount(forceRefreshToken = false): Promise<Driv
   const res = await driveFetch(
     'https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress,permissionId,photoLink)',
     {},
-    true,
+    true
   );
   if (!res.ok) {
     throw await parseDriveError(res, 'Could not read signed-in Google account');
   }
-  const data = await res.json() as {
+  const data = (await res.json()) as {
     user?: {
       displayName?: string;
       emailAddress?: string;
@@ -476,7 +479,9 @@ export async function fetchDriveAccount(forceRefreshToken = false): Promise<Driv
   return account;
 }
 
-export async function ensureDriveSession(options?: { prompt?: '' | 'select_account' | 'consent' }): Promise<DriveAccount | null> {
+export async function ensureDriveSession(options?: {
+  prompt?: '' | 'select_account' | 'consent';
+}): Promise<DriveAccount | null> {
   await getAccessToken({ prompt: options?.prompt ?? '', forceRefresh: Boolean(options?.prompt) });
   if (cachedAccount && !options?.prompt) {
     return cachedAccount;
@@ -498,10 +503,7 @@ function escapeDriveQueryValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-export async function findDriveFolderByName(
-  name: string,
-  parentId = 'root',
-): Promise<DriveFolderRef | null> {
+export async function findDriveFolderByName(name: string, parentId = 'root'): Promise<DriveFolderRef | null> {
   const escapedName = escapeDriveQueryValue(name.trim());
   const escapedParent = escapeDriveQueryValue(parentId);
   const query = `name = '${escapedName}' and mimeType = '${FOLDER_MIME}' and trashed = false and '${escapedParent}' in parents`;
@@ -510,7 +512,7 @@ export async function findDriveFolderByName(
   if (!res.ok) {
     throw await parseDriveError(res, 'Could not search Google Drive folders');
   }
-  const data = await res.json() as { files?: Array<{ id?: string; name?: string }> };
+  const data = (await res.json()) as { files?: Array<{ id?: string; name?: string }> };
   const match = data.files?.[0];
   if (!match?.id || !match.name) return null;
   return { id: match.id, name: match.name };
@@ -533,7 +535,7 @@ export async function createDriveFolder(name: string, parentId = 'root'): Promis
   if (!res.ok) {
     throw await parseDriveError(res, 'Could not create Google Drive folder');
   }
-  const data = await res.json() as { id?: string; name?: string };
+  const data = (await res.json()) as { id?: string; name?: string };
   if (!data.id) {
     throw new Error('Google Drive did not return an ID for the new folder.');
   }
@@ -542,18 +544,19 @@ export async function createDriveFolder(name: string, parentId = 'root'): Promis
 
 export async function ensureNamedDriveFolder(
   folderName = DEFAULT_DRIVE_FOLDER_NAME,
-  account?: DriveAccount | null,
+  account?: DriveAccount | null
 ): Promise<DriveFolderRef> {
   const targetName = folderName.trim() || DEFAULT_DRIVE_FOLDER_NAME;
   const existing = await findDriveFolderByName(targetName, 'root');
-  const folder = existing ?? await createDriveFolder(targetName, 'root');
+  const folder = existing ?? (await createDriveFolder(targetName, 'root'));
   setLastDriveFolder(folder, account);
   return folder;
 }
 
 export function pickerOrigin(): string {
   if (typeof window === 'undefined') return '';
-  const ancestors = (window.location as Location & { ancestorOrigins?: { length: number; [index: number]: string } }).ancestorOrigins;
+  const ancestors = (window.location as Location & { ancestorOrigins?: { length: number; [index: number]: string } })
+    .ancestorOrigins;
   if (ancestors && ancestors.length > 0) {
     return ancestors[ancestors.length - 1];
   }
@@ -661,19 +664,19 @@ export async function pickDriveJsonFile(): Promise<PickedDriveFile | null> {
 
 export async function downloadDriveJsonFile(fileId: string): Promise<{ name: string; content: string }> {
   const metaRes = await driveFetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,mimeType`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size,mimeType`
   );
   if (!metaRes.ok) {
     throw await parseDriveError(metaRes, 'Could not inspect Google Drive file');
   }
-  const meta = await metaRes.json() as { id?: string; name?: string; size?: string };
+  const meta = (await metaRes.json()) as { id?: string; name?: string; size?: string };
   const byteSize = meta.size ? Number(meta.size) : 0;
   if (Number.isFinite(byteSize) && byteSize > MAX_ROOM_FILE_BYTES) {
     throw new Error('That Google Drive file is larger than 8 MB and cannot be imported.');
   }
 
   const contentRes = await driveFetch(
-    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`
   );
   if (!contentRes.ok) {
     throw await parseDriveError(contentRes, 'Could not download Google Drive file');
@@ -685,7 +688,10 @@ export async function downloadDriveJsonFile(fileId: string): Promise<{ name: str
   };
 }
 
-function buildMultipartBody(metadata: Record<string, unknown>, jsonContent: string): {
+function buildMultipartBody(
+  metadata: Record<string, unknown>,
+  jsonContent: string
+): {
   boundary: string;
   body: string;
 } {
@@ -705,9 +711,7 @@ function buildMultipartBody(metadata: Record<string, unknown>, jsonContent: stri
   return { boundary, body };
 }
 
-export async function saveLectureJsonToDrive(
-  options: SaveLectureToDriveOptions,
-): Promise<SaveLectureToDriveResult> {
+export async function saveLectureJsonToDrive(options: SaveLectureToDriveOptions): Promise<SaveLectureToDriveResult> {
   await getAccessToken();
   const account = options.account ?? getDriveAccount();
   const normalizedName = normalizeJsonFileName(options.fileName);
@@ -730,10 +734,10 @@ export async function saveLectureJsonToDrive(
         method: 'PATCH',
         headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
         body,
-      },
+      }
     );
     if (patchRes.ok) {
-      uploadedFile = await patchRes.json() as { id?: string; name?: string; webViewLink?: string };
+      uploadedFile = (await patchRes.json()) as { id?: string; name?: string; webViewLink?: string };
       updatedExisting = true;
     } else if (patchRes.status !== 404) {
       throw await parseDriveError(patchRes, 'Could not update Google Drive file');
@@ -747,7 +751,7 @@ export async function saveLectureJsonToDrive(
         mimeType: JSON_MIME,
         parents: [targetFolder.id],
       },
-      options.jsonContent,
+      options.jsonContent
     );
     const createRes = await driveFetch(
       'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
@@ -755,12 +759,12 @@ export async function saveLectureJsonToDrive(
         method: 'POST',
         headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
         body,
-      },
+      }
     );
     if (!createRes.ok) {
       throw await parseDriveError(createRes, 'Could not save file to Google Drive');
     }
-    uploadedFile = await createRes.json() as { id?: string; name?: string; webViewLink?: string };
+    uploadedFile = (await createRes.json()) as { id?: string; name?: string; webViewLink?: string };
   }
 
   if (!uploadedFile?.id) {

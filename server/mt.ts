@@ -8,8 +8,7 @@ export type MtProvider = ServerMtProvider;
 /** Providers that cost nothing to call. A free-only request never falls back to the others. */
 export const FREE_MT_PROVIDERS: readonly MtProvider[] = ['gtx'];
 
-export const isMtProvider = (value: unknown): value is MtProvider =>
-  value === 'google-cloud' || value === 'gtx';
+export const isMtProvider = (value: unknown): value is MtProvider => value === 'google-cloud' || value === 'gtx';
 
 export class ProviderError extends Error {
   readonly status?: number;
@@ -24,19 +23,10 @@ export class ProviderError extends Error {
  * Translation (when it has a key).
  * MT_PROVIDER can move "google-cloud" to the front; the others keep their order as fallbacks.
  */
-export function buildProviderChain(opts: {
-  googleKey?: string;
-  requested?: string;
-}): MtProvider[] {
-  const available: MtProvider[] = [
-    'gtx',
-    ...(opts.googleKey ? (['google-cloud'] as const) : []),
-  ];
+export function buildProviderChain(opts: { googleKey?: string; requested?: string }): MtProvider[] {
+  const available: MtProvider[] = ['gtx', ...(opts.googleKey ? (['google-cloud'] as const) : [])];
   const requested = opts.requested?.trim();
-  const primary =
-    isMtProvider(requested) && available.includes(requested)
-      ? requested
-      : available[0];
+  const primary = isMtProvider(requested) && available.includes(requested) ? requested : available[0];
   return [primary, ...available.filter((p) => p !== primary)];
 }
 
@@ -69,10 +59,7 @@ export async function translateGoogleCloud(
     }
   );
   if (!res.ok) {
-    throw new ProviderError(
-      `Cloud Translation HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`,
-      res.status
-    );
+    throw new ProviderError(`Cloud Translation HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`, res.status);
   }
   const data = (await res.json()) as {
     data?: { translations?: { translatedText?: string }[] };
@@ -129,12 +116,7 @@ export function isBenchingError(error: unknown): boolean {
   if (error instanceof ProviderTimeoutError) return true;
   const status = error instanceof ProviderError ? error.status : undefined;
   const message = error instanceof Error ? error.message : '';
-  return (
-    status === 401 ||
-    status === 403 ||
-    status === 429 ||
-    (status === 400 && /API key/i.test(message))
-  );
+  return status === 401 || status === 403 || status === 429 || (status === 400 && /API key/i.test(message));
 }
 
 export interface MachineTranslatorOptions {
@@ -250,26 +232,22 @@ export function createMachineTranslator({
                     : error instanceof ProviderBudgetError
                       ? 'hit its daily budget'
                       : `returned ${(error as ProviderError).status} (quota, rate limit or bad key)`;
-                log.warn(
-                  `[translate] ${provider} ${reason}; skipping it for ${
-                    cooldownMs / 60_000
-                  } min`
-                );
+                log.warn(`[translate] ${provider} ${reason}; skipping it for ${cooldownMs / 60_000} min`);
               }
               cooldownUntil.set(provider, now() + cooldownMs);
             } else {
-              log.warn(
-                `[translate] ${provider} failed, trying next:`,
-                error instanceof Error ? error.message : error
-              );
+              log.warn(`[translate] ${provider} failed, trying next:`, error instanceof Error ? error.message : error);
             }
           }
         }
         throw lastError instanceof Error ? lastError : new Error('All MT providers failed');
       })();
       inFlight.set(key, work);
-      try { return await work; }
-      finally { inFlight.delete(key); }
+      try {
+        return await work;
+      } finally {
+        inFlight.delete(key);
+      }
     },
   };
 }

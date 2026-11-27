@@ -124,7 +124,7 @@ export function useTwoWayPlayback({
         handle.stop();
       }
     },
-    [client, maybeResumeSpeech],
+    [client, maybeResumeSpeech]
   );
 
   const startBrowserItem = useCallback(
@@ -155,7 +155,7 @@ export function useTwoWayPlayback({
         handle.stop();
       }
     },
-    [client, maybeResumeSpeech],
+    [client, maybeResumeSpeech]
   );
 
   const enqueueAuto = useCallback(
@@ -182,7 +182,7 @@ export function useTwoWayPlayback({
         }
       }
     },
-    [client, startBrowserItem, startPiperItem],
+    [client, startBrowserItem, startPiperItem]
   );
 
   const togglePlayMessage = useCallback(
@@ -204,19 +204,22 @@ export function useTwoWayPlayback({
         startBrowserItem(item, voiceId, gen, true);
       }
     },
-    [cancelAll, client, startBrowserItem, startPiperItem],
+    [cancelAll, client, startBrowserItem, startPiperItem]
   );
 
-  useEffect(() => () => {
-    generationRef.current += 1;
-    activePiperRef.current?.stop();
-    activePiperRef.current = null;
-    piperQueueRef.current = [];
-    for (const handle of browserHandlesRef.current) {
-      handle.stop();
-    }
-    browserHandlesRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      generationRef.current += 1;
+      activePiperRef.current?.stop();
+      activePiperRef.current = null;
+      piperQueueRef.current = [];
+      for (const handle of browserHandlesRef.current) {
+        handle.stop();
+      }
+      browserHandlesRef.current.clear();
+    },
+    []
+  );
 
   return {
     playingMessageId,

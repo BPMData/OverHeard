@@ -67,7 +67,7 @@ describe('lectureState', () => {
 
     localStorage.setItem(
       LECTURE_STORAGE_KEY,
-      JSON.stringify([{ english: '  ' }, { id: 'ok', timestamp: 123, english: 'Valid line' }]),
+      JSON.stringify([{ english: '  ' }, { id: 'ok', timestamp: 123, english: 'Valid line' }])
     );
     expect(loadLectureEntries()).toHaveLength(1);
     expect(loadLectureEntries()[0].english).toBe('Valid line');

@@ -11,7 +11,9 @@ export function copyStylesInto(target: Document, source: Document = document) {
   for (const sheet of Array.from(source.styleSheets)) {
     let cssText: string | null = null;
     try {
-      cssText = Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\n');
+      cssText = Array.from(sheet.cssRules)
+        .map((rule) => rule.cssText)
+        .join('\n');
     } catch {
       cssText = null; // Cross-origin sheet: its rules can't be read from here
     }

@@ -8,21 +8,29 @@ import type { RoomSnapshot } from './protocol';
 export function useStudentTranslations(
   snapshot: RoomSnapshot | null,
   language: LanguageCode | 'en',
-  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {},
+  { onDeviceOnly = false }: { onDeviceOnly?: boolean } = {}
 ) {
   const [translatedBy, setTranslatedBy] = useState<'on-device' | 'gtx' | null>(null);
   const tryDeviceFirst = useDeviceFirstTranslator(language + (onDeviceOnly ? ':local' : ''));
   const translate = useMemo(
     () => createStudentTranslator(tryDeviceFirst, setTranslatedBy, { onDeviceOnly }),
-    [tryDeviceFirst, onDeviceOnly],
+    [tryDeviceFirst, onDeviceOnly]
   );
   const results = useRef(new Map<string, string | null>());
   const pending = useRef(new Set<string>());
   const [version, refresh] = useState(0);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // Switching to or from "Only on this device" retries what the other mode couldn't translate
-  useEffect(() => { results.current.clear(); refresh(value => value + 1); }, [onDeviceOnly]);
+  useEffect(() => {
+    results.current.clear();
+    refresh((value) => value + 1);
+  }, [onDeviceOnly]);
   const keyFor = (text: string) => `${language}\0${text}`;
 
   // Translate recent lines first, with a bounded queue for late joins and language changes.
@@ -31,42 +39,67 @@ export function useStudentTranslations(
     if (!snapshot || language === 'en') return;
     for (const entry of [...snapshot.entries].reverse()) {
       if (pending.current.size >= 3) break;
-      if (entry.translations[language] || (snapshot.teacherOnline && !snapshot.ended &&
-          snapshot.selectedLangs.includes(language) && !entry.failedLangs[language])) continue;
+      if (
+        entry.translations[language] ||
+        (snapshot.teacherOnline &&
+          !snapshot.ended &&
+          snapshot.selectedLangs.includes(language) &&
+          !entry.failedLangs[language])
+      )
+        continue;
       const key = keyFor(entry.english);
       if (results.current.has(key) || pending.current.has(key)) continue;
       pending.current.add(key);
-      void translate(entry.english, language).then(
-        value => results.current.set(key, value),
-        error => {
-          if (!(error instanceof DOMException && error.name === 'AbortError')) results.current.set(key, null);
-        },
-      ).finally(() => {
-        pending.current.delete(key);
-        if (results.current.size > 3000) results.current.delete(results.current.keys().next().value!);
-        if (mounted.current) refresh(value => value + 1);
-      });
+      void translate(entry.english, language)
+        .then(
+          (value) => results.current.set(key, value),
+          (error) => {
+            if (!(error instanceof DOMException && error.name === 'AbortError')) results.current.set(key, null);
+          }
+        )
+        .finally(() => {
+          pending.current.delete(key);
+          if (results.current.size > 3000) results.current.delete(results.current.keys().next().value!);
+          if (mounted.current) refresh((value) => value + 1);
+        });
     }
   }, [snapshot, language, translate, version]);
 
   const lastEntry = snapshot?.entries[snapshot.entries.length - 1];
   // The teacher's computer can have this language selected yet fail to translate it (e.g.
   // Pashto with "Only on this device"); then this page makes its own live captions too.
-  const teacherSupplies = language !== 'en' && !!snapshot?.selectedLangs.includes(language) &&
-    !lastEntry?.failedLangs[language];
+  const teacherSupplies =
+    language !== 'en' && !!snapshot?.selectedLangs.includes(language) && !lastEntry?.failedLangs[language];
   const liveLangs = useMemo<LanguageCode[]>(
-    () => (language === 'en' || teacherSupplies ? [] : [language]), [language, teacherSupplies]);
+    () => (language === 'en' || teacherSupplies ? [] : [language]),
+    [language, teacherSupplies]
+  );
   const studentLive = useLiveTranslations(snapshot?.interim || '', liveLangs, translate, lastEntry?.id ?? '');
 
-  const entries = useMemo(() => snapshot?.entries.map(entry => {
-    if (language === 'en' || entry.translations[language]) return entry;
-    const local = results.current.get(`${language}\0${entry.english}`);
-    return { ...entry, translations: { ...entry.translations, ...(local ? { [language]: local } : {}) },
-      failedLangs: { ...entry.failedLangs, [language]: local === null } };
-  }) || [], [snapshot?.entries, language, version]);
-  const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] ||
-    studentLive[language] || '';
-  return { translate, translatedBy, entries, liveTranslations: language === 'en' ? {} : { [language]: liveText },
-    hasFailures: language !== 'en' && entries.some(entry => !entry.translations[language] && entry.failedLangs[language]),
-    retry: () => { for (const [key, result] of results.current) if (result === null) results.current.delete(key); refresh(value => value + 1); } };
+  const entries = useMemo(
+    () =>
+      snapshot?.entries.map((entry) => {
+        if (language === 'en' || entry.translations[language]) return entry;
+        const local = results.current.get(`${language}\0${entry.english}`);
+        return {
+          ...entry,
+          translations: { ...entry.translations, ...(local ? { [language]: local } : {}) },
+          failedLangs: { ...entry.failedLangs, [language]: local === null },
+        };
+      }) || [],
+    [snapshot?.entries, language, version]
+  );
+  const liveText = language === 'en' ? '' : snapshot?.liveTranslations[language] || studentLive[language] || '';
+  return {
+    translate,
+    translatedBy,
+    entries,
+    liveTranslations: language === 'en' ? {} : { [language]: liveText },
+    hasFailures:
+      language !== 'en' && entries.some((entry) => !entry.translations[language] && entry.failedLangs[language]),
+    retry: () => {
+      for (const [key, result] of results.current) if (result === null) results.current.delete(key);
+      refresh((value) => value + 1);
+    },
+  };
 }

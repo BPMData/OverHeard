@@ -24,21 +24,22 @@ self.addEventListener('install', (event) => {
     caches
       .open(SHELL_CACHE)
       .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting()),
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys()
+    caches
+      .keys()
       .then((keys) =>
         Promise.all(
           keys
             .filter((k) => k !== SHELL_CACHE && k !== RUNTIME_CACHE && k !== BERGAMOT_CACHE)
-            .map((k) => caches.delete(k)),
-        ),
+            .map((k) => caches.delete(k))
+        )
       )
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
   );
 });
 
@@ -102,9 +103,7 @@ self.addEventListener('fetch', (event) => {
 
   if (isFontRequest(url)) {
     event.respondWith(
-      url.origin === 'https://fonts.googleapis.com'
-        ? staleWhileRevalidate(request)
-        : cacheFirst(request, RUNTIME_CACHE),
+      url.origin === 'https://fonts.googleapis.com' ? staleWhileRevalidate(request) : cacheFirst(request, RUNTIME_CACHE)
     );
     return;
   }
@@ -120,4 +119,3 @@ self.addEventListener('fetch', (event) => {
   // (voice runtimes, icons, assets from a newer deploy) is saved the first time it's used.
   event.respondWith(cacheFirst(request, isRuntimeAsset(url) ? RUNTIME_CACHE : SHELL_CACHE));
 });
-

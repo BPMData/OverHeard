@@ -11,9 +11,7 @@ export function useBrowserSupport() {
   // Initial browser capability detection
   useEffect(() => {
     const ua = navigator.userAgent;
-    const isChromeOrEdge =
-      (/Chrome\//.test(ua) || /Edg\//.test(ua) || /CriOS\//.test(ua)) &&
-      !/OPR\//.test(ua);
+    const isChromeOrEdge = (/Chrome\//.test(ua) || /Edg\//.test(ua) || /CriOS\//.test(ua)) && !/OPR\//.test(ua);
     const speechAvailable = Boolean(recognitionConstructor());
 
     setIsSupportedBrowser(isChromeOrEdge && speechAvailable);

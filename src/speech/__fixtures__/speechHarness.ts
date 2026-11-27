@@ -28,7 +28,9 @@ export function createSpeechHarness({ emitStart = true } = {}) {
     onend: (() => void) | null = null;
     onerror: ((event: { error: string }) => void) | null = null;
     onresult: ((event: { resultIndex: number; results: Result[] }) => void) | null = null;
-    start = vi.fn(() => { if (emitStart) this.onstart?.(); });
+    start = vi.fn(() => {
+      if (emitStart) this.onstart?.();
+    });
     stop = vi.fn(() => this.onend?.());
     abort = vi.fn(() => {
       this.onerror?.({ error: 'aborted' });
@@ -56,14 +58,25 @@ export function createSpeechHarness({ emitStart = true } = {}) {
   async function replay(steps: readonly SpeechStep[]) {
     for (const step of steps) {
       const { afterMs } = step;
-      if (afterMs) await act(async () => { await vi.advanceTimersByTimeAsync(afterMs); });
+      if (afterMs)
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(afterMs);
+        });
       await act(async () => {
         const mic = latest();
         switch (step.type) {
-          case 'start': mic.onstart?.(); break;
-          case 'end': mic.onend?.(); break;
-          case 'error': mic.onerror?.({ error: step.error }); break;
-          case 'result': mic.onresult?.({ resultIndex: step.resultIndex, results: step.results }); break;
+          case 'start':
+            mic.onstart?.();
+            break;
+          case 'end':
+            mic.onend?.();
+            break;
+          case 'error':
+            mic.onerror?.({ error: step.error });
+            break;
+          case 'result':
+            mic.onresult?.({ resultIndex: step.resultIndex, results: step.results });
+            break;
         }
       });
     }

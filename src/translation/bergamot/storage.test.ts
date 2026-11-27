@@ -8,10 +8,17 @@ describe('On-device translation models storage category', () => {
   it('lists saved languages with sizes, leftovers, and the shared engine', async () => {
     const cacheStorage = new FakeCacheStorage();
     const runtime = await cacheStorage.open(RUNTIME_CACHE_NAME);
-    await runtime.put('https://app.test/bergamot/bergamot-translator-worker.wasm', new Response(new Uint8Array(5) as unknown as BodyInit));
+    await runtime.put(
+      'https://app.test/bergamot/bergamot-translator-worker.wasm',
+      new Response(new Uint8Array(5) as unknown as BodyInit)
+    );
     await runtime.put('https://app.test/ort/ort.wasm', new Response(new Uint8Array(9) as unknown as BodyInit));
     const category = createBergamotStorageCategory({
-      sizes: async () => [{ lang: 'ur', bytes: 100 }, { lang: 'prs', bytes: 50 }, { lang: '', bytes: 7 }],
+      sizes: async () => [
+        { lang: 'ur', bytes: 100 },
+        { lang: 'prs', bytes: 50 },
+        { lang: '', bytes: 7 },
+      ],
       cacheStorage: () => cacheStorage,
     });
     expect(category.title).toBe('On-device translation models');
@@ -19,10 +26,20 @@ describe('On-device translation models storage category', () => {
     expect(category.afterRemoveNote).toMatch(/download its model again/);
     expect(category.afterRemoveItemNote).toMatch(/download its model again/);
     expect(await category.list()).toEqual([
-      { id: 'prs', label: 'English → Dari (approximate: Iranian Persian, not Afghan Dari)', bytes: 50, removable: true },
+      {
+        id: 'prs',
+        label: 'English → Dari (approximate: Iranian Persian, not Afghan Dari)',
+        bytes: 50,
+        removable: true,
+      },
       { id: 'ur', label: 'English → Urdu', bytes: 100, removable: true },
       { id: BERGAMOT_LEFTOVERS_ID, label: 'Unfinished or old translation downloads', bytes: 7, removable: true },
-      { id: BERGAMOT_ENGINE_ITEM_ID, label: 'Translation engine (shared by every language except Swahili)', bytes: 5, removable: true },
+      {
+        id: BERGAMOT_ENGINE_ITEM_ID,
+        label: 'Translation engine (shared by every language except Swahili)',
+        bytes: 5,
+        removable: true,
+      },
     ]);
   });
 
@@ -33,7 +50,12 @@ describe('On-device translation models storage category', () => {
     await runtime.put('https://app.test/piper/piper.wasm', new Response('y'));
     const remove = vi.fn(async () => {});
     const removeAll = vi.fn(async () => {});
-    const category = createBergamotStorageCategory({ sizes: async () => [], remove, removeAll, cacheStorage: () => cacheStorage });
+    const category = createBergamotStorageCategory({
+      sizes: async () => [],
+      remove,
+      removeAll,
+      cacheStorage: () => cacheStorage,
+    });
     await category.removeItem!('ur');
     await category.removeItem!(BERGAMOT_LEFTOVERS_ID);
     expect(remove.mock.calls).toEqual([['ur'], ['']]);

@@ -1,10 +1,5 @@
 import type { ConversationLanguage } from '../types';
-import {
-  BROWSER_VOICE_ID,
-  BROWSER_VOICE_LABEL,
-  voiceDownloadLabel,
-  voicesForLanguage,
-} from './voices';
+import { BROWSER_VOICE_ID, BROWSER_VOICE_LABEL, voiceDownloadLabel, voicesForLanguage } from './voices';
 import type { PlaybackStatus } from './useSpeechPlayback';
 
 interface VoiceSelectProps {
@@ -21,7 +16,7 @@ interface VoiceSelectProps {
 /** Option text with the download size, so people know what a voice takes up before it downloads. */
 export function voiceOptionLabel(
   voice: { id: string; label: string; modelId: string },
-  savedModelIds?: ReadonlySet<string> | null,
+  savedModelIds?: ReadonlySet<string> | null
 ): string {
   if (savedModelIds?.has(voice.modelId)) return `${voice.label} — saved`;
   const size = voiceDownloadLabel(voice.id);
@@ -63,20 +58,13 @@ interface PlaybackToolbarProps {
   onStop: () => void;
 }
 
-export function PlaybackToolbar({
-  status,
-  downloadProgress,
-  onTogglePause,
-  onStop,
-}: PlaybackToolbarProps) {
+export function PlaybackToolbar({ status, downloadProgress, onTogglePause, onStop }: PlaybackToolbarProps) {
   if (status === 'idle') return null;
   return (
     <>
       {status === 'downloading' && (
         <span className="tts-status-badge" role="status">
-          {typeof downloadProgress === 'number'
-            ? `Downloading voice (${downloadProgress}%)…`
-            : 'Loading voice…'}
+          {typeof downloadProgress === 'number' ? `Downloading voice (${downloadProgress}%)…` : 'Loading voice…'}
         </span>
       )}
       {status !== 'downloading' && (

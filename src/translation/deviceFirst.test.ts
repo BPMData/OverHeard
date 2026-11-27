@@ -1,12 +1,18 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-beforeEach(() => { vi.useFakeTimers(); });
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetModules(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.resetModules();
+});
 
 it('allows a four-second translation without falling back', async () => {
   vi.stubGlobal('Translator', {
     availability: async () => 'available',
-    create: async () => ({ translate: () => new Promise(resolve => setTimeout(() => resolve('Hola'), 4000)) }),
+    create: async () => ({ translate: () => new Promise((resolve) => setTimeout(() => resolve('Hola'), 4000)) }),
   });
   const { createDeviceFirstTranslator } = await import('./deviceFirst');
   const local = createDeviceFirstTranslator();

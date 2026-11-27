@@ -27,7 +27,7 @@ export function createChromePackStorageCategory(
   // Looked up when the list is checked, not when Settings renders, so a failure stays in list()
   availability: (code: string, source: string) => Promise<Availability> = (code, source) =>
     getChromeAvailability(code, source),
-  supported: () => boolean = () => hasChromeTranslator(),
+  supported: () => boolean = () => hasChromeTranslator()
 ): StorageCategory {
   return {
     id: 'chrome-translation-packs',
@@ -44,17 +44,15 @@ export function createChromePackStorageCategory(
       if (!supported()) return [];
       const statuses = await Promise.all(
         SUPPORTED_LANGUAGES.map((lang) =>
-          rejectAfter(availability(lang.code, 'en'), AVAILABILITY_TIMEOUT_MS).catch(() => 'unavailable' as const),
-        ),
+          rejectAfter(availability(lang.code, 'en'), AVAILABILITY_TIMEOUT_MS).catch(() => 'unavailable' as const)
+        )
       );
-      return SUPPORTED_LANGUAGES
-        .filter((_, index) => statuses[index] === 'available')
-        .map((lang) => ({
-          id: lang.code,
-          label: `English ↔ ${lang.name}`,
-          bytes: null,
-          removable: false,
-        }));
+      return SUPPORTED_LANGUAGES.filter((_, index) => statuses[index] === 'available').map((lang) => ({
+        id: lang.code,
+        label: `English ↔ ${lang.name}`,
+        bytes: null,
+        removable: false,
+      }));
     },
   };
 }

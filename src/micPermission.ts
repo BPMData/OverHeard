@@ -31,6 +31,6 @@ export function withMicAccess(onGranted: () => void, onBlocked: (reason: MicBloc
       // No mic / mic busy: let recognition try and report its own error
       if (name === 'NotAllowedError' || name === 'SecurityError') onBlocked('denied');
       else onGranted();
-    },
+    }
   );
 }

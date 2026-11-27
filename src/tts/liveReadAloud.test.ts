@@ -21,12 +21,21 @@ function fakeClient() {
     },
   };
   // Finish the clip that is playing now
-  const finish = async () => { await act(async () => { spoken[spoken.length - 1].options.onEnd?.(); }); };
+  const finish = async () => {
+    await act(async () => {
+      spoken[spoken.length - 1].options.onEnd?.();
+    });
+  };
   return { client, spoken, finish };
 }
 
-const entry = (id: string, english: string): LectureEntry =>
-  ({ id, timestamp: 1, english, translations: { es: `es(${english})` }, failedLangs: {} });
+const entry = (id: string, english: string): LectureEntry => ({
+  id,
+  timestamp: 1,
+  english,
+  translations: { es: `es(${english})` },
+  failedLangs: {},
+});
 
 describe('live read-aloud', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -37,19 +46,28 @@ describe('live read-aloud', () => {
     const translate = vi.fn(async (text: string) => `es(${text})`);
     const onBeforePlay = vi.fn();
     const props = (interim: string, entries: LectureEntry[]) => ({
-      entries, voicePrefs: {}, readAloud: true, liveLang: 'es' as const, onBeforePlay, client,
+      entries,
+      voicePrefs: {},
+      readAloud: true,
+      liveLang: 'es' as const,
+      onBeforePlay,
+      client,
       live: { interim, translate, suspendSpeech: false },
     });
     const hook = renderHook((p: ReturnType<typeof props>) => useLecturePlayback(p), { initialProps: props('', []) });
 
     hook.rerender(props('today we will look', []));
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     // No pause and nothing finalized, yet the first settled words are being read
     expect(spoken.map((s) => s.text)).toEqual(['es(today we will look)']);
     expect(hook.result.current.activePlayback?.entryId).toBe(LIVE_PLAYBACK_ID);
 
     hook.rerender(props('today we will look at the water cycle and', []));
-    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
     // The next piece's audio is prepared while the first one is still playing
     expect(client.prefetch).toHaveBeenCalledWith('es(at the water cycle and)', expect.any(String));
     // The reading voice was loaded as soon as reading was on
@@ -59,7 +77,9 @@ describe('live read-aloud', () => {
 
     // The speaker pauses: the line is finalized. Only the unread end is spoken, not the whole line.
     hook.rerender(props('', [entry('a', 'Today we will look at the water cycle and rain.')]));
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     await finish();
     expect(spoken.map((s) => s.text)).toEqual(['es(today we will look)', 'es(at the water cycle and)', 'es(rain.)']);
     await finish();
@@ -71,13 +91,19 @@ describe('live read-aloud', () => {
   it('still reads a short line whole when nothing was read live', async () => {
     const { client, spoken } = fakeClient();
     const props = (interim: string, entries: LectureEntry[]) => ({
-      entries, voicePrefs: {}, readAloud: true, liveLang: 'es' as const, client,
+      entries,
+      voicePrefs: {},
+      readAloud: true,
+      liveLang: 'es' as const,
+      client,
       live: { interim, translate: async (t: string) => `es(${t})`, suspendSpeech: false },
     });
     const hook = renderHook((p: ReturnType<typeof props>) => useLecturePlayback(p), { initialProps: props('', []) });
     hook.rerender(props('hi', []));
     hook.rerender(props('', [entry('a', 'Hi there.')]));
-    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
     expect(spoken.map((s) => s.text)).toEqual(['es(Hi there.)']);
   });
 });
