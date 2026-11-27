@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
+import { createSpeechHarness } from './speech/__fixtures__/speechHarness';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConversationLanguage } from './types';
@@ -61,24 +62,13 @@ vi.mock('./components/ConversationMode', () => ({
 
 import App from './App';
 
-class FakeRecognition {
-  static instances: FakeRecognition[] = [];
-  onstart?: () => void;
-  onend?: () => void;
-  start = vi.fn(() => this.onstart?.());
-  stop = vi.fn(() => this.onend?.());
-  abort = vi.fn();
-  constructor() {
-    FakeRecognition.instances.push(this);
-  }
-}
+const speech = createSpeechHarness();
 
 let mtCalls: Array<{ text: string; lang: string; source: string }>;
 beforeEach(() => {
   localStorage.clear();
   window.history.replaceState({}, '', '/?langs=es');
-  FakeRecognition.instances = [];
-  vi.stubGlobal('SpeechRecognition', FakeRecognition);
+  speech.install();
   mtCalls = [];
   vi.stubGlobal(
     'fetch',
@@ -109,7 +99,7 @@ describe('App conversation integration', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Subtitle' }));
     fireEvent.click(screen.getByRole('button', { name: /Start Listening/ }));
-    const recognition = FakeRecognition.instances[0];
+    const recognition = speech.instances[0];
     expect(recognition.start).toHaveBeenCalledTimes(1);
     await enterConversation();
     expect(recognition.stop).toHaveBeenCalledTimes(1);

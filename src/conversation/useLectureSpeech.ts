@@ -1,3 +1,5 @@
+import { createRecognition, detachRecognition, recognitionConstructor } from '../speech/recognition';
+import type { SpeechRecognitionInstance } from '../speech/types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MicBlock } from '../micPermission';
 import { prepareOnDeviceSpeech } from '../onDevice';
@@ -5,33 +7,6 @@ import { isOffline, wantsLocalSpeech, type SpeechLocality } from '../offline';
 import { logSpeechEvent, logSpeechNote } from '../speechDebug';
 import { createFinalDeduper } from '../speechDedupe';
 import { isFailedSession, restartDelay } from '../speechRestart';
-
-interface ResultEvent {
-  resultIndex: number;
-  results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }>;
-}
-
-interface Recognizer {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  processLocally?: boolean;
-  onstart: (() => void) | null;
-  onresult: ((event: ResultEvent) => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-function recognitionConstructor() {
-  const globals = globalThis as unknown as {
-    SpeechRecognition?: new () => Recognizer;
-    webkitSpeechRecognition?: new () => Recognizer;
-  };
-  return globals.SpeechRecognition ?? globals.webkitSpeechRecognition;
-}
 
 export interface LectureSpeechOptions {
   onFinal: (text: string) => void;
@@ -61,7 +36,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     lastError: null as string | null,
     interim: '',
   });
-  const recognizer = useRef<Recognizer | null>(null);
+  const recognizer = useRef<SpeechRecognitionInstance | null>(null);
   const restartTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deduperRef = useRef(createFinalDeduper());
 
@@ -72,25 +47,13 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     }
   }
 
-  function detach() {
-    const rec = recognizer.current;
-    recognizer.current = null;
-    if (!rec) return;
-    rec.onstart = rec.onresult = rec.onerror = rec.onend = null;
-    try {
-      rec.abort();
-    } catch {
-      // Already ended
-    }
-  }
-
   function stop() {
     session.current.active = false;
     session.current.suspended = false;
     session.current.generation++;
     session.current.interim = '';
     clearTimer();
-    detach();
+    detachRecognition(recognizer);
     setInterim('');
     setListening(false);
   }
@@ -101,7 +64,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     session.current.generation++;
     session.current.interim = '';
     clearTimer();
-    detach();
+    detachRecognition(recognizer);
     setInterim('');
   }
 
@@ -127,11 +90,8 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
     if (token !== current.generation || !current.active || current.suspended) return;
     setLocal(local);
 
-    const rec = new Constructor();
+    const rec = createRecognition(Constructor, 'en-US');
     recognizer.current = rec;
-    rec.lang = 'en-US';
-    rec.continuous = true;
-    rec.interimResults = true;
     rec.processLocally = local;
     deduperRef.current = createFinalDeduper();
 
@@ -195,7 +155,7 @@ export function useLectureSpeech(options: LectureSpeechOptions) {
       }
       current.interim = '';
       setInterim('');
-      detach();
+      detachRecognition(recognizer);
 
       current.failures = isFailedSession(current.lastError, Date.now() - current.startedAt)
         ? current.failures + 1

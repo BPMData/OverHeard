@@ -1,38 +1,13 @@
 // @vitest-environment jsdom
+import { createSpeechHarness, speechAcrossRestart } from '../speech/__fixtures__/speechHarness';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useConversationSpeech } from './useConversationSpeech';
 import { prepareOnDeviceSpeech } from '../onDevice';
 vi.mock('../onDevice', () => ({ prepareOnDeviceSpeech: vi.fn(async () => true) }));
-class FakeRecognition {
-  static instances: FakeRecognition[] = [];
-  lang = '';
-  continuous = false;
-  interimResults = false;
-  processLocally = false;
-  onstart: (() => void) | null = null;
-  onresult: ((e: any) => void) | null = null;
-  onerror: ((e: any) => void) | null = null;
-  onend: (() => void) | null = null;
-  start = vi.fn();
-  // Like Chrome, aborting a running session reports 'aborted' and then ends it
-  abort = vi.fn(() => {
-    this.onerror?.({ error: 'aborted' });
-    this.onend?.();
-  });
-  constructor() {
-    FakeRecognition.instances.push(this);
-  }
-  result(text: string, final = true, index = 0) {
-    const results = Array.from({ length: index + 1 }, () => ({
-      isFinal: false,
-      0: { transcript: '' },
-    }));
-    results[index] = { isFinal: final, 0: { transcript: text } };
-    this.onresult?.({ resultIndex: index, results });
-  }
-}
-const latest = () => FakeRecognition.instances.at(-1)!;
+const speech = createSpeechHarness({ emitStart: false });
+const latest = speech.latest;
+
 function setup(langB = 'es') {
   const onSend = vi.fn();
   const hook = renderHook(() =>
@@ -47,8 +22,7 @@ function setup(langB = 'es') {
 }
 beforeEach(() => {
   vi.useFakeTimers();
-  FakeRecognition.instances = [];
-  vi.stubGlobal('SpeechRecognition', FakeRecognition);
+  speech.install();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -56,6 +30,15 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe('conversation turn recognition', () => {
+  it('carries unfinished words across a browser restart in the same speaker’s turn', async () => {
+    const { onSend } = setup();
+    await speech.replay(speechAcrossRestart);
+    expect(onSend).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(2500));
+    expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'Turn the page Read the heading');
+    expect(speech.instances[0].start).toHaveBeenCalledTimes(2);
+  });
+
   it('appends final fragments once and resets silence for interim speech', () => {
     const { result, onSend } = setup();
     act(() => latest().result('hello'));
@@ -115,13 +98,13 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', b);
   });
-  it('waits indefinitely through no-speech and unexpected ends', () => {
+  it('waits indefinitely through no-speech and unexpected ends', async () => {
     const { result, onSend } = setup();
-    act(() => {
-      latest().onerror?.({ error: 'no-speech' });
-      latest().onend?.();
-      vi.advanceTimersByTime(400);
-    });
+    await speech.replay([
+      { type: 'error', error: 'no-speech' },
+      { type: 'end' },
+      { afterMs: 400, type: 'start' },
+    ]);
     act(() => vi.advanceTimersByTime(35000));
     expect(result.current.turn).toBe('a');
     expect(result.current.isListening).toBe(true);
@@ -175,7 +158,7 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(50));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'pass the gravy');
     expect(result.current.turn).toBe('b');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
   });
 
   it('uses a shorter pause setting exactly, whatever the mic is doing', () => {
@@ -232,7 +215,7 @@ describe('conversation turn recognition', () => {
       vi.advanceTimersByTime(1000);
       first.onend?.();
     });
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     expect(first.abort).not.toHaveBeenCalled();
     expect(first.start).toHaveBeenCalledTimes(2);
     act(() => first.onstart?.());
@@ -248,7 +231,7 @@ describe('conversation turn recognition', () => {
     act(() => first.result('yeah see it works', true, 0));
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenLastCalledWith('b', 'yeah see it works');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
   });
   it('manual override sends first and quiet override sends nothing', () => {
     const { result, onSend } = setup();
@@ -269,7 +252,7 @@ describe('conversation turn recognition', () => {
       vi.advanceTimersByTime(10000);
       stale({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: 'late' } }] });
     });
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     expect(onSend).not.toHaveBeenCalled();
   });
   it('stop during language preparation cannot start recognition later', async () => {
@@ -284,7 +267,7 @@ describe('conversation turn recognition', () => {
     act(() => result.current.start(true));
     act(() => result.current.stop());
     await act(async () => resolve(true));
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     expect(result.current.isListening).toBe(false);
   });
   it('suspends recognition and resumes the intended turn', () => {
@@ -330,7 +313,7 @@ describe('conversation turn recognition', () => {
         error === 'language-not-supported' ? /doesn't support en/ : /Microphone permission/,
       );
       expect(onSend).not.toHaveBeenCalled();
-      expect(FakeRecognition.instances).toHaveLength(1);
+      expect(speech.instances).toHaveLength(1);
     },
   );
 
@@ -341,7 +324,7 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'how are you');
     expect(result.current.turn).toBe('b');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     // The same recognizer starts a fresh session, so nothing of A's can open B's message
     expect(first.abort).toHaveBeenCalledOnce();
     expect(first.start).toHaveBeenCalledTimes(2);
@@ -349,7 +332,7 @@ describe('conversation turn recognition', () => {
     act(() => result.current.setTurn('a'));
     expect(onSend).toHaveBeenLastCalledWith('b', 'fine thanks');
     expect(result.current.turn).toBe('a');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
   });
   it('keeps a same-language recognizer when unfinished words were sent, without repeating them', () => {
     const { result, onSend } = setup('en');
@@ -357,7 +340,7 @@ describe('conversation turn recognition', () => {
     act(() => first.result('still talkin', false));
     act(() => result.current.setTurn('b'));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'still talkin');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     expect(first.start).toHaveBeenCalledTimes(2);
     // The sent words still show up as interim, then as a revised final: neither is B's
     act(() => first.result('still talking', false));
@@ -397,7 +380,7 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'hello there');
     act(() => vi.advanceTimersByTime(1500));
-    expect(FakeRecognition.instances).toHaveLength(2);
+    expect(speech.instances).toHaveLength(2);
     act(() => latest().result('hi', true, 0));
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenLastCalledWith('b', 'hi');
@@ -413,7 +396,7 @@ describe('conversation turn recognition', () => {
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('a', 'why is it');
     expect(result.current.turn).toBe('b');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     // Worst case: the new session repeats all of A's words before B's
     act(() => first.result('why is it', true, 0));
     expect(result.current.draft).toBe('');
@@ -430,7 +413,7 @@ describe('conversation turn recognition', () => {
       latest().onend?.();
       vi.advanceTimersByTime(400);
     });
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     expect(latest().start).toHaveBeenCalledTimes(3);
     act(() => latest().result('see you tomorrow', true));
     act(() => result.current.setTurn('a'));
@@ -448,7 +431,7 @@ describe('conversation turn recognition', () => {
     act(() => first.result('Happy Thanksgiving', true, 1));
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenLastCalledWith('b', 'Happy Thanksgiving');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
   });
 
   it('reassigns live speech to the other same-language speaker without splitting or restarting', () => {
@@ -459,7 +442,7 @@ describe('conversation turn recognition', () => {
     expect(onSend).not.toHaveBeenCalled();
     expect(result.current.turn).toBe('b');
     expect(result.current.interim).toBe('Hey Grandpa');
-    expect(FakeRecognition.instances).toHaveLength(1);
+    expect(speech.instances).toHaveLength(1);
     act(() => vi.advanceTimersByTime(2500));
     expect(onSend).toHaveBeenCalledExactlyOnceWith('b', 'Hey Grandpa');
   });
