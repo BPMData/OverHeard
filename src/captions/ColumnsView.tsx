@@ -172,7 +172,7 @@ export function ColumnsView({
                           ? `Read ${lang.name} translation aloud`
                           : 'Translation appears here after a sentence finishes'
                     }
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-xs font-semibold border transition-colors ${
+                    className={`oh-phone-tap inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-xs font-semibold border transition-colors ${
                       isThisColActive
                         ? 'oh-btn-primary border-[#443180] bg-[#5843A5] text-white dark:border-[#A78BFA] dark:bg-[#5843A5]'
                         : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#111827] text-[#334155] dark:text-[#CBD5E1] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B] disabled:opacity-40 disabled:cursor-not-allowed'

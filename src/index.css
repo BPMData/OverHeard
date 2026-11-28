@@ -312,3 +312,15 @@ html:not(.dark) .room-join button:disabled {
 .oh-phone-sheet .room-join button {
   min-height: 44px;
 }
+/* Icon-only buttons and the few controls outside the header still get a full fingertip on a phone */
+.oh-phone-header button,
+.oh-phone-sheet button,
+.oh-phone-toolbar button,
+.oh-phone-toolbar a {
+  min-width: 44px;
+}
+@media (max-width: 639px), (max-height: 500px) and (max-width: 1023px) {
+  .oh-phone-tap {
+    min-height: 44px;
+  }
+}
