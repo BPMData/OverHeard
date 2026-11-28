@@ -51,3 +51,12 @@ jobs:
           name: playwright-report
           path: playwright-report/
           if-no-files-found: ignore
+      - name: Phone screenshots for review
+        if: ${{ !cancelled() }}
+        run: PHONE_SHOTS=1 npx playwright test e2e/phone.spec.ts --reporter=list
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: phone-screenshots
+          path: phone-screenshots/
+          if-no-files-found: ignore

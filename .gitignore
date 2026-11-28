@@ -13,3 +13,4 @@ saves/
 !.env.example
 
 gha-creds-*.json
+phone-screenshots/
