@@ -11,7 +11,7 @@ async function start(report: Partial<ReportRouteOptions>) {
   const service = createApp({
     trustProxyHops: 1,
     mt: { ipLimitMultiplier: 10, mtPerSession: 3, cloudDailyChars: 0, mtChain: ['gtx'], shortLinkBase: null },
-    report: { appVersion: 'over-heard-00042', ...report },
+    report: { appVersion: 'overheard-00042', ...report },
   });
   close = service.close;
   await new Promise<void>((resolve, reject) => {
@@ -70,7 +70,7 @@ describe('problem report route', () => {
 
   it('says automatic sending is set up only with both the relay URL and its secret', async () => {
     let url = await start({});
-    expect(await (await fetch(`${url}/status`)).json()).toEqual({ automatic: false, appVersion: 'over-heard-00042' });
+    expect(await (await fetch(`${url}/status`)).json()).toEqual({ automatic: false, appVersion: 'overheard-00042' });
     await afterEachClose();
     url = await start({ relayUrl: 'https://relay.example/exec' });
     expect((await (await fetch(`${url}/status`)).json()).automatic).toBe(false);
@@ -129,7 +129,7 @@ describe('problem report route', () => {
     expect(published).not.toContain('should never be kept');
     expect(published).not.toContain('shh');
     // The server's own revision replaces whatever the page claimed
-    expect(published).toContain('App version: over-heard-00042');
+    expect(published).toContain('App version: overheard-00042');
     expect(published).not.toContain('fake');
 
     expect(sent.email.subject).toBe('[OverHeard] Problem report: Translation');

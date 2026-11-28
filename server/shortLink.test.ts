@@ -3,10 +3,12 @@ import { shortLinkBase } from './shortLink.ts';
 
 describe('shortLinkBase', () => {
   it('uses GitHub Pages only for the production service unless overridden', () => {
-    expect(shortLinkBase({ K_SERVICE: 'over-heard' })).toBe('https://bpmdata.github.io');
-    expect(shortLinkBase({ K_SERVICE: 'over-heard-staging' })).toBeNull();
+    expect(shortLinkBase({ K_SERVICE: 'overheard' })).toBe('https://bpmdata.github.io');
+    expect(shortLinkBase({ K_SERVICE: 'overheard-staging' })).toBeNull();
     expect(shortLinkBase({})).toBeNull();
-    expect(shortLinkBase({ K_SERVICE: 'over-heard', SHORT_LINK_BASE: '' })).toBeNull();
+    // the old service name no longer turns short links on by itself
+    expect(shortLinkBase({ K_SERVICE: 'over-heard' })).toBeNull();
+    expect(shortLinkBase({ K_SERVICE: 'overheard', SHORT_LINK_BASE: '' })).toBeNull();
     expect(shortLinkBase({ SHORT_LINK_BASE: 'https://overheard.example/' })).toBe('https://overheard.example');
   });
 

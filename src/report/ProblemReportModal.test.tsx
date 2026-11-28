@@ -13,7 +13,7 @@ type Answer = Response | (() => Response | Promise<Response>);
 
 function mockServer({ automatic = true, report }: { automatic?: boolean; report?: Answer } = {}) {
   return vi.fn(async (url: string | URL | Request) => {
-    if (String(url) === '/api/report/status') return json({ automatic, appVersion: 'over-heard-00042' });
+    if (String(url) === '/api/report/status') return json({ automatic, appVersion: 'overheard-00042' });
     if (typeof report === 'function') return report();
     return (
       report ??
@@ -91,7 +91,7 @@ describe('ProblemReportModal', () => {
     expect(within(privatePart).getByText('me@school.org')).toBeTruthy();
 
     // Diagnostics: feature status only, with the server's version
-    await within(publicPart).findByText('App version: over-heard-00042');
+    await within(publicPart).findByText('App version: overheard-00042');
     expect(within(publicPart).getByText('Caption languages: es, pt')).toBeTruthy();
     expect(within(publicPart).getByText('Listening: yes')).toBeTruthy();
     expect(within(publicPart).getByText(/Never included: audio, captions, translations/)).toBeTruthy();

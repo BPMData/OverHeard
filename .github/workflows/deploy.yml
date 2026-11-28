@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Verify and deploy over-heard
+    name: Verify and deploy overheard
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -50,32 +50,42 @@ jobs:
       - name: Verify Cloud Run source upload
         run: bash scripts/check-upload.sh
 
+      # Empty on the very first deploy (the service doesn't exist yet); check-deploy.mjs allows that.
       - name: Record previous Cloud Run revision
         id: previous
         run: |
-          rev=$(gcloud run services describe over-heard \
+          rev=$(gcloud run services describe overheard \
             --region us-east1 \
             --project loyal-rookery-403218 \
-            --format='value(status.latestReadyRevisionName)' || true)
+            --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)
+          echo "Previous revision: ${rev:-none (first deploy)}"
           echo "revision=${rev}" >> "$GITHUB_OUTPUT"
 
-      # Runs as overheard-run, which can read only OverHeard's report-relay secrets. --set-secrets
-      # attaches them from Secret Manager (docs/REPORTS.md); other settings on the service are kept.
+      # The service is `overheard` (renamed from `over-heard` on 2026-11-28). Every setting it needs is
+      # set here, so a deploy can create it from scratch and nothing is hand-set in the console:
+      # - runs as overheard-run, which can read only OverHeard's own secrets;
+      # - --set-secrets attaches the Translate key and the report-relay settings from Secret Manager;
+      # - SHORT_LINK_BASE turns on bpmdata.github.io/<room> student links (server/shortLink.ts);
+      # - --max-instances 1 and --session-affinity keep every live room in one process (ROOMS.md).
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy over-heard \
+          gcloud run deploy overheard \
             --source . \
             --region us-east1 \
             --project loyal-rookery-403218 \
             --allow-unauthenticated \
             --port 3000 \
+            --memory 3Gi \
+            --cpu 1 \
             --max-instances 1 \
             --concurrency 1000 \
             --timeout 3600 \
+            --session-affinity \
             --command "" \
             --args "" \
             --service-account overheard-run@loyal-rookery-403218.iam.gserviceaccount.com \
-            --set-secrets REPORT_RELAY_URL=overheard-report-relay-url:latest,REPORT_RELAY_SECRET=overheard-report-relay-secret:latest \
+            --set-secrets GOOGLE_TRANSLATE_API_KEY=overheard-google-translate-api-key:latest,REPORT_RELAY_URL=overheard-report-relay-url:latest,REPORT_RELAY_SECRET=overheard-report-relay-secret:latest \
+            --update-env-vars CLOUD_TRANSLATE_DAILY_CHARS=100000,SHORT_LINK_BASE=https://bpmdata.github.io \
             --update-labels "managed-by=github-actions,commit-sha=${GITHUB_SHA}" \
             --quiet
 
