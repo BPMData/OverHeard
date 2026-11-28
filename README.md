@@ -65,9 +65,7 @@ Copy `.env.example` to `.env` for local configuration. OverHeard starts with zer
 | `TRUST_PROXY_HOPS` | Proxy hops trusted for client IP rate-limit checks | `1` |
 | `RATE_LIMIT_MT_PER_SESSION` | Per-minute `/api/mt` requests per browser tab | `900` |
 | `RATE_LIMIT_IP_MULTIPLIER` | Per-IP multiplier over per-session limits | `10` |
-| `REPORT_GITHUB_TOKEN` | Optional token that lets the server file problem reports as issues ([docs/REPORTS.md](docs/REPORTS.md)) | Unset |
-| `REPORT_GITHUB_REPO` | Repository that gets problem-report issues | `BPMData/overheard` |
-| `REPORT_RELAY_URL` / `REPORT_RELAY_SECRET` | Optional Apps Script relay that emails problem reports to the shared inbox | Unset |
+| `REPORT_RELAY_URL` / `REPORT_RELAY_SECRET` | The shared report relay (OverBoard's Apps Script) that files problem-report issues and emails the shared inbox. Set from Secret Manager by the deploy ([docs/REPORTS.md](docs/REPORTS.md)) | Unset |
 | `VITE_GOOGLE_CLIENT_ID` | Optional build-time override for Google OAuth Web Client ID | Shared default in `src/lib/googleConfig.ts` |
 | `VITE_GOOGLE_API_KEY` | Optional build-time override for Google Picker API key | Shared default in `src/lib/googleConfig.ts` |
 | `VITE_GOOGLE_APP_ID` | Optional build-time override for Google Cloud Project number | Shared default in `src/lib/googleConfig.ts` |

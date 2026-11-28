@@ -17,7 +17,7 @@ don't reach the caption shortcuts (Space, Shift) behind it.
 
 | Part | Where it goes |
 | --- | --- |
-| What went wrong, what happened, how to make it happen again, diagnostics | **Public** GitHub issue in `BPMData/overheard`, labeled `user-report`, and the email |
+| What went wrong, what happened, how to make it happen again, diagnostics | **Public** GitHub issue in `BPMData/OverHeard`, labeled `user-report`, and the email |
 | Other comments, contact email | **Private**: the email only, never the issue |
 
 The last step shows both parts exactly as they will be sent. Nothing is sent until the person
@@ -32,9 +32,9 @@ information, room codes, PINs or saved lessons. The server drops any diagnostic 
 removes email addresses and phone numbers from the public text, and puts the reporter's words in
 plain-text blocks so they can't mention people or embed images.
 
-Every email goes to **overboard.reporting@gmail.com** (the inbox OverBoard uses) with a subject
-starting `[OverHeard]`, so OverHeard and OverBoard reports are easy to tell apart. When an issue
-was filed, the subject ends with its number and the email links to it.
+Every email goes to **overboard.reporting@gmail.com** (the inbox OverBoard, AllAboard and AllHail
+use too) with a subject starting `[OverHeard]`, so the apps' reports are easy to tell apart. When
+an issue was filed, the subject ends with its number and the email links to it.
 
 ## When it can't send
 
@@ -43,48 +43,47 @@ same report with **Copy report**, **Download report** and **Open an email** (add
 shared inbox) and asks them to email it there. If the issue was filed but the email failed, it
 says the private part didn't go through and offers the same choices for it.
 
-## Setup (owner)
+## How it is delivered
 
-Both delivery paths are optional and independent. With neither, the app runs normally and the
-form uses the manual fallback. Set the values as environment variables on the Cloud Run service
-`over-heard` (Console → Cloud Run → over-heard → Edit & deploy new revision → Variables &
-Secrets). Deploys from GitHub keep them. Secret Manager references work too.
+OverHeard uses the **shared report relay**: OverBoard's Google Apps Script web app
+(`tools/report-relay.gs` in [BPMData/OverBoard](https://github.com/BPMData/OverBoard)), running
+under the reporting Gmail account. AllAboard and AllHail send their reports through the same relay.
 
-### 1. Public GitHub issues
+1. The browser posts the report to this server's `/api/report`. It never sees a credential.
+2. The server checks it, writes the public issue text and the private email text, and posts
+   both to the relay with OverHeard's shared secret:
+   `{ app: "OverHeard", kind: "problem-report", token, issue: { title, body, labels }, email: { subject, body, replyTo? } }`
+   (as `text/plain`, following the Apps Script redirect). Only `email` holds contact details or
+   private comments.
+3. The relay checks the secret against its `OVERHEARD_TOKEN` script property, opens the issue in
+   `BPMData/OverHeard` with its own GitHub token, emails the inbox, and answers
+   `{ ok, issue, url, emailed }`. OverHeard holds no GitHub token.
 
-1. On GitHub: Settings → Developer settings → Fine-grained tokens → Generate new token.
-   Resource owner **BPMData**, repository access **Only select repositories → overheard**,
-   permission **Issues: Read and write**. Nothing else.
-2. In the overheard repository, create the label **user-report** (Issues → Labels) so reports
-   are easy to filter.
-3. Set `REPORT_GITHUB_TOKEN` to the token. `REPORT_GITHUB_REPO` defaults to `BPMData/overheard`.
+The relay's limits are shared by all four apps: 20 reports an hour and 40 a day in total.
 
-The token stays on the server; the browser only ever talks to `/api/report`.
+## Settings (owner)
 
-### 2. Private email relay
+Two environment variables on the Cloud Run service `over-heard`, both from **Secret Manager** in
+project `loyal-rookery-403218`:
 
-1. Signed in as **overboard.reporting@gmail.com**, open <https://script.google.com> → New project.
-2. Replace the code with [`tools/report-relay.gs`](../tools/report-relay.gs).
-3. Project Settings → Script properties → add `RELAY_SECRET` with a long random value.
-4. Run `sendTestEmail` once from the editor and allow the permissions it asks for. A test email
-   should arrive in the inbox.
-5. Deploy → New deployment → Web app. Execute as **Me**, Who has access **Anyone**. Copy the
-   `/exec` URL.
-6. Set `REPORT_RELAY_URL` to that URL and `REPORT_RELAY_SECRET` to the same secret.
+| Variable | Secret |
+| --- | --- |
+| `REPORT_RELAY_URL` | `overheard-report-relay-url` (the relay's `/exec` URL) |
+| `REPORT_RELAY_SECRET` | `overheard-report-relay-secret` (the same value as the relay's `OVERHEARD_TOKEN`) |
 
-The relay only ever sends to the reporting inbox, whatever a request says, and ignores requests
-without the secret. When you change the script, deploy a new version of the same deployment so
-the URL stays the same.
+`deploy.yml` attaches them on every deploy with `--set-secrets`, and runs the service as
+`overheard-run@loyal-rookery-403218.iam.gserviceaccount.com`, which may read only these two
+secrets. Don't set them in the Cloud Run console. To change one, add a new version of the secret;
+the next deploy picks it up. With either missing, the app runs normally and the form uses the
+manual fallback.
 
-This relay was written for OverHeard without OverBoard's relay at hand. If OverBoard's relay is
-already deployed from the same account and you'd rather run one, it needs to accept this JSON
-body (posted as `text/plain`) and answer `{"ok": true}` after sending:
-`{ secret, app, to, subject, text, replyTo, issueUrl }`.
+The relay's own setup (its GitHub token, script properties, and publishing a new version) is
+documented with the relay in OverBoard.
 
 ### 3. Check it
 
-- Open `https://<service>/api/report/status`. It shows `"automatic": true` once either path is
-  set, plus the running revision.
+- Open `https://<service>/api/report/status`. It shows `"automatic": true` once both settings are
+  there, plus the running revision. The deploy's last check fails if it isn't.
 - Send a test report from the app (pick "Something else", write "Test report"). Check that the
   issue appears with the `user-report` label and the email arrives with any private comment.
 - The server log has one `[report]` line per report with only the category, issue number and

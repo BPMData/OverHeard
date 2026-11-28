@@ -59,6 +59,8 @@ jobs:
             --format='value(status.latestReadyRevisionName)' || true)
           echo "revision=${rev}" >> "$GITHUB_OUTPUT"
 
+      # Runs as overheard-run, which can read only OverHeard's report-relay secrets. --set-secrets
+      # attaches them from Secret Manager (docs/REPORTS.md); other settings on the service are kept.
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy over-heard \
@@ -72,6 +74,8 @@ jobs:
             --timeout 3600 \
             --command "" \
             --args "" \
+            --service-account overheard-run@loyal-rookery-403218.iam.gserviceaccount.com \
+            --set-secrets REPORT_RELAY_URL=overheard-report-relay-url:latest,REPORT_RELAY_SECRET=overheard-report-relay-secret:latest \
             --update-labels "managed-by=github-actions,commit-sha=${GITHUB_SHA}" \
             --quiet
 

@@ -31,7 +31,10 @@ a reference but must not be edited.
 - Keep all API keys server-only. Preserve graceful fallbacks when environment variables
   are missing; do not require new keys just to start the app. Production keys and settings
   are environment variables on the Cloud Run service itself (Console → Edit & deploy new
-  revision → Variables & Secrets); `deploy.yml` does not set them, so deploys keep them.
+  revision → Variables & Secrets); `deploy.yml` does not set them, so deploys keep them. The one
+  exception is the problem-report relay settings (`REPORT_RELAY_URL`, `REPORT_RELAY_SECRET`):
+  `deploy.yml` attaches them from Secret Manager and runs the service as `overheard-run`
+  (docs/REPORTS.md).
 
 ## Required verification
 

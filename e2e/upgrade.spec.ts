@@ -13,7 +13,7 @@ test('an installed classroom app upgrades its saved runtime and reopens offline'
     distPath: dist,
     trustProxyHops: 0,
     mt: { mtChain: ['gtx'], mtPerSession: 10, ipLimitMultiplier: 1, cloudDailyChars: 0, shortLinkBase: null },
-    report: { githubRepo: '', appVersion: 'test' },
+    report: { appVersion: 'test' },
   });
   const server = app.listen(0, '127.0.0.1');
   try {
