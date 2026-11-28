@@ -1505,3 +1505,148 @@ button.lecture-pip-btn.lecture-pip-btn:not(.is-open) {
     padding: 4px 10px;
   }
 }
+
+/* Phones (keep in step with PHONE_QUERY in PhoneMenu.tsx). Lecture, Two-way and the student
+   room show their main controls in one or two rows; the rest waits in the More sheet. */
+.oh-phone-toolbar {
+  gap: 8px;
+  padding: 6px 8px;
+}
+.oh-phone-toolbar > .conversation-control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.oh-phone-toolbar > .oh-phone-more {
+  margin-left: auto;
+}
+.oh-phone-toolbar-main {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.oh-phone-toolbar-main .conversation-start {
+  flex: 1 1 auto;
+}
+.oh-phone-toolbar :is(button, select, a),
+.oh-phone-toolbar input:not([type='checkbox']):not([type='radio']),
+.oh-phone-toolbar label:has(> input[type='checkbox']) {
+  min-height: 44px;
+}
+.oh-phone-toolbar .conversation-submode button {
+  min-height: 38px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+.oh-phone-toolbar .conversation-font-controls button,
+.oh-phone-sheet .conversation-font-controls button {
+  min-width: 44px;
+}
+/* Inside the sheet, each side of a two-way conversation gets its own full-width row */
+.oh-phone-sheet .conversation-settings fieldset,
+.oh-phone-sheet fieldset {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+.conversation-dark .oh-phone-sheet fieldset {
+  border-color: #243044;
+}
+.oh-phone-sheet fieldset input:not([type='checkbox']) {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.oh-phone-sheet label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.oh-phone-sheet select {
+  max-width: 100%;
+}
+@media (max-width: 399px) {
+  .oh-phone-toolbar .conversation-brand span {
+    display: none;
+  }
+}
+@media (max-width: 639px), (max-height: 500px) and (max-width: 1023px) {
+  .conversation-mode {
+    padding: 6px;
+    gap: 6px;
+  }
+  .conversation-mode footer :is(summary, button, select),
+  .conversation-mode footer input {
+    min-height: 44px;
+  }
+  .conversation-mode footer summary {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  .conversation-mode form input {
+    font-size: 16px; /* 16px stops phones zooming in when the field is tapped */
+  }
+  .conversation-mode .conversation-bubble button,
+  .lecture-play-actions button {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  .conversation-mode .f2f-divider {
+    gap: 6px;
+    font-size: 14px;
+  }
+  .conversation-mode .f2f-divider button {
+    min-height: 44px;
+    padding: 4px 10px;
+  }
+  .conversation-mode button.f2f-talk {
+    min-height: 52px;
+    font-size: 18px;
+  }
+  .conversation-mode button.f2f-swap {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+/* A phone on its side has little height: the one-line hints give it back to the text */
+@media (max-height: 500px) and (max-width: 1023px) {
+  .conversation-help {
+    display: none;
+  }
+}
+/* A phone held upright: one lecture column, each line followed by its translations */
+@media (max-width: 639px) {
+  .lecture-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .lecture-col-header {
+    display: none;
+  }
+  .lecture-cell {
+    border-right: none;
+  }
+  .lecture-cell-en {
+    border-top: 2px solid rgba(88, 67, 165, 0.35);
+  }
+  .lecture-cell[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #5843a5;
+  }
+  .conversation-dark .lecture-cell[data-label]::before {
+    color: #c4b5fd;
+  }
+}

@@ -5,6 +5,7 @@ import { openProblemReport } from '../report/ProblemReportModal';
 import { LectureTranscript } from '../components/LectureTranscript';
 import { VoiceSettingsModal } from '../components/VoiceSettingsModal';
 import { WhiteboatIcon } from '../components/WhiteboatIcon';
+import { PhoneMenu, PhoneMenuSection, useIsPhone } from '../components/PhoneMenu';
 import { LANGUAGE_MAP, SUPPORTED_LANGUAGES } from '../constants';
 import {
   PACK_NEEDS_CLICK,
@@ -144,9 +145,167 @@ export function StudentRoom({ code }: { code: string }) {
     live: connected ? { interim: snapshot?.interim || '', translate: translateLive, suspendSpeech: true } : null,
   });
   const adjustFont = (delta: number) => setFontSize((value) => Math.min(56, Math.max(20, value + delta)));
+  const phone = useIsPhone();
+  const translateSelect = (
+    <>
+      <label title={onDeviceOnly ? STUDENT_ONLY_LOCAL_TIP : STUDENT_DEVICE_FIRST_TIP}>
+        Translate
+        <select
+          aria-label="Translate"
+          value={onDeviceOnly ? 'on-device' : 'auto'}
+          onChange={(event) => {
+            const next = event.target.value === 'on-device';
+            setOnDeviceOnly(next);
+            // Choosing it is a click, so start this language's download now
+            if (next && language !== 'en') prepareOnDeviceTranslators([language]);
+          }}
+        >
+          <option value="auto" title={STUDENT_DEVICE_FIRST_TIP}>
+            On-device first
+          </option>
+          <option value="on-device" disabled={!isOnDeviceTranslationSupported()} title={STUDENT_ONLY_LOCAL_TIP}>
+            Only on this device{isOnDeviceTranslationSupported() ? '' : ' (needs a newer browser)'}
+          </option>
+        </select>
+      </label>
+    </>
+  );
+  const downloadControls = (
+    <>
+      {needsLocalPack && downloadOffer === language && (
+        <button
+          type="button"
+          onClick={() => {
+            setDownloadOffer(null);
+            prepareOnDeviceTranslators([language], (code, progress) => {
+              if (code !== language) return;
+              // A Bergamot model waits for a click on a button that shows its size: this one.
+              if (progress === PACK_NEEDS_CLICK && waitingPackSize(code)) startWaitingPack(code);
+              else if (progress === null) {
+                setDownloadPct(null);
+                setDownloadOffer(language);
+              } else if (progress >= 1) setDownloadPct(null);
+              else if (progress >= 0) setDownloadPct(Math.round(progress * 100));
+            });
+          }}
+        >
+          {offerIsModel
+            ? `Download ${LANGUAGE_MAP[language as LanguageCode].name} for this device (${BERGAMOT_APPROXIMATE[language] ? `${BERGAMOT_APPROXIMATE[language]}, ` : ''}${bergamotDownloadLabel(language)})`
+            : 'Download language for this device'}
+        </button>
+      )}
+      {downloadPct !== null && (
+        <span role="status">
+          Downloading {LANGUAGE_MAP[language as LanguageCode]?.name}… {downloadPct}%
+        </span>
+      )}
+    </>
+  );
+  const voiceAndSettings = (
+    <>
+      <label>
+        Voice
+        <VoiceSelect
+          lang={language}
+          ariaLabel="Voice"
+          value={resolveVoiceId(language, voicePrefs)}
+          onChange={(nextVoice) => {
+            updateVoicePref(language, nextVoice);
+            if (nextVoice !== BROWSER_VOICE_ID) {
+              piperClient.preloadVoice(nextVoice);
+            }
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 oh-settings-btn"
+        onClick={() => setIsVoiceSettingsOpen(true)}
+        title="Choose default reader voices"
+      >
+        <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>Settings</span>
+      </button>
+    </>
+  );
+  const readAloudToggle = (
+    <>
+      <label>
+        <input
+          type="checkbox"
+          checked={readAloud}
+          onChange={(event) => {
+            const checked = event.target.checked;
+            setReadAloud(checked);
+            if (checked) {
+              piperClient.unlockAudio();
+              const activeVoice = resolveVoiceId(language, voicePrefs);
+              if (activeVoice !== BROWSER_VOICE_ID) {
+                piperClient.preloadVoice(activeVoice);
+              }
+            }
+          }}
+        />
+        Read aloud
+      </label>
+    </>
+  );
+  const playbackControls = (
+    <>
+      <PlaybackToolbar
+        status={playback.status}
+        downloadProgress={playback.downloadProgress}
+        onTogglePause={playback.togglePause}
+        onStop={playback.stop}
+      />
+    </>
+  );
+  const roomTools = (
+    <>
+      <LecturePip
+        state={state}
+        isDark={isDark}
+        fontSize={fontSize}
+        onAdjustFont={adjustFont}
+        prefsPrefix="overheard.studentPip"
+      />
+      <ExportLectureButton
+        state={{
+          entries: state.entries,
+          selectedLangs: language !== 'en' ? [language] : (snapshot?.selectedLangs ?? []),
+        }}
+        roomCode={code}
+      />
+      <button type="button" aria-label="Smaller text" onClick={() => adjustFont(-4)}>
+        A−
+      </button>
+      <button type="button" aria-label="Larger text" onClick={() => adjustFont(4)}>
+        A+
+      </button>
+      <button
+        type="button"
+        className="student-theme-btn"
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        onClick={() => setIsDark((value) => !value)}
+      >
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5"
+        onClick={() => openProblemReport()}
+        title="Something not working? Tell us in a few short steps"
+      >
+        <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
+        <span>Report a problem</span>
+      </button>
+      <a href="/">Leave room</a>
+    </>
+  );
   return (
     <main className={`conversation-mode ${isDark ? 'conversation-dark' : ''}`}>
-      <div className="conversation-settings">
+      <div className={`conversation-settings${phone ? ' oh-phone-toolbar' : ''}`}>
         <a
           href="/"
           className="conversation-brand"
@@ -177,139 +336,29 @@ export function StudentRoom({ code }: { code: string }) {
             ))}
           </select>
         </label>
-        <label title={onDeviceOnly ? STUDENT_ONLY_LOCAL_TIP : STUDENT_DEVICE_FIRST_TIP}>
-          Translate
-          <select
-            aria-label="Translate"
-            value={onDeviceOnly ? 'on-device' : 'auto'}
-            onChange={(event) => {
-              const next = event.target.value === 'on-device';
-              setOnDeviceOnly(next);
-              // Choosing it is a click, so start this language's download now
-              if (next && language !== 'en') prepareOnDeviceTranslators([language]);
-            }}
-          >
-            <option value="auto" title={STUDENT_DEVICE_FIRST_TIP}>
-              On-device first
-            </option>
-            <option value="on-device" disabled={!isOnDeviceTranslationSupported()} title={STUDENT_ONLY_LOCAL_TIP}>
-              Only on this device{isOnDeviceTranslationSupported() ? '' : ' (needs a newer browser)'}
-            </option>
-          </select>
-        </label>
-        {needsLocalPack && downloadOffer === language && (
-          <button
-            type="button"
-            onClick={() => {
-              setDownloadOffer(null);
-              prepareOnDeviceTranslators([language], (code, progress) => {
-                if (code !== language) return;
-                // A Bergamot model waits for a click on a button that shows its size: this one.
-                if (progress === PACK_NEEDS_CLICK && waitingPackSize(code)) startWaitingPack(code);
-                else if (progress === null) {
-                  setDownloadPct(null);
-                  setDownloadOffer(language);
-                } else if (progress >= 1) setDownloadPct(null);
-                else if (progress >= 0) setDownloadPct(Math.round(progress * 100));
-              });
-            }}
-          >
-            {offerIsModel
-              ? `Download ${LANGUAGE_MAP[language as LanguageCode].name} for this device (${BERGAMOT_APPROXIMATE[language] ? `${BERGAMOT_APPROXIMATE[language]}, ` : ''}${bergamotDownloadLabel(language)})`
-              : 'Download language for this device'}
-          </button>
+        {phone ? (
+          <>
+            {downloadControls}
+            {readAloudToggle}
+            {playbackControls}
+            <PhoneMenu title="Room controls">
+              <PhoneMenuSection title="Translation and voice">
+                {translateSelect}
+                {voiceAndSettings}
+              </PhoneMenuSection>
+              <PhoneMenuSection title="Captions and room">{roomTools}</PhoneMenuSection>
+            </PhoneMenu>
+          </>
+        ) : (
+          <>
+            {translateSelect}
+            {downloadControls}
+            {voiceAndSettings}
+            {readAloudToggle}
+            {playbackControls}
+            {roomTools}
+          </>
         )}
-        {downloadPct !== null && (
-          <span role="status">
-            Downloading {LANGUAGE_MAP[language as LanguageCode]?.name}… {downloadPct}%
-          </span>
-        )}
-        <label>
-          Voice
-          <VoiceSelect
-            lang={language}
-            ariaLabel="Voice"
-            value={resolveVoiceId(language, voicePrefs)}
-            onChange={(nextVoice) => {
-              updateVoicePref(language, nextVoice);
-              if (nextVoice !== BROWSER_VOICE_ID) {
-                piperClient.preloadVoice(nextVoice);
-              }
-            }}
-          />
-        </label>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 oh-settings-btn"
-          onClick={() => setIsVoiceSettingsOpen(true)}
-          title="Choose default reader voices"
-        >
-          <Settings className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Settings</span>
-        </button>
-        <label>
-          <input
-            type="checkbox"
-            checked={readAloud}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              setReadAloud(checked);
-              if (checked) {
-                piperClient.unlockAudio();
-                const activeVoice = resolveVoiceId(language, voicePrefs);
-                if (activeVoice !== BROWSER_VOICE_ID) {
-                  piperClient.preloadVoice(activeVoice);
-                }
-              }
-            }}
-          />
-          Read aloud
-        </label>
-        <PlaybackToolbar
-          status={playback.status}
-          downloadProgress={playback.downloadProgress}
-          onTogglePause={playback.togglePause}
-          onStop={playback.stop}
-        />
-        <LecturePip
-          state={state}
-          isDark={isDark}
-          fontSize={fontSize}
-          onAdjustFont={adjustFont}
-          prefsPrefix="overheard.studentPip"
-        />
-        <ExportLectureButton
-          state={{
-            entries: state.entries,
-            selectedLangs: language !== 'en' ? [language] : (snapshot?.selectedLangs ?? []),
-          }}
-          roomCode={code}
-        />
-        <button type="button" aria-label="Smaller text" onClick={() => adjustFont(-4)}>
-          A−
-        </button>
-        <button type="button" aria-label="Larger text" onClick={() => adjustFont(4)}>
-          A+
-        </button>
-        <button
-          type="button"
-          className="student-theme-btn"
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          onClick={() => setIsDark((value) => !value)}
-        >
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5"
-          onClick={() => openProblemReport()}
-          title="Something not working? Tell us in a few short steps"
-        >
-          <MessageSquareWarning className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Report a problem</span>
-        </button>
-        <a href="/">Leave room</a>
       </div>
       <p className="conversation-help">
         Follow your teacher’s captions in your language. Pop them out to keep reading while you work.

@@ -176,3 +176,139 @@ html:not(.dark) .room-join button:disabled {
 [lang|='ja'] .caption-text-ltr {
   font-family: 'Plus Jakarta Sans', 'Noto Sans JP', 'Noto Sans SC', system-ui, sans-serif;
 }
+
+/* Phone layout (src/components/PhoneMenu.tsx). On a phone the less-used controls move into
+   a sheet that a "More" button pops up from the bottom of the screen. Tablets and computers
+   never render the button or the sheet. */
+.oh-phone-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid #b6c2d2;
+  border-radius: 2px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dark .oh-phone-more,
+.conversation-dark .oh-phone-more {
+  border-color: #33435d;
+  background: #162033;
+  color: #f8fafc;
+}
+.oh-phone-more.is-open {
+  border-color: #5843a5;
+  box-shadow: inset 0 0 0 1px #5843a5;
+}
+.oh-phone-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: rgba(0, 0, 0, 0.5);
+}
+.oh-phone-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 10px;
+  max-height: 80vh;
+  max-height: 80dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 14px calc(16px + env(safe-area-inset-bottom));
+  border-top: 2px solid #5843a5;
+  border-radius: 10px 10px 0 0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  text-align: left;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3);
+}
+.dark .oh-phone-sheet,
+.conversation-dark .oh-phone-sheet {
+  border-top-color: #a78bfa;
+  background: #111827;
+  color: #f8fafc;
+}
+.oh-phone-sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1 0 100%;
+  margin: 0 -14px;
+  padding: 6px 6px 6px 14px;
+  background: inherit;
+  font-weight: 800;
+}
+.oh-phone-sheet .oh-phone-sheet-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.oh-phone-sheet-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1 0 100%;
+}
+.oh-phone-sheet-section > h3 {
+  flex: 1 0 100%;
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.oh-phone-sheet :is(button, select, input:not([type='checkbox']):not([type='radio']), summary, a) {
+  min-height: 44px;
+}
+.oh-phone-sheet label:has(> input[type='checkbox']) {
+  min-height: 44px;
+}
+.oh-phone-sheet[hidden],
+.oh-phone-backdrop[hidden] {
+  display: none;
+}
+
+/* Main screen header on a phone (AppHeader renders .oh-phone-header there) */
+.oh-phone-header :is(button, select, input:not([type='checkbox']):not([type='radio'])) {
+  min-height: 44px;
+}
+@media (max-width: 399px) {
+  .oh-phone-header .oh-brand-name {
+    display: none;
+  }
+}
+/* The File menu drops down in place inside the sheet instead of floating off its edge */
+.oh-phone-sheet .oh-file-menu-list {
+  position: static;
+  margin-top: 4px;
+  width: 100%;
+}
+.oh-phone-sheet .room-join input {
+  width: 160px;
+  min-height: 44px;
+}
+.oh-phone-sheet .room-join button {
+  min-height: 44px;
+}

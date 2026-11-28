@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 // Phone-sized checks for every main view. Each view must fit the screen width (no sideways
@@ -65,28 +65,40 @@ async function check(page: Page, size: string, view: string) {
   if (SHOTS) {
     mkdirSync(SHOT_DIR, { recursive: true });
     await page.screenshot({ path: `${SHOT_DIR}/${size}-${view}.png` });
-    console.log(
+    const line =
       `[phone] ${size} ${view}: overflow=${report.overflow}px tinyText=${report.tinyText} ` +
-        `offscreen=${JSON.stringify(report.offscreen)} small=${JSON.stringify(report.small)}`
-    );
+      `offscreen=${JSON.stringify(report.offscreen)} small=${JSON.stringify(report.small)}`;
+    console.log(line);
+    appendFileSync(`${SHOT_DIR}/report.txt`, `${line}\n`);
   }
   return report;
+}
+
+/** On a phone the less-used controls sit in the More sheet: open it, use them, close it. */
+async function inMore(page: Page, use: () => Promise<unknown>, close = true) {
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await use();
+  if (close) await page.getByRole('button', { name: 'Close more controls' }).click();
 }
 
 async function openApp(page: Page) {
   await mockTranslation(page);
   await page.goto('/?langs=es,pt');
-  await page.getByRole('combobox').first().selectOption('gtx');
+  await inMore(page, () => page.getByRole('combobox').first().selectOption('gtx'));
+}
+
+async function toggleTestInput(page: Page) {
+  await inMore(page, () => page.getByRole('button', { name: 'Test Input' }).click());
 }
 
 async function addCaption(page: Page) {
-  await page.getByRole('button', { name: 'Test Input' }).click();
+  await toggleTestInput(page);
   await page
     .getByPlaceholder('Type an English classroom sentence to test translation silently…')
     .fill('Today we will learn about photosynthesis.');
   await page.getByRole('button', { name: 'Translate', exact: true }).click();
   await expect(page.getByText('[es] Today we will learn about photosynthesis.').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Test Input' }).click();
+  await toggleTestInput(page);
 }
 
 async function openTwoWay(page: Page) {
@@ -114,7 +126,11 @@ const views: Record<string, (page: Page) => Promise<void>> = {
   'columns-empty': openApp,
   'test-input': async (page) => {
     await openApp(page);
-    await page.getByRole('button', { name: 'Test Input' }).click();
+    await toggleTestInput(page);
+  },
+  'more-sheet': async (page) => {
+    await openApp(page);
+    await inMore(page, async () => {}, false);
   },
   columns: async (page) => {
     await openApp(page);
@@ -139,23 +155,40 @@ const views: Record<string, (page: Page) => Promise<void>> = {
   },
   guide: async (page) => {
     await openApp(page);
-    await page.getByRole('button', { name: 'How to use OverHeard: Guide, FAQ, and Privacy' }).first().click();
+    await inMore(
+      page,
+      () => page.getByRole('button', { name: 'How to use OverHeard: Guide, FAQ, and Privacy' }).first().click(),
+      false
+    );
   },
   report: async (page) => {
     await openApp(page);
-    await page.getByRole('button', { name: 'Something not working? Report a problem' }).first().click();
+    await inMore(
+      page,
+      () => page.getByRole('button', { name: 'Something not working? Report a problem' }).first().click(),
+      false
+    );
   },
   'two-way': openTwoWay,
   'two-way-messages': async (page) => {
     await openTwoWay(page);
     await sendTwoWayMessages(page);
   },
+  'two-way-more': async (page) => {
+    await openTwoWay(page);
+    await inMore(page, async () => {}, false);
+  },
   'face-to-face': async (page) => {
     await openTwoWay(page);
     await sendTwoWayMessages(page);
-    await page.getByLabel('Layout').selectOption('face-to-face');
+    // Face to face hides the toolbar, sheet included, once it is chosen
+    await inMore(page, () => page.getByLabel('Layout').selectOption('face-to-face'), false);
   },
   lecture: openLecture,
+  'lecture-more': async (page) => {
+    await openLecture(page);
+    await inMore(page, async () => {}, false);
+  },
   'lecture-lines': async (page) => {
     await openLecture(page);
     await page.getByText('Type a line', { exact: true }).click();
@@ -189,6 +222,10 @@ const views: Record<string, (page: Page) => Promise<void>> = {
     expect(put.ok()).toBe(true);
     await page.goto(`/?room=${encodeURIComponent(code)}`);
     await expect(page.getByText('Plants turn sunlight into food in their leaves.')).toBeVisible();
+  },
+  'student-more': async (page) => {
+    await views.student(page);
+    await inMore(page, async () => {}, false);
   },
 };
 

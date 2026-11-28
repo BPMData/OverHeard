@@ -60,3 +60,6 @@ jobs:
           name: phone-screenshots
           path: phone-screenshots/
           if-no-files-found: ignore
+      - name: Phone layout report
+        if: ${{ !cancelled() }}
+        run: sort phone-screenshots/report.txt 2>/dev/null || echo "no phone report"

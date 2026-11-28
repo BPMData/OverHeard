@@ -42,7 +42,7 @@ export function ColumnsView({
         : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
 
   return (
-    <main className="flex-1 p-4 lg:p-6 flex flex-col">
+    <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col">
       <div className={`flex-1 grid ${gridColsClass} gap-4 lg:gap-6 items-stretch`}>
         {/* Column 0: English Source Column */}
         <section
@@ -61,7 +61,7 @@ export function ColumnsView({
             )}
           </div>
 
-          <div className="flex-1 flex flex-col justify-between p-6 lg:p-8 gap-6">
+          <div className="flex-1 flex flex-col justify-between p-4 sm:p-6 lg:p-8 gap-6">
             {/* Previous Line (0.68x font size, muted, above hairline divider) */}
             {showPreviousLine && (
               <div className="border-b border-[#E2E8F0] dark:border-[#1E293B] pb-5 min-h-[4.5rem] flex flex-col justify-end">
