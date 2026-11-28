@@ -2,7 +2,7 @@
 
 Anyone using OverHeard can report a bug without a GitHub account. The form is a few short
 steps: pick what went wrong, say what happened and how to make it happen again (both optional),
-add private comments or an email for a reply (optional), then check everything and send.
+add private comments or an email to hear when it’s fixed (optional), then check everything and send.
 
 ## Where to find it
 
@@ -59,7 +59,7 @@ under the reporting Gmail account. AllAboard and AllHail send their reports thro
    `BPMData/OverHeard` with its own GitHub token, emails the inbox, and answers
    `{ ok, issue, url, emailed }`. OverHeard holds no GitHub token.
 
-The relay's limits are shared by all four apps: 20 reports an hour and 40 a day in total.
+The relay's limits are shared by all four apps: 60 reports an hour and 70 a day in total.
 
 ## Settings (owner)
 
@@ -91,5 +91,7 @@ documented with the relay in OverBoard.
 
 Each address may send 5 reports per 10 minutes.
 
-Email acknowledgements to the reporter and follow-up when a fix ships are not set up; the form
-doesn't promise either.
+There's no thank-you email: the form shows "Thank you. Your report was sent." once the relay has the
+report. If the reporter gave an email, the shared relay sends them one "here's what we changed"
+email when the issue is **closed as completed**, and nothing else. An issue closed as not planned
+or as a duplicate sends nothing.

@@ -373,7 +373,7 @@ export function ProblemReportModal({ onClose, fetchImpl = (...args) => fetch(...
           />
         </label>
         <label className="block space-y-1">
-          <span className="font-semibold">Your email, if you want a reply (optional)</span>
+          <span className="font-semibold">Your email, if you want to hear when it’s fixed (optional)</span>
           <input
             type="email"
             className={fieldClass}
