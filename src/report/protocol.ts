@@ -74,7 +74,7 @@ export interface ProblemReport {
   diagnostics: Diagnostics;
   /** Anything else the reporter wants to say. Private: email only. */
   comments: string;
-  /** Optional email or name for a reply. Private: email only. */
+  /** Optional email (or name). An email gets one message when the issue is fixed. Private: email only. */
   contact: string;
 }
 
