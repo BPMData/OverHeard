@@ -192,6 +192,7 @@ export function LectureTranscript({
                       className={`lecture-cell ${isCellActive ? 'lecture-cell-speaking' : ''}`}
                       dir={lang.dir}
                       lang={code}
+                      data-label={lang.name}
                     >
                       {translated ? (
                         <>
@@ -243,7 +244,13 @@ export function LectureTranscript({
                 const color = languageCaptionColor(langIndex);
                 const liveText = liveTranslations[code];
                 return (
-                  <div key={`live-${code}`} className="lecture-cell lecture-cell-live" dir={lang.dir} lang={code}>
+                  <div
+                    key={`live-${code}`}
+                    className="lecture-cell lecture-cell-live"
+                    dir={lang.dir}
+                    lang={code}
+                    data-label={lang.name}
+                  >
                     {liveText ? (
                       <div
                         style={{ fontSize }}

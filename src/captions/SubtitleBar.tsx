@@ -57,7 +57,7 @@ export function SubtitleBar({
             <button
               type="button"
               onClick={handleTogglePip}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[2px] border text-xs font-bold whitespace-nowrap transition-colors ${
+              className={`oh-phone-tap inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[2px] border text-xs font-bold whitespace-nowrap transition-colors ${
                 pipWindow
                   ? 'border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
                   : 'oh-btn border-[#CBD5E1] dark:border-[#2B3952] bg-[#F8FAFC] dark:bg-[#162033] text-[#A16207] dark:text-[#FACC15] hover:bg-[#EDF2F7] dark:hover:bg-[#1E293B]'
@@ -101,11 +101,11 @@ export function SubtitleBar({
       {/* Fixed Bottom Subtitle Bar */}
       <section
         aria-label="Bottom Subtitle Bar"
-        className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#5843A5] dark:border-[#A78BFA] bg-white dark:bg-[#111827] px-6 py-4"
+        className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-[#5843A5] dark:border-[#A78BFA] bg-white dark:bg-[#111827] px-3 py-3 sm:px-6 sm:py-4"
       >
         <div className="max-w-7xl mx-auto flex flex-col gap-2.5">
           {/* Top Row: English Caption + Language Switcher Pill */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="flex-1 min-w-0">
               {showPreviousLine && previousSegment && (
                 <p
@@ -137,7 +137,7 @@ export function SubtitleBar({
 
             {/* Target Language Switcher when >1 language is checked */}
             {selectedLangs.length > 1 && (
-              <div className="flex items-center gap-1 p-1 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#EAEFF6] dark:bg-[#090D16] shrink-0">
+              <div className="flex flex-wrap self-start items-center gap-1 p-1 rounded-[2px] border border-[#CBD5E1] dark:border-[#2B3952] bg-[#EAEFF6] dark:bg-[#090D16] shrink-0">
                 {selectedLangs.map((code, langIndex) => {
                   const cfg = LANGUAGE_MAP[code];
                   const active = code === activeSubtitleLang;
@@ -146,7 +146,7 @@ export function SubtitleBar({
                       key={code}
                       type="button"
                       onClick={() => setSubtitleLang(code)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] text-xs font-bold transition-colors whitespace-nowrap ${
+                      className={`inline-flex items-center gap-1.5 oh-phone-tap px-2.5 py-1 rounded-[2px] text-xs font-bold transition-colors whitespace-nowrap ${
                         active
                           ? 'oh-btn-primary border border-[#443180] bg-[#5843A5] dark:bg-[#6D56C6] text-white'
                           : 'text-[#475569] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white'

@@ -28,6 +28,8 @@ interface TwoWaySettingsProps {
   exportJson: () => void;
   importJson: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   fileInput: RefObject<HTMLInputElement | null>;
+  /** False on a phone, where Start sits outside the More sheet */
+  showStart?: boolean;
 }
 
 export function TwoWaySettings({
@@ -42,6 +44,7 @@ export function TwoWaySettings({
   exportJson,
   importJson,
   fileInput,
+  showStart = true,
 }: TwoWaySettingsProps) {
   const sameLanguage = settings.a.lang === settings.b.lang;
   return (
@@ -141,13 +144,15 @@ export function TwoWaySettings({
         </label>
       )}
       {!sameLanguage && translatorPicker}
-      <button
-        className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
-        onClick={speech.isListening ? speech.stop : start}
-        disabled={!speech.supported}
-      >
-        {speech.isListening ? 'Pause conversation' : 'Start conversation'}
-      </button>
+      {showStart && (
+        <button
+          className={`conversation-start ${speech.isListening ? 'is-listening' : ''}`}
+          onClick={speech.isListening ? speech.stop : start}
+          disabled={!speech.supported}
+        >
+          {speech.isListening ? 'Pause conversation' : 'Start conversation'}
+        </button>
+      )}
       <button
         onClick={() => {
           if (window.confirm('Clear the whole conversation?')) onClear();

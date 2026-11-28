@@ -69,7 +69,7 @@ export function FileMenu({
       {/* Kept mounted while closed so a Drive pick in progress survives the menu closing */}
       <div
         hidden={!open}
-        className="absolute right-0 top-full mt-1 z-40 min-w-[200px] p-1 rounded-[3px] border border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#111827] shadow-lg shadow-black/20 dark:shadow-black/50"
+        className="oh-file-menu-list absolute right-0 top-full mt-1 z-40 min-w-[200px] p-1 rounded-[3px] border border-[#CBD5E1] dark:border-[#2B3952] bg-white dark:bg-[#111827] shadow-lg shadow-black/20 dark:shadow-black/50"
       >
         <button
           type="button"
