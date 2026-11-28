@@ -38,7 +38,7 @@ To reproduce device-specific speech behavior, open the app with `?debugSpeech=1`
 | Decision | Choice made | Why (and what alternatives were avoided) |
 |---|---|---|
 | **Student room transport** | **Server-Sent Events (`EventSource`)** on `/api/rooms/:code/events` (`server/rooms.ts`) | Students are strictly read-only listeners of teacher transcripts. SSE uses plain HTTP, reconnects automatically on flaky school Wi-Fi, requires no WebSocket client bundle, and avoids Socket.IO overhead. Requires `--concurrency 1000` and `--timeout 3600` on Cloud Run (`ROOMS.md`). |
-| **Live room storage** | **In-memory per process** (max 100 rooms, 200 readers/room, 8 h idle TTL) | Temporary live rooms avoid database/bucket ops and keep student sync fast. Trade-off: Cloud Run must stay at **max instances = 1** and deploys clear active live rooms; durable copies use portable JSON export/import and Google Drive. |
+| **Live room storage** | **In-memory per process** (max 100 rooms, 200 readers/room, 8 h idle TTL) | Temporary live rooms avoid database/bucket ops and keep student sync fast. Trade-off: Cloud Run must stay at **max instances = 1** and deploys clear active live rooms. Teachers can export portable JSON or save a lecture file through the browser’s Google Drive integration. Real-account Drive verification is tracked in TODO.md. Durable server-side rooms remain future work. |
 | **Translation chain** | **Device-first** (Chrome Translator API → Bergamot / Opus-MT WASM) → `/api/mt` (`gtx` → optional `google-cloud`) | Minimizes latency and API spend in classrooms. Live interim speech and student pages send `freeOnly: true` so speculative typing/speaking never spends paid Google Cloud quota. Pending identical `/api/mt` requests coalesce in memory (`server/mt.ts`). |
 | **Single-threaded WASM + OAuth headers** | `Cross-Origin-Opener-Policy: same-origin-allow-popups`, **no `COEP`** (`server/app.ts`) | Setting `COEP: require-corp` would unlock multi-threaded WASM (`SharedArrayBuffer`), but breaks Google OAuth sign-in popups and cross-origin Google Picker iframes (`cross-origin-resource-policy: same-site`). Piper, Meta MMS, Bergamot, and Opus-MT all run cleanly single-threaded in Web Workers. |
 | **Dual neural TTS engines** | **Piper TTS** (`@mintplex-labs/piper-tts-web`) + **Meta MMS** (`src/tts/mmsEngine.ts`) in one worker (`src/tts/piperWorker.ts`) | Piper covers major languages well with eSpeak/pinyin phonemes, while low-resource languages (Swahili, Haitian Creole, Somali, Indonesian, Turkish) use character-tokenized Meta MMS VITS models (`int8` ONNX). Both cache in OPFS and fall back to `window.speechSynthesis`. |
@@ -55,7 +55,7 @@ server/
   app.ts                Express middleware (COOP header), room router, static dist/ headers & SPA fallback
   routes/mt.ts          /api/config, /api/mt, per-session & per-IP rate limits, [usage] logger
   report.ts             /api/report and /api/report/status: problem reports to a GitHub issue and the email relay (docs/REPORTS.md)
-  development.ts        Vite middleware and dev-only /ort/ & /piper/ WASM routes (lazy-imported only in dev)
+  development.ts        Vite middleware and dev-only /ort/, /piper/ & /bergamot/ runtime routes (lazy-imported only in dev)
   mt.ts                 Provider chain (gtx / google-cloud), 10-min benching, pending-request coalescing
   rooms.ts              In-memory live rooms, salted PIN hash + bearer token rotation, SSE delta/snapshot stream
   budget.ts, rateLimit.ts, usage.ts, clientKeys.ts, shortLink.ts, config.ts
@@ -63,7 +63,7 @@ server/
 
 src/
   main.tsx              Routes ?room= or /<code> to StudentRoom; otherwise mounts App
-  App.tsx               Thin shell (~299 lines): picks Columns / Subtitle / Conversation and wires hooks to views
+  App.tsx               App shell: picks Columns / Subtitle / Conversation and wires hooks to views
   app/                  useAppSettings (theme, font, ?langs=, mode), useBrowserSupport, usePackProgress, banners
   speech/               Shared recognizer setup/teardown (recognition.ts), useCaptionSpeech, Space hotkey, types
   captions/             useCaptionTranscript, useColumnPlayback, ColumnsView, SubtitleBar, TestInputBar
@@ -72,7 +72,7 @@ src/
   pip/                  usePipWindow, copyStyles (Document Picture-in-Picture lifecycle & theme sync)
   header/               AppHeader, ListenButton, FontSizeControls, DisplayModeSwitch, TranslatorPicker, ClearTranscriptButton
   components/
-    ConversationMode.tsx  Shared Two-way & Lecture workspace coordinator (~275 lines)
+    ConversationMode.tsx  Shared Two-way & Lecture workspace coordinator
     ConversationToolbar.tsx, LectureToolbar.tsx  Shared toolbar and lecture room controls
     TwoWayView.tsx, FaceToFaceView.tsx, LectureView.tsx, LectureTranscript.tsx, PipSubtitlePortal.tsx
     DriveLectureActions.tsx, DriveSaveModal.tsx, VoiceSettingsModal.tsx, LanguageModal.tsx,
@@ -99,23 +99,39 @@ src/
 
 ## 5. Development, setup, and verification
 
-- **Node version:** Node 22 (`node --version`).
-- **Dependencies:** `bun.lock` is the committed lockfile; npm (used in CI and `.github/workflows/deploy.yml`) installs with `npm install --legacy-peer-deps --no-audit --no-fund`. `package-lock.json` is intentionally gitignored (`.gitignore`), so never commit one.
-- **Zero-secret local dev:** No API keys are needed; `/api/mt` falls back to `gtx`, and Google Drive buttons use the public browser client config in `src/lib/googleConfig.ts` (or hide cleanly if unconfigured).
+Use Node 22 and install dependencies with `npm ci`. The repository and the Cloud Run source upload include `package-lock.json`. When changing dependencies, run `npm install` and include the updated lockfile in the same pull request. The repository’s `.npmrc` supplies the peer-dependency settings.
 
-Run all checks before merging:
+Local development needs no server keys. The server defaults to GTX. Browser Drive configuration lives in `src/lib/googleConfig.ts`.
+
+### Release checks
+
+| When | What runs |
+|---|---|
+| Pull request or push to main | [CI](.github/workflows/ci.yml) runs TypeScript and React hooks lint, Prettier, Vitest, the Vite build, a Node 22 syntax check, and the production smoke script. A separate Chromium job builds the app and runs the classroom flows and installed-app upgrade test. |
+| Push to main with a change outside Markdown, or manual deploy workflow | [Deployment](.github/workflows/deploy.yml) installs from the same npm lockfile and repeats lint, Vitest, build, syntax and smoke checks. The production browser upgrade test must pass before authentication. Prettier runs in CI. Markdown-only pushes skip deployment so a documentation edit preserves active rooms. |
+| Cloud Run source upload | Actions authenticates with the existing GitHub secret `GCP_SA_KEY`. The [upload check](scripts/check-upload.sh) verifies that gcloud includes the npm lockfile and excludes generated credential files. `gcloud run deploy --source .` sends the source to Google Cloud, where the Node buildpack installs dependencies and runs `gcp-build`. The service starts with `node server.ts` on port 3000. A missing `dist/index.html` stops startup. |
+
+To reproduce the checks with an unused port 3000 and Chromium installed:
 
 ```sh
+npm ci
 npm test -- --run
 npm run lint
+npx prettier --check .
 npm run build
 NODE_ENV=production node --check server.ts
 bash scripts/smoke.sh
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Note on `scripts/smoke.sh`: it starts the production server on port 3000 (requires `curl` and an unused port 3000) and verifies `/api/config`, `/api/mt` input validation, SPA loading, and room create/rejoin/SSE streaming.
+The smoke script checks the running production API, room authorization and streaming, shell cache headers, WASM bytes and missing asset responses. Playwright serves the built app with Node on port 3100 (`E2E_PORT` overrides it). The upgrade test serves two successive releases on its own loopback port and reopens the installed app offline.
 
-For Chromium browser tests, run `npx playwright install chromium` once, then `npm run test:e2e`. The harness starts a development server on port 3100 (override with `E2E_PORT`) and CI runs the suite separately.
+### Offline updates
+
+The [build step](scripts/build-offline.ts) copies the required ONNX, Piper and Bergamot engine files and writes the shell version, precache URLs and SHA-256 runtime hashes into the [service worker](public/sw.js). A missing engine file fails the build. HTML and the worker are served with `no-cache, no-store, must-revalidate` so browsers can discover a release.
+
+A first online visit saves the app shell. Engine files are cached on first use. During an update, the worker fetches and verifies changed files for engines this browser already used before activating. Unchanged files keep their existing copies. The first upgrade from unversioned runtime entries refreshes those entries. Downloaded language models keep their separate Cache Storage and voice models stay in OPFS, so replacing the app or engine preserves the teacher’s downloads.
 
 ---
 

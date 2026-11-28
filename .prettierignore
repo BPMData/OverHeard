@@ -1,5 +1,6 @@
 # Build output and dependencies
 node_modules/
+.claude/worktrees/
 dist/
 build/
 coverage/
@@ -7,8 +8,7 @@ playwright-report/
 test-results/
 saves/
 
-# Lockfiles
-bun.lock
+# npm lockfile
 package-lock.json
 
 # Vendored / large runtime assets (also gitignored)

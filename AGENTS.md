@@ -2,7 +2,7 @@
 
 OverHeard runs entirely on **Google Cloud Run** (service `over-heard`, region `us-east1`).
 Google AI Studio is no longer part of the workflow: nothing is built, synced, or deployed
-from it. Every push to `main` runs `.github/workflows/deploy.yml`, which repeats the checks
+from it. Pushes to `main` with changes outside Markdown run `.github/workflows/deploy.yml`, which repeats the checks
 below on Node 22 and then deploys with `gcloud run deploy --source .`. Merging a pull
 request is the deploy; there is no manual rebuild step.
 
@@ -56,8 +56,8 @@ runtime is fine. Report any failures or checks that could not be run.
 
 Read `ROOMS.md` before changing room transport or deployment. Live rooms and translation
 request coalescing currently live in one process, so keep Cloud Run's maximum instances at
-**1** until shared state/pub-sub is implemented. JSON exports are the durable local copy;
-server and Google Drive persistence remain future work in `TODO.md`.
+**1** until shared state/pub-sub is implemented. JSON exports are the durable local copy. Browser-initiated Google Drive file saves are implemented.
+Real-account Drive verification and durable server storage are tracked in `TODO.md`.
 
 ## Formatting
 

@@ -39,8 +39,26 @@ code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$PORT_URL/api/report" \
   -H 'Content-Type: application/json' -d '{"category":"translation","consent":true}')"
 echo "not configured -> $code"; [ "$code" = "503" ]
 
-echo "--- page loads"
-curl -sf "$PORT_URL/" | grep -q '<div id="root">'
+echo "--- production shell, cache headers and offline engines"
+node --input-type=module <<'NODE'
+import assert from 'node:assert/strict';
+const base = 'http://localhost:3000';
+for (const route of ['/', '/index.html', '/classroom-smoke', '/sw.js']) {
+  const response = await fetch(base + route);
+  assert.equal(response.status, 200, route);
+  assert.equal(response.headers.get('cache-control'), 'no-cache, no-store, must-revalidate', route);
+  assert.match(await response.text(), route === '/sw.js' ? /self\.addEventListener/ : /<div id="root">/, route);
+}
+for (const route of ['/ort/ort-wasm-simd-threaded.jsep.wasm', '/piper/piper_phonemize.wasm', '/bergamot/bergamot-translator-worker.wasm']) {
+  const response = await fetch(base + route, { headers: { Range: 'bytes=0-3' } });
+  assert.equal(response.status, 206, route);
+  assert.match(response.headers.get('content-type') || '', /application\/wasm/, route);
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), Uint8Array.of(0, 97, 115, 109), route);
+}
+for (const dir of ['assets', 'ort', 'piper', 'bergamot']) {
+  assert.equal((await fetch(base + '/' + dir + '/missing-file.wasm')).status, 404, dir);
+}
+NODE
 
 echo "--- production room creation, authorization and event stream"
 node --input-type=module <<'NODE'

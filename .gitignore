@@ -12,5 +12,4 @@ saves/
 .env*
 !.env.example
 
-# Dependencies are locked with bun.lock; npm (used in CI) regenerates its own lock
-package-lock.json
+gha-creds-*.json
