@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "verify": "npm run lint && npm test -- --run && npm run build && NODE_ENV=production node --check server.ts && bash scripts/smoke.sh",
     "gcp-build": "npm run build"
   },
   "dependencies": {

@@ -13,6 +13,10 @@ concurrency:
   group: deploy-cloudrun-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     name: Verify and deploy over-heard
@@ -29,33 +33,31 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Typecheck
-        run: npm run lint
+      - name: Verify lint, tests, build, and server smoke test
+        run: npm run verify
 
-      - name: Unit and UI tests
-        run: npm test -- --run
-
-      - name: Production build
-        run: npm run build
-
-      - name: Node 22 production syntax check
-        run: NODE_ENV=production node --check server.ts
-
-      - name: Server smoke test
-        run: bash scripts/smoke.sh
-
-      - name: Production browser upgrade test
+      - name: Production browser tests
         run: |
           npx playwright install --with-deps chromium
-          npm run test:e2e -- e2e/upgrade.spec.ts
+          npm run test:e2e
 
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
         uses: google-github-actions/auth@v3
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: projects/606573080592/locations/global/workloadIdentityPools/github/providers/overheard
+          service_account: github-deployer@loyal-rookery-403218.iam.gserviceaccount.com
 
       - name: Verify Cloud Run source upload
         run: bash scripts/check-upload.sh
+
+      - name: Record previous Cloud Run revision
+        id: previous
+        run: |
+          rev=$(gcloud run services describe over-heard \
+            --region us-east1 \
+            --project loyal-rookery-403218 \
+            --format='value(status.latestReadyRevisionName)' || true)
+          echo "revision=${rev}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloud Run
         run: |
@@ -72,3 +74,9 @@ jobs:
             --args "" \
             --update-labels "managed-by=github-actions,commit-sha=${GITHUB_SHA}" \
             --quiet
+
+      - name: Verify serving revision and live endpoints
+        env:
+          EXPECTED_COMMIT_SHA: ${{ github.sha }}
+          PREVIOUS_REVISION: ${{ steps.previous.outputs.revision }}
+        run: node scripts/check-deploy.mjs

@@ -107,11 +107,11 @@ Local development needs no server keys. The server defaults to GTX. Browser Driv
 
 | When | What runs |
 |---|---|
-| Pull request or push to main | [CI](.github/workflows/ci.yml) runs TypeScript and React hooks lint, Prettier, Vitest, the Vite build, a Node 22 syntax check, and the production smoke script. A separate Chromium job builds the app and runs the classroom flows and installed-app upgrade test. |
-| Push to main with a change outside Markdown, or manual deploy workflow | [Deployment](.github/workflows/deploy.yml) installs from the same npm lockfile and repeats lint, Vitest, build, syntax and smoke checks. The production browser upgrade test must pass before authentication. Prettier runs in CI. Markdown-only pushes skip deployment so a documentation edit preserves active rooms. |
-| Cloud Run source upload | Actions authenticates with the existing GitHub secret `GCP_SA_KEY`. The [upload check](scripts/check-upload.sh) verifies that gcloud includes the npm lockfile and excludes generated credential files. `gcloud run deploy --source .` sends the source to Google Cloud, where the Node buildpack installs dependencies and runs `gcp-build`. The service starts with `node server.ts` on port 3000. A missing `dist/index.html` stops startup. |
+| Pull request or push to main | [CI](.github/workflows/ci.yml) runs Prettier and `npm run verify` (TypeScript and React hooks lint, Vitest, the Vite build, a Node 22 syntax check, and the production smoke script). A separate Chromium job builds the app and runs the classroom flows and installed-app upgrade test. |
+| Push to main with a change outside Markdown, or manual deploy workflow | [Deployment](.github/workflows/deploy.yml) installs from the same npm lockfile, runs `npm run verify`, and runs the full Playwright production browser suite (`npm run test:e2e`) before authenticating. Prettier runs in CI. Markdown-only pushes skip deployment so a documentation edit preserves active rooms. |
+| Cloud Run source upload & post-deploy check | Actions authenticates via GitHub Workload Identity Federation (`overheard` provider in pool `github` → `github-deployer@loyal-rookery-403218.iam.gserviceaccount.com`). The [upload check](scripts/check-upload.sh) verifies that gcloud includes the npm lockfile and excludes any credential files, and `gcloud run deploy --source .` sends the source to Google Cloud, where the Node buildpack installs dependencies and runs `gcp-build`. The service starts with `node server.ts` on port 3000 (a missing `dist/index.html` stops startup). After deploy, the [release check](scripts/check-deploy.mjs) verifies the serving revision and `commit-sha` label, logs the previous revision for rollback, and fetches `/api/config`, `/sw.js`, and a built asset from the live URL. |
 
-To reproduce the checks with an unused port 3000 and Chromium installed:
+To reproduce the checks with an unused port 3000 and Chromium installed (`npm run verify` runs `lint`, `test`, `build`, `node --check server.ts`, and `scripts/smoke.sh` together):
 
 ```sh
 npm ci
