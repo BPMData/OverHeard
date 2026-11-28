@@ -56,10 +56,12 @@ export async function startServer({ port = PORT }: { port?: number } = {}) {
     process.env.npm_lifecycle_event === 'start' ||
     (process.env.NODE_ENV !== 'development' && Boolean(process.env.K_SERVICE));
 
-  const serveBuiltApp = isProd && fs.existsSync(path.join(distPath, 'index.html'));
+  if (isProd && !fs.existsSync(path.join(distPath, 'index.html'))) {
+    throw new Error('Production build is missing dist/index.html. Run npm run build before starting OverHeard.');
+  }
   const { app, close } = createApp({
     trustProxyHops: TRUST_PROXY_HOPS,
-    distPath: serveBuiltApp ? distPath : undefined,
+    distPath: isProd ? distPath : undefined,
     mt: {
       ipLimitMultiplier: IP_LIMIT_MULTIPLIER,
       mtPerSession: MT_PER_SESSION,
@@ -71,7 +73,7 @@ export async function startServer({ port = PORT }: { port?: number } = {}) {
     report: REPORT_OPTIONS,
   });
 
-  if (!serveBuiltApp) {
+  if (!isProd) {
     const { configureDevelopment } = await import('./server/development.ts');
     await configureDevelopment(app, __dirname);
   }

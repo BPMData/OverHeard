@@ -10,6 +10,9 @@ branding/
 .env*
 !.env.example
 bun.lock
-package-lock.json
+gha-creds-*.json
+.claude/
+playwright-report/
+test-results/
 public/ort/
 public/piper/

@@ -1,105 +1,8 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'path';
+import path from 'node:path';
+import { copyOfflineRuntimes, writeServiceWorker } from './scripts/build-offline.ts';
 import { defineConfig } from 'vite';
-
-const BERGAMOT_WORKER_FILES = [
-  'translator-worker.js',
-  'bergamot-translator-worker.js',
-  'bergamot-translator-worker.wasm',
-];
-
-function copyPiperRuntimesToDist() {
-  const ortSrcDir = path.resolve(__dirname, 'node_modules/onnxruntime-web/dist');
-  const piperSrcDir = path.resolve(__dirname, 'node_modules/@diffusionstudio/piper-wasm/build');
-  const distDir = path.resolve(__dirname, 'dist');
-  const ortDestDir = path.join(distDir, 'ort');
-  const piperDestDir = path.join(distDir, 'piper');
-  const assetsDir = path.join(distDir, 'assets');
-
-  if (fs.existsSync(ortSrcDir)) {
-    fs.mkdirSync(ortDestDir, { recursive: true });
-    for (const file of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
-      const src = path.join(ortSrcDir, file);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(ortDestDir, file));
-      }
-    }
-  }
-
-  if (fs.existsSync(piperSrcDir)) {
-    fs.mkdirSync(piperDestDir, { recursive: true });
-    for (const file of ['piper_phonemize.wasm', 'piper_phonemize.data']) {
-      const src = path.join(piperSrcDir, file);
-      if (fs.existsSync(src)) {
-        fs.copyFileSync(src, path.join(piperDestDir, file));
-      }
-    }
-  }
-
-  // Bergamot on-device translation: a classic worker that loads its WebAssembly next to itself
-  const bergamotSrcDir = path.resolve(__dirname, 'node_modules/@browsermt/bergamot-translator/worker');
-  if (fs.existsSync(bergamotSrcDir)) {
-    const bergamotDestDir = path.join(distDir, 'bergamot');
-    fs.mkdirSync(bergamotDestDir, { recursive: true });
-    for (const file of BERGAMOT_WORKER_FILES) {
-      fs.copyFileSync(path.join(bergamotSrcDir, file), path.join(bergamotDestDir, file));
-    }
-  }
-
-  if (fs.existsSync(assetsDir)) {
-    for (const file of fs.readdirSync(assetsDir)) {
-      if (file.startsWith('ort-wasm')) {
-        fs.rmSync(path.join(assetsDir, file), { force: true });
-      }
-    }
-  }
-}
-
-// Directories the service worker saves on first use instead of at install: the Piper
-// runtimes are ~40 MB and the Bergamot translation engine ~5 MB, too much to push to every
-// student who opens a room link.
-const NOT_PRECACHED = ['ort/', 'piper/', 'bergamot/', 'assets/aistudio/'];
-
-/**
- * Fill in the service worker's install-time file list and version, so one online visit saves
- * the whole app for offline use and each deploy replaces the previous copy.
- */
-function writeServiceWorkerPrecache() {
-  const distDir = path.resolve(__dirname, 'dist');
-  const swPath = path.join(distDir, 'sw.js');
-  if (!fs.existsSync(swPath)) return;
-
-  const files: string[] = [];
-  const walk = (dir: string) => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else files.push(path.relative(distDir, full).split(path.sep).join('/'));
-    }
-  };
-  walk(distDir);
-
-  const precache = files
-    .filter((file) => file !== 'sw.js' && !file.endsWith('.map'))
-    .filter((file) => !NOT_PRECACHED.some((prefix) => file.startsWith(prefix)))
-    .sort();
-  const hash = crypto.createHash('sha256');
-  for (const file of precache) {
-    hash.update(file);
-    hash.update(fs.readFileSync(path.join(distDir, file)));
-  }
-  const version = hash.digest('hex').slice(0, 12);
-
-  const source = fs.readFileSync(swPath, 'utf8');
-  const filled = source
-    .replace('const PRECACHE = [];', `const PRECACHE = ${JSON.stringify(precache.map((f) => `/${f}`))};`)
-    .replace("const SHELL_VERSION = 'dev';", `const SHELL_VERSION = '${version}';`);
-  if (filled === source) throw new Error('sw.js placeholders not found; precache list not written');
-  fs.writeFileSync(swPath, filled);
-}
 
 export default defineConfig(() => {
   return {
@@ -110,8 +13,9 @@ export default defineConfig(() => {
       {
         name: 'overheard-piper-runtimes',
         closeBundle() {
-          copyPiperRuntimesToDist();
-          writeServiceWorkerPrecache();
+          const dist = path.join(import.meta.dirname, 'dist');
+          copyOfflineRuntimes(dist, path.join(import.meta.dirname, 'node_modules'));
+          writeServiceWorker(dist);
         },
       },
       react(),
@@ -119,7 +23,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': import.meta.dirname,
       },
     },
     server: {

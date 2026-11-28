@@ -30,8 +30,8 @@ Real-time classroom speech transcription, multi-language translation, neural rea
 OverHeard runs on **Node.js 22** (production runs TypeScript directly via Node 22 native type stripping without a separate server build step).
 
 ```bash
-# Install dependencies (--legacy-peer-deps avoids peer range conflicts between vite and esbuild)
-npm install --legacy-peer-deps
+# Install the versions recorded in package-lock.json
+npm ci
 
 # Start development server (Express + Vite middleware on http://localhost:3000)
 npm run dev
@@ -44,8 +44,8 @@ Open `http://localhost:3000` in **Google Chrome** or **Microsoft Edge** (Web Spe
 ```bash
 npm test -- --run                # Run all Vitest unit, server, and UI suites
 npm run lint                      # tsc --noEmit, then oxlint (React hooks rules only)
-npm run test:e2e                  # Chromium browser tests (first run: npx playwright install chromium)
 npm run build                     # Build client assets into dist/ (includes /ort/ and /piper/ WASM assets)
+npm run test:e2e                  # Chromium tests against the build (first run: npx playwright install chromium)
 NODE_ENV=production node --check server.ts
 npm start                         # Run production server directly on 0.0.0.0:3000
 bash scripts/smoke.sh             # Start production Node server and verify API + room SSE flow
@@ -107,7 +107,7 @@ src/
 
 ## Deployment Notes
 
-- **Google Cloud Run only**: Production is the Cloud Run service `over-heard` (`us-east1`). Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which typechecks, tests, builds, smoke-tests, and then deploys. No AI Studio rebuild or sync is involved. API keys and the optional settings above are environment variables on the Cloud Run service and survive deploys.
+- **Google Cloud Run only**: Production is the Cloud Run service `over-heard` (`us-east1`). Pushes to `main` with changes outside Markdown run [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which typechecks, tests, builds, smoke-tests, and then deploys. No AI Studio rebuild or sync is involved. API keys and the optional settings above are environment variables on the Cloud Run service and survive deploys.
 - **Student short links**: `bpmdata.github.io/<room>` is a GitHub Pages redirect to the Cloud Run service (see [ROOMS.md](ROOMS.md)).
 - **Single instance required for live rooms**: Live classroom rooms and translation request coalescing currently reside in server process memory — keep Cloud Run **maximum instances set to `1`** (see [ROOMS.md](ROOMS.md)).
 - **Node 22 native TypeScript stripping**: Server and shared files imported by `server.ts` must stay strictly erasable TypeScript with explicit `.ts` extensions on relative server imports (see [AGENTS.md](AGENTS.md)).
