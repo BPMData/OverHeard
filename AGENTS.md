@@ -1,6 +1,7 @@
 # OverHeard — deployment rules
 
-OverHeard runs entirely on **Google Cloud Run** (service `over-heard`, region `us-east1`).
+OverHeard runs entirely on **Google Cloud Run** (service `overheard`, region `us-east1`; it was
+`over-heard` until 2026-11-28, see README's Deployment Notes).
 Google AI Studio is no longer part of the workflow: nothing is built, synced, or deployed
 from it. Pushes to `main` with changes outside Markdown run `.github/workflows/deploy.yml`, which repeats the checks
 below on Node 22 and then deploys with `gcloud run deploy --source .`. Merging a pull
@@ -29,12 +30,13 @@ a reference but must not be edited.
 - Preserve `Cache-Control: no-cache, no-store, must-revalidate` for `index.html`, `sw.js`,
   and the SPA fallback in `server.ts`.
 - Keep all API keys server-only. Preserve graceful fallbacks when environment variables
-  are missing; do not require new keys just to start the app. Production keys and settings
-  are environment variables on the Cloud Run service itself (Console → Edit & deploy new
-  revision → Variables & Secrets); `deploy.yml` does not set them, so deploys keep them. The one
-  exception is the problem-report relay settings (`REPORT_RELAY_URL`, `REPORT_RELAY_SECRET`):
-  `deploy.yml` attaches them from Secret Manager and runs the service as `overheard-run`
-  (docs/REPORTS.md).
+  are missing; do not require new keys just to start the app. Production settings are all set
+  by `deploy.yml`, so a deploy can create the service from scratch and nothing is hand-set in
+  the console: secrets (`GOOGLE_TRANSLATE_API_KEY`, `REPORT_RELAY_URL`, `REPORT_RELAY_SECRET`)
+  are attached from Secret Manager with `--set-secrets`; plain settings
+  (`CLOUD_TRANSLATE_DAILY_CHARS`, `SHORT_LINK_BASE`) with `--update-env-vars`; the service runs
+  as `overheard-run`, which can read only OverHeard's own secrets (docs/REPORTS.md). Add any new
+  production setting there too.
 
 ## Required verification
 

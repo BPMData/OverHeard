@@ -1,6 +1,7 @@
 // Short student links (e.g. https://bpmdata.github.io/murphy-p3). The GitHub Pages site's
 // 404.html forwards any unknown path to this service, so rooms need no per-room pages.
-const PRODUCTION_SERVICE = 'over-heard';
+// Renamed from `over-heard` on 2026-11-28. deploy.yml also sets SHORT_LINK_BASE explicitly, which wins.
+const PRODUCTION_SERVICE = 'overheard';
 const PRODUCTION_SHORT_LINK_BASE = 'https://bpmdata.github.io';
 
 /**

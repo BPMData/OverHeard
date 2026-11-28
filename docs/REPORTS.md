@@ -63,7 +63,7 @@ The relay's limits are shared by all four apps: 20 reports an hour and 40 a day 
 
 ## Settings (owner)
 
-Two environment variables on the Cloud Run service `over-heard`, both from **Secret Manager** in
+Two environment variables on the Cloud Run service `overheard`, both from **Secret Manager** in
 project `loyal-rookery-403218`:
 
 | Variable | Secret |
