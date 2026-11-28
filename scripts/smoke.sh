@@ -7,7 +7,7 @@ node --version
 PORT_URL="http://localhost:3000"
 LOG="$(mktemp)"
 
-REPORT_GITHUB_TOKEN= REPORT_RELAY_URL= MT_PROVIDER=gtx NODE_ENV=production node server.ts >"$LOG" 2>&1 &
+REPORT_RELAY_URL= REPORT_RELAY_SECRET= MT_PROVIDER=gtx NODE_ENV=production node server.ts >"$LOG" 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
 

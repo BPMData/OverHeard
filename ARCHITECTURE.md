@@ -54,7 +54,7 @@ server.ts               Reads env, exports startServer(), runs when invoked as m
 server/
   app.ts                Express middleware (COOP header), room router, static dist/ headers & SPA fallback
   routes/mt.ts          /api/config, /api/mt, per-session & per-IP rate limits, [usage] logger
-  report.ts             /api/report and /api/report/status: problem reports to a GitHub issue and the email relay (docs/REPORTS.md)
+  report.ts             /api/report and /api/report/status: problem reports to the shared report relay (docs/REPORTS.md)
   development.ts        Vite middleware and dev-only /ort/, /piper/ & /bergamot/ runtime routes (lazy-imported only in dev)
   mt.ts                 Provider chain (gtx / google-cloud), 10-min benching, pending-request coalescing
   rooms.ts              In-memory live rooms, salted PIN hash + bearer token rotation, SSE delta/snapshot stream
